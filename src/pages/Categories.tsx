@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getCategories, getChannelsByCategory, toggleFavoriteChannel } from '@/services/api';
-import { Tab, Tabs, TabList, TabPanel } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import ChannelCard from '@/components/ChannelCard';
 import VideoPlayer from '@/components/VideoPlayer';
 import { Channel } from '@/types';
