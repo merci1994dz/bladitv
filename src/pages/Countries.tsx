@@ -58,8 +58,9 @@ const Countries: React.FC = () => {
 
   if (isLoadingCountries) {
     return (
-      <div className="min-h-screen flex justify-center items-center">
-        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950">
+        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-500 animate-pulse">جاري تحميل البلدان...</p>
       </div>
     );
   }
@@ -79,25 +80,30 @@ const Countries: React.FC = () => {
 
       {countries && countries.length > 0 && (
         <Tabs defaultValue={countries[0].id} dir="rtl" className="w-full">
-          <TabsList className="w-full overflow-x-auto flex justify-start mb-4 px-4 bg-transparent">
-            {countries.map(country => (
-              <TabsTrigger 
-                key={country.id} 
-                value={country.id}
-                onClick={() => handleTabChange(country.id)}
-                className="px-6 py-2"
-              >
-                <span className="ml-2">{country.flag}</span>
-                {country.name}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <div className="relative">
+            <TabsList className="w-full overflow-x-auto flex justify-start mb-4 px-4 bg-transparent">
+              {countries.map(country => (
+                <TabsTrigger 
+                  key={country.id} 
+                  value={country.id}
+                  onClick={() => handleTabChange(country.id)}
+                  className="px-6 py-2 flex items-center space-x-2 rtl:space-x-reverse transition-all duration-200 hover:bg-primary/10"
+                >
+                  <span className="text-xl">{country.flag}</span>
+                  <span>{country.name}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-background to-transparent pointer-events-none"></div>
+            <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none"></div>
+          </div>
           
           {countries.map(country => (
-            <TabsContent key={country.id} value={country.id} className="px-4">
+            <TabsContent key={country.id} value={country.id} className="px-4 animate-fade-in">
               {isLoadingChannels ? (
-                <div className="py-10 flex justify-center">
-                  <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <div className="py-10 flex flex-col justify-center items-center">
+                  <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-2"></div>
+                  <p className="text-sm text-gray-500">جاري تحميل القنوات...</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -111,8 +117,11 @@ const Countries: React.FC = () => {
                       />
                     ))
                   ) : (
-                    <div className="col-span-full py-10 text-center text-gray-500">
-                      لا توجد قنوات من هذا البلد
+                    <div className="col-span-full py-10 text-center">
+                      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 max-w-md mx-auto">
+                        <p className="text-gray-500 mb-2">لا توجد قنوات من هذا البلد</p>
+                        <p className="text-sm text-gray-400">يمكنك مشاهدة قنوات من بلدان أخرى أو العودة لاحقًا</p>
+                      </div>
                     </div>
                   )}
                 </div>
