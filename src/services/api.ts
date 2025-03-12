@@ -1,4 +1,3 @@
-
 import { Channel, Category, Country } from '@/types';
 
 // بيانات وهمية للاختبار
@@ -11,14 +10,54 @@ const categories: Category[] = [
 ];
 
 const countries: Country[] = [
-  { id: '1', name: 'المغرب', flag: '🇲🇦' },
-  { id: '2', name: 'الجزائر', flag: '🇩🇿' },
-  { id: '3', name: 'مصر', flag: '🇪🇬' },
-  { id: '4', name: 'السعودية', flag: '🇸🇦' },
-  { id: '5', name: 'تونس', flag: '🇹🇳' },
-  { id: '6', name: 'قطر', flag: '🇶🇦' },
-  { id: '7', name: 'الإمارات', flag: '🇦🇪' },
-  { id: '8', name: 'الكويت', flag: '🇰🇼' },
+  { 
+    id: '1', 
+    name: 'المغرب', 
+    flag: '🇲🇦', 
+    image: 'https://images.unsplash.com/photo-1528657249085-893be9ffd8f3?q=80&w=500&auto=format&fit=crop'
+  },
+  { 
+    id: '2', 
+    name: 'الجزائر', 
+    flag: '🇩🇿', 
+    image: 'https://images.unsplash.com/photo-1583774248673-85f5e8558091?q=80&w=500&auto=format&fit=crop'
+  },
+  { 
+    id: '3', 
+    name: 'مصر', 
+    flag: '🇪🇬', 
+    image: 'https://images.unsplash.com/photo-1572252009286-268acec5ca0a?q=80&w=500&auto=format&fit=crop'
+  },
+  { 
+    id: '4', 
+    name: 'السعودية', 
+    flag: '🇸🇦', 
+    image: 'https://images.unsplash.com/photo-1586724237569-f3d0c1dee8c6?q=80&w=500&auto=format&fit=crop'
+  },
+  { 
+    id: '5', 
+    name: 'تونس', 
+    flag: '🇹🇳', 
+    image: 'https://images.unsplash.com/photo-1605216663770-d64eacdd8ba4?q=80&w=500&auto=format&fit=crop'
+  },
+  { 
+    id: '6', 
+    name: 'قطر', 
+    flag: '🇶🇦', 
+    image: 'https://images.unsplash.com/photo-1518990708123-762400bee438?q=80&w=500&auto=format&fit=crop'
+  },
+  { 
+    id: '7', 
+    name: 'الإمارات', 
+    flag: '🇦🇪', 
+    image: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?q=80&w=500&auto=format&fit=crop'
+  },
+  { 
+    id: '8', 
+    name: 'الكويت', 
+    flag: '🇰🇼', 
+    image: 'https://images.unsplash.com/photo-1534778356534-d3dda7d937e9?q=80&w=500&auto=format&fit=crop'
+  },
 ];
 
 const channels: Channel[] = [

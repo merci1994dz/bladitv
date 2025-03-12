@@ -7,6 +7,7 @@ import ChannelCard from '@/components/ChannelCard';
 import VideoPlayer from '@/components/VideoPlayer';
 import { Channel } from '@/types';
 import { useToast } from "@/hooks/use-toast";
+import { Globe } from 'lucide-react';
 
 const Countries: React.FC = () => {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
@@ -65,6 +66,10 @@ const Countries: React.FC = () => {
     );
   }
 
+  const activeCountryData = activeCountry && countries ? 
+    countries.find(country => country.id === activeCountry) : 
+    (countries && countries.length > 0 ? countries[0] : null);
+
   return (
     <div className="pb-20 pt-4">
       <header className="px-4 py-2 mb-6">
@@ -97,6 +102,25 @@ const Countries: React.FC = () => {
             <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-background to-transparent pointer-events-none"></div>
             <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none"></div>
           </div>
+
+          {/* Country image banner */}
+          {activeCountryData && (
+            <div className="relative h-40 md:h-56 lg:h-64 mb-6 overflow-hidden rounded-lg mx-4">
+              <img 
+                src={activeCountryData.image} 
+                alt={activeCountryData.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1589519160732-57fc498494f8?q=80&w=500&auto=format&fit=crop';
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+              <div className="absolute bottom-0 right-0 p-4 flex items-center gap-2">
+                <span className="text-4xl">{activeCountryData.flag}</span>
+                <h2 className="text-white text-2xl font-bold">{activeCountryData.name}</h2>
+              </div>
+            </div>
+          )}
           
           {countries.map(country => (
             <TabsContent key={country.id} value={country.id} className="px-4 animate-fade-in">
@@ -119,6 +143,9 @@ const Countries: React.FC = () => {
                   ) : (
                     <div className="col-span-full py-10 text-center">
                       <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 max-w-md mx-auto">
+                        <div className="flex justify-center mb-4">
+                          <Globe className="h-10 w-10 text-gray-400" />
+                        </div>
                         <p className="text-gray-500 mb-2">لا توجد قنوات من هذا البلد</p>
                         <p className="text-sm text-gray-400">يمكنك مشاهدة قنوات من بلدان أخرى أو العودة لاحقًا</p>
                       </div>
