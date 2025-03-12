@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getCountries, getChannelsByCountry, toggleFavoriteChannel } from '@/services/api';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -7,7 +7,7 @@ import ChannelCard from '@/components/ChannelCard';
 import VideoPlayer from '@/components/VideoPlayer';
 import { Channel } from '@/types';
 import { useToast } from "@/hooks/use-toast";
-import { Globe } from 'lucide-react';
+import { Globe, Flag } from 'lucide-react';
 
 const Countries: React.FC = () => {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
@@ -25,14 +25,23 @@ const Countries: React.FC = () => {
   const { 
     data: countryChannels,
     isLoading: isLoadingChannels,
+    refetch: refetchChannels
   } = useQuery({
     queryKey: ['channelsByCountry', activeCountry],
     queryFn: () => activeCountry ? getChannelsByCountry(activeCountry) : Promise.resolve([]),
     enabled: !!activeCountry,
   });
 
+  // Set the first country as active when countries are loaded
+  useEffect(() => {
+    if (countries && countries.length > 0 && !activeCountry) {
+      setActiveCountry(countries[0].id);
+    }
+  }, [countries, activeCountry]);
+
   const handleTabChange = (countryId: string) => {
     setActiveCountry(countryId);
+    refetchChannels();
   };
 
   const handlePlayChannel = (channel: Channel) => {
@@ -47,6 +56,8 @@ const Countries: React.FC = () => {
         description: `${updatedChannel.name} ${updatedChannel.isFavorite ? 'تمت إضافتها للمفضلة' : 'تمت إزالتها من المفضلة'}`,
         duration: 2000,
       });
+      // Refresh the channels list
+      refetchChannels();
     } catch (error) {
       toast({
         title: "حدث خطأ",
@@ -84,18 +95,22 @@ const Countries: React.FC = () => {
       )}
 
       {countries && countries.length > 0 && (
-        <Tabs defaultValue={countries[0].id} dir="rtl" className="w-full">
+        <Tabs 
+          value={activeCountry || countries[0].id} 
+          onValueChange={handleTabChange}
+          dir="rtl" 
+          className="w-full"
+        >
           <div className="relative">
             <TabsList className="w-full overflow-x-auto flex justify-start mb-4 px-4 bg-transparent">
               {countries.map(country => (
                 <TabsTrigger 
                   key={country.id} 
                   value={country.id}
-                  onClick={() => handleTabChange(country.id)}
-                  className="px-6 py-2 flex items-center space-x-2 rtl:space-x-reverse transition-all duration-200 hover:bg-primary/10"
+                  className="px-6 py-2 flex items-center gap-3 transition-all duration-200 hover:bg-primary/10"
                 >
-                  <span className="text-xl">{country.flag}</span>
-                  <span>{country.name}</span>
+                  <span className="text-2xl">{country.flag}</span>
+                  <span className="font-medium">{country.name}</span>
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -115,8 +130,8 @@ const Countries: React.FC = () => {
                 }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
-              <div className="absolute bottom-0 right-0 p-4 flex items-center gap-2">
-                <span className="text-4xl">{activeCountryData.flag}</span>
+              <div className="absolute bottom-0 right-0 p-4 flex items-center gap-3">
+                <span className="text-5xl">{activeCountryData.flag}</span>
                 <h2 className="text-white text-2xl font-bold">{activeCountryData.name}</h2>
               </div>
             </div>
@@ -130,28 +145,35 @@ const Countries: React.FC = () => {
                   <p className="text-sm text-gray-500">جاري تحميل القنوات...</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {countryChannels && countryChannels.length > 0 ? (
-                    countryChannels.map(channel => (
-                      <ChannelCard 
-                        key={channel.id} 
-                        channel={channel} 
-                        onPlay={handlePlayChannel}
-                        onToggleFavorite={handleToggleFavorite}
-                      />
-                    ))
-                  ) : (
-                    <div className="col-span-full py-10 text-center">
-                      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 max-w-md mx-auto">
-                        <div className="flex justify-center mb-4">
-                          <Globe className="h-10 w-10 text-gray-400" />
+                <>
+                  <div className="flex items-center mb-4 gap-2">
+                    <Flag className="h-5 w-5 text-primary" />
+                    <h2 className="text-xl font-semibold">قنوات {country.name}</h2>
+                  </div>
+                
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {countryChannels && countryChannels.length > 0 ? (
+                      countryChannels.map(channel => (
+                        <ChannelCard 
+                          key={channel.id} 
+                          channel={channel} 
+                          onPlay={handlePlayChannel}
+                          onToggleFavorite={handleToggleFavorite}
+                        />
+                      ))
+                    ) : (
+                      <div className="col-span-full py-10 text-center">
+                        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 max-w-md mx-auto">
+                          <div className="flex justify-center mb-4">
+                            <Globe className="h-10 w-10 text-gray-400" />
+                          </div>
+                          <p className="text-gray-500 mb-2">لا توجد قنوات من {country.name}</p>
+                          <p className="text-sm text-gray-400">يمكنك مشاهدة قنوات من بلدان أخرى أو العودة لاحقًا</p>
                         </div>
-                        <p className="text-gray-500 mb-2">لا توجد قنوات من هذا البلد</p>
-                        <p className="text-sm text-gray-400">يمكنك مشاهدة قنوات من بلدان أخرى أو العودة لاحقًا</p>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                </>
               )}
             </TabsContent>
           ))}
