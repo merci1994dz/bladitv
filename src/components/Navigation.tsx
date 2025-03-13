@@ -1,80 +1,82 @@
-
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { Home, Search, Heart, Tv, Globe, Settings } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Home, Heart, Flag, Grid3X3, Search, Settings, Globe } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const Navigation: React.FC = () => {
-  // تغيير هذا ليكون مرئيًا للمستخدمين
-  const showAdminLink = true;
-
+  const location = useLocation();
+  
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
+  
   return (
-    <nav className="fixed bottom-0 inset-x-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 py-2 z-30">
-      <div className="max-w-screen-xl mx-auto px-4">
-        <div className="flex justify-around items-center">
-          <NavLink 
+    <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-50">
+      <div className="container max-w-md mx-auto px-4">
+        <div className="flex justify-between items-center py-2">
+          <NavItem 
             to="/home" 
-            className={({ isActive }) => 
-              `flex flex-col items-center p-2 ${isActive ? 'text-primary' : 'text-gray-600 dark:text-gray-400'}`
-            }
-          >
-            <Home size={24} />
-            <span className="text-xs mt-1">الرئيسية</span>
-          </NavLink>
-          
-          <NavLink 
-            to="/categories" 
-            className={({ isActive }) => 
-              `flex flex-col items-center p-2 ${isActive ? 'text-primary' : 'text-gray-600 dark:text-gray-400'}`
-            }
-          >
-            <Tv size={24} />
-            <span className="text-xs mt-1">الفئات</span>
-          </NavLink>
-          
-          <NavLink 
-            to="/countries" 
-            className={({ isActive }) => 
-              `flex flex-col items-center p-2 ${isActive ? 'text-primary' : 'text-gray-600 dark:text-gray-400'}`
-            }
-          >
-            <Globe size={24} />
-            <span className="text-xs mt-1">البلدان</span>
-          </NavLink>
-          
-          <NavLink 
-            to="/search" 
-            className={({ isActive }) => 
-              `flex flex-col items-center p-2 ${isActive ? 'text-primary' : 'text-gray-600 dark:text-gray-400'}`
-            }
-          >
-            <Search size={24} />
-            <span className="text-xs mt-1">البحث</span>
-          </NavLink>
-          
-          <NavLink 
+            icon={<Home className="h-6 w-6" />} 
+            label="الرئيسية" 
+            isActive={isActive('/home')} 
+          />
+          <NavItem 
             to="/favorites" 
-            className={({ isActive }) => 
-              `flex flex-col items-center p-2 ${isActive ? 'text-primary' : 'text-gray-600 dark:text-gray-400'}`
-            }
-          >
-            <Heart size={24} />
-            <span className="text-xs mt-1">المفضلة</span>
-          </NavLink>
-
-          {showAdminLink && (
-            <NavLink 
-              to="/admin" 
-              className={({ isActive }) => 
-                `flex flex-col items-center p-2 ${isActive ? 'text-primary' : 'text-gray-600 dark:text-gray-400'}`
-              }
-            >
-              <Settings size={24} />
-              <span className="text-xs mt-1">الإدارة</span>
-            </NavLink>
-          )}
+            icon={<Heart className="h-6 w-6" />} 
+            label="المفضلة" 
+            isActive={isActive('/favorites')} 
+          />
+          <NavItem 
+            to="/countries" 
+            icon={<Flag className="h-6 w-6" />} 
+            label="البلدان" 
+            isActive={isActive('/countries')} 
+          />
+          <NavItem 
+            to="/categories" 
+            icon={<Grid3X3 className="h-6 w-6" />} 
+            label="الفئات" 
+            isActive={isActive('/categories')} 
+          />
+          <NavItem 
+            to="/search" 
+            icon={<Search className="h-6 w-6" />} 
+            label="البحث" 
+            isActive={isActive('/search')} 
+          />
+          <NavItem 
+            to="/admin" 
+            icon={<Settings className="h-6 w-6" />} 
+            label="الإدارة" 
+            isActive={isActive('/admin') || isActive('/remote-config')} 
+          />
         </div>
       </div>
     </nav>
+  );
+};
+
+interface NavItemProps {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+  isActive: boolean;
+}
+
+const NavItem: React.FC<NavItemProps> = ({ to, icon, label, isActive }) => {
+  return (
+    <Link 
+      to={to} 
+      className={cn(
+        "flex flex-col items-center justify-center px-2 py-1 rounded-lg transition-colors",
+        isActive 
+          ? "text-primary" 
+          : "text-muted-foreground hover:text-foreground"
+      )}
+    >
+      {icon}
+      <span className="text-xs mt-1">{label}</span>
+    </Link>
   );
 };
 

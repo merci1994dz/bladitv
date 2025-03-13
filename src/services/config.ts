@@ -6,7 +6,8 @@ export const STORAGE_KEYS = {
   CATEGORIES: 'tv_categories',
   LAST_SYNC: 'tv_last_sync',
   ADMIN_PASSWORD: 'tv_admin_password',
-  USER_SETTINGS: 'tv_user_settings'
+  USER_SETTINGS: 'tv_user_settings',
+  REMOTE_CONFIG: 'tv_remote_config'
 };
 
 // Default admin password - will be saved to localStorage
@@ -32,4 +33,12 @@ export const SECURITY_CONFIG = {
   ALLOW_RIGHT_CLICK: false,          // منع النقر بالزر الأيمن
   DISABLE_VIDEO_DOWNLOAD: true,      // منع تحميل الفيديو
   LOG_ACCESS_ATTEMPTS: true          // تسجيل محاولات الوصول غير المصرح بها
+};
+
+// تكوين التحديث عن بُعد
+export const REMOTE_CONFIG = {
+  ENABLED: true,                     // تمكين التحديث عن بُعد
+  CHECK_INTERVAL: 1000 * 60 * 60,    // تحقق من التحديثات كل ساعة (بالميلي ثانية)
+  REMOTE_URL: '',                    // عنوان URL للتكوين عن بُعد (يتم تعيينه من واجهة المستخدم)
+  LAST_CHECK: null                   // وقت آخر تحقق من التحديثات
 };

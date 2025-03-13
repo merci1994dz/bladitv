@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   useQuery, 
@@ -44,7 +43,8 @@ import {
   Flag, 
   Tv,
   Settings,
-  RefreshCw
+  RefreshCw,
+  Globe
 } from 'lucide-react';
 import { 
   AlertDialog,
@@ -65,6 +65,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import AdminLogin from '@/components/AdminLogin';
+import { Link } from 'react-router-dom';
 
 const Admin: React.FC = () => {
   const { toast } = useToast();
@@ -417,7 +418,7 @@ const Admin: React.FC = () => {
         <h1 className="text-3xl font-bold mb-2">لوحة الإدارة</h1>
         <p className="text-muted-foreground">إدارة القنوات والبلدان في التطبيق</p>
         
-        <div className="mt-4 flex justify-center gap-4">
+        <div className="mt-4 flex flex-wrap justify-center gap-4">
           <Button 
             variant="outline" 
             onClick={handleForceSync}
@@ -426,6 +427,17 @@ const Admin: React.FC = () => {
           >
             <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
             <span>{isSyncing ? 'جاري المزامنة...' : 'مزامنة مع الخادم'}</span>
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2"
+            asChild
+          >
+            <Link to="/remote-config">
+              <Globe className="h-4 w-4" />
+              <span>إعدادات التحديث عن بُعد</span>
+            </Link>
           </Button>
         </div>
       </header>
