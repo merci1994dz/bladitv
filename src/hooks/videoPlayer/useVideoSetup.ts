@@ -29,13 +29,14 @@ export const setupVideoSource = (videoElement: HTMLVideoElement, streamUrl: stri
     // Apply advanced security measures
     if (VIDEO_PLAYER.DISABLE_INSPECT) {
       // Make it harder to inspect the video element
-      const originalSrc = videoElement.src;
+      let srcValue = streamUrl; // Use a variable instead of trying to modify the constant
+      
       Object.defineProperty(videoElement, 'src', {
         get: function() {
-          return VIDEO_PLAYER.HIDE_STREAM_URLS ? 'protected://stream' : originalSrc;
+          return VIDEO_PLAYER.HIDE_STREAM_URLS ? 'protected://stream' : srcValue;
         },
         set: function(newValue) {
-          originalSrc = newValue;
+          srcValue = newValue; // Update the variable instead of trying to modify the constant
           this.setAttribute('src', newValue);
         },
         configurable: false
