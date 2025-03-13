@@ -67,7 +67,7 @@ const ExternalStreamingButton: React.FC<ExternalStreamingButtonProps> = ({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="bg-black/80 backdrop-blur-md border-white/10 text-white min-w-52">
-        {channel.externalLinks?.map((link) => {
+        {channel.externalLinks?.map((link: StreamingLink) => {
           const provider = enabledProviders.find(p => p.id === link.serviceId);
           if (!provider) return null;
           

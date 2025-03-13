@@ -7,7 +7,7 @@ export interface Channel {
   category: string;
   country: string;
   isFavorite: boolean;
-  externalLinks?: ExternalStreamingService[];
+  externalLinks?: StreamingLink[];
 }
 
 export interface Category {
@@ -39,13 +39,8 @@ export interface RemoteAdminConfig {
   lastSyncTime?: string;
 }
 
-// New type for external streaming services
-export interface ExternalStreamingService {
-  id: string;
-  name: string;
-  url: string;
-  icon: string;
-}
+// استيراد نوع StreamingLink من ملف externalStreaming.d.ts
+import { StreamingLink } from './externalStreaming';
 
 // New type for program guides
 export interface TVProgram {
