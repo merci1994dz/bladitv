@@ -1,6 +1,17 @@
 
 import { STORAGE_KEYS, REMOTE_CONFIG } from '../config';
 
+// Helper function to get/set last sync time
+export const getLastSyncTime = (): string | null => {
+  return localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
+};
+
+export const updateLastSyncTime = (): string => {
+  const lastSyncTime = new Date().toISOString();
+  localStorage.setItem(STORAGE_KEYS.LAST_SYNC, lastSyncTime);
+  return lastSyncTime;
+};
+
 // Helper function to check if sync is needed
 export const isSyncNeeded = (): boolean => {
   const hasChannels = !!localStorage.getItem(STORAGE_KEYS.CHANNELS);
@@ -16,15 +27,4 @@ export const isSyncNeeded = (): boolean => {
   }
   
   return !hasChannels || !hasCategories || !hasCountries;
-};
-
-// Helper function to get/set last sync time
-export const getLastSyncTime = (): string | null => {
-  return localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
-};
-
-export const updateLastSyncTime = (): string => {
-  const lastSyncTime = new Date().toISOString();
-  localStorage.setItem(STORAGE_KEYS.LAST_SYNC, lastSyncTime);
-  return lastSyncTime;
 };

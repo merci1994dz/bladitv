@@ -2,7 +2,7 @@
 import { Channel } from '@/types';
 import { channels } from './dataStore';
 import { STORAGE_KEYS } from './config';
-import { syncWithRemoteAPI } from './syncService';
+import { syncWithRemoteAPI } from './sync'; // Fixed import path
 
 // Channel-related API functions
 export const getChannels = async (): Promise<Channel[]> => {

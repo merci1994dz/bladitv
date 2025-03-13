@@ -1,16 +1,15 @@
 
 import { REMOTE_CONFIG } from '../config';
 import { isSyncing, setIsSyncing } from '../dataStore';
-import { getRemoteConfig } from './remote';
-import { syncWithRemoteSource } from './remote';
-import { syncWithLocalData } from './local';
-import { isSyncNeeded, getLastSyncTime } from './config';
+import { getRemoteConfig, setRemoteConfig, syncWithRemoteSource } from './remote';
+import { syncWithLocalData, getLastSyncTime, isSyncNeeded, forceSync, obfuscateStreamUrls, syncWithRemoteAPI } from './local';
+import { setupAutoSync } from './auto';
 
 // Main export of sync functions
 export { 
   getLastSyncTime, 
   isSyncNeeded,
-  syncWithLocalData as syncWithRemoteAPI, // For backward compatibility
+  syncWithRemoteAPI,
   forceSync,
   obfuscateStreamUrls
 } from './local';

@@ -68,7 +68,8 @@ const SyncStatus: React.FC = () => {
     );
   }
 
-  const lastSyncDate = new Date(lastSync);
+  // Fix TypeScript error by type assertion of lastSync to string
+  const lastSyncDate = new Date(lastSync as string);
   const timeAgo = formatDistanceToNow(lastSyncDate, { 
     addSuffix: true,
     locale: ar 
