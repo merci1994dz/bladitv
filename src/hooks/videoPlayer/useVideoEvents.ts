@@ -35,14 +35,18 @@ export function useVideoEvents({
     handlePlaybackError
   });
 
-  // Setup video and initialize playback when channel changes or on retry
+  // Simplified setup effect
   useEffect(() => {
-    // Reset states on new video
+    console.log("Setting up video for channel:", channel.name, "attempt:", retryCount);
+    
+    // Reset states
     setError(null);
     setIsLoading(true);
-    setIsPlaying(false);
     
-    // Initialize video playback
-    initializeVideoPlayback(videoRef, channel, setIsLoading, setError);
-  }, [channel.streamUrl, channel.name, retryCount]);
+    // Initialize video playback with short delay to allow cleanup
+    setTimeout(() => {
+      initializeVideoPlayback(videoRef, channel, setIsLoading, setError);
+    }, 300);
+    
+  }, [channel.streamUrl, retryCount]);
 }

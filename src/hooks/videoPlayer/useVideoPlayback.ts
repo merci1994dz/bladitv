@@ -1,3 +1,4 @@
+
 import { Channel } from '@/types';
 import { useVideoSetup } from './useVideoSetup';
 import { useVideoRetry } from './useVideoRetry';
@@ -12,12 +13,6 @@ interface UseVideoPlaybackProps {
 }
 
 export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
-  // منع تسريب روابط البث عبر console logs
-  const secureChannel = VIDEO_PLAYER.HIDE_STREAM_URLS ? {
-    ...channel,
-    streamUrl: channel.streamUrl // الحقيقي يبقى للاستخدام الداخلي فقط
-  } : channel;
-
   // Set up core video state and refs
   const {
     videoRef,
@@ -27,7 +22,7 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     setError
   } = useVideoSetup();
 
-  // Create a ref to keep track of current channel ID
+  // Create a ref to track current channel
   const currentChannelIdRef = useRef(channel.id);
   
   // Set up video playback controls
@@ -49,7 +44,7 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     handlePlaybackError
   } = useVideoRetry({
     videoRef,
-    channel: secureChannel,
+    channel,
     setIsLoading,
     setError,
     setIsPlaying
@@ -58,7 +53,7 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
   // Set up video event listeners
   useVideoEvents({
     videoRef,
-    channel: secureChannel,
+    channel,
     isPlaying,
     setIsPlaying,
     setIsLoading,
@@ -67,11 +62,11 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     handlePlaybackError
   });
   
-  // إعادة تهيئة المشغل عند تغيير القناة
+  // إعادة تهيئة المشغل عند تغيير القناة - مبسطة
   useEffect(() => {
-    console.log("Channel changed in useVideoPlayback:", channel.name);
+    console.log("Channel changed: ", channel.name);
     
-    // تهيئة مشغل الفيديو أو إعادة تعيينه
+    // تهيئة أساسية
     setIsLoading(true);
     setError(null);
     
@@ -80,42 +75,13 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
       console.error("Missing stream URL for channel:", channel.name);
       setError("لا يوجد رابط بث متاح لهذه القناة");
       setIsLoading(false);
-      
-      toast({
-        title: "تعذر تشغيل القناة",
-        description: "لا يوجد رابط بث متاح لهذه القناة",
-        variant: "destructive",
-        duration: 4000,
-      });
-      
       return;
     }
     
-    if (currentChannelIdRef.current !== channel.id) {
-      console.log("Resetting player for new channel:", channel.name);
-      currentChannelIdRef.current = channel.id;
-      
-      // محاولة تشغيل القناة الجديدة بعد فترة أطول للسماح بالتهيئة
-      setTimeout(() => {
-        if (videoRef.current) {
-          try {
-            console.log("Attempting to load and play new channel");
-            videoRef.current.load();
-            
-            const playPromise = videoRef.current.play();
-            if (playPromise !== undefined) {
-              playPromise.catch(err => {
-                console.error('Failed to auto-play new channel:', err);
-                // لا نعرض خطأ للمستخدم هنا لأن النظام سيحاول مرة أخرى تلقائيًا
-              });
-            }
-          } catch (err) {
-            console.error('Error during initial play attempt:', err);
-          }
-        }
-      }, 1500); // زيادة التأخير للسماح للمتصفح بتهيئة مشغل الفيديو
-    }
-  }, [channel.id, channel.streamUrl]);
+    // تحديث معرف القناة المطلوبة
+    currentChannelIdRef.current = channel.id;
+    
+  }, [channel.id, channel.streamUrl, channel.name]);
 
   return {
     videoRef,

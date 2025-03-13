@@ -24,7 +24,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const { isTV } = useDeviceType();
   
-  // بيانات القناة الآمنة للعرض
+  // بيانات القناة
   const secureChannel = React.useMemo(() => {
     return {
       ...channel,
@@ -52,7 +52,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     seekVideo
   } = useVideoPlayer({ channel: secureChannel });
 
-  // استخدام الهوك بدلاً من المكون المُرجع
+  // معالجات الأحداث
   const eventHandlers = usePlayerEventHandlers({
     onClose,
     togglePlayPause,
@@ -68,37 +68,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     if (isTV && playerContainerRef.current) {
       playerContainerRef.current.setAttribute('tabindex', '0');
       playerContainerRef.current.focus();
-      
       handleMouseMove();
     }
   }, [isTV, handleMouseMove]);
 
-  // تسجيل حالة المشغل وعرض إشعار عند التهيئة
+  // تسجيل المشاهدة
   useEffect(() => {
-    // تسجيل حالة المشغل الحالية للتصحيح
-    if (VIDEO_PLAYER.HIDE_STREAM_URLS) {
-      console.log("VideoPlayer state:", { 
-        isLoading, 
-        error, 
-        retryCount, 
-        channelName: channel.name,
-        streamUrl: '[محمي]'
-      });
-    } else {
-      console.log("VideoPlayer state:", { 
-        isLoading, 
-        error, 
-        retryCount, 
-        channelName: channel.name,
-        streamUrl: channel.streamUrl
-      });
-    }
-    
-    // إضافة القناة إلى سجل المشاهدة عند بدء التشغيل
     if (!isInitialized && channel.streamUrl) {
       setIsInitialized(true);
-      
-      // إضافة إلى سجل المشاهدة
       playChannel(channel.id).catch(console.error);
       
       toast({
@@ -107,7 +84,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
         duration: 3000,
       });
     }
-  }, [isLoading, error, retryCount, channel, isInitialized]);
+  }, [isInitialized, channel]);
 
   return (
     <div 
@@ -116,10 +93,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
       onMouseMove={handleMouseMove}
       onClick={togglePlayPause}
     >
-      {/* ميزة أمان لتعطيل فحص المتصفح */}
       <InspectProtection />
       
-      {/* رأس معلومات القناة */}
       <VideoHeader 
         channel={secureChannel} 
         onClose={eventHandlers.handleClose} 
@@ -131,7 +106,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
         
         {error && (
           <VideoError 
-            error={secureErrorDisplay(error)} 
+            error={error} 
             onRetry={eventHandlers.handleRetry} 
             streamUrl={VIDEO_PLAYER.HIDE_STREAM_URLS ? '[محمي]' : channel.streamUrl}
           />
@@ -161,7 +136,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
         />
       </div>
       
-      {/* عناصر تحكم وتلميحات خاصة بالتلفزيون */}
       <TVControls 
         isTV={isTV}
         isInitialized={isInitialized}
@@ -175,13 +149,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
       />
     </div>
   );
-
-  // دالة عرض الخطأ الآمنة
-  function secureErrorDisplay(errorMsg: string | null) {
-    if (!errorMsg) return null;
-    
-    return errorMsg.replace(/(https?:\/\/[^\s]+)/g, '[محمي]');
-  }
 };
 
 export default VideoPlayer;

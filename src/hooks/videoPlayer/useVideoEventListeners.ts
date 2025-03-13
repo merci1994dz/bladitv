@@ -1,7 +1,6 @@
 
 import { useEffect } from 'react';
 import { VideoRef } from './useVideoSetup';
-import { VIDEO_PLAYER } from '@/services/config';
 
 export function useVideoEventListeners({
   videoRef,
@@ -22,7 +21,7 @@ export function useVideoEventListeners({
     
     const video = videoRef.current;
     
-    // Register event listeners
+    // Simplified event handlers
     const handleCanPlay = () => {
       console.log('Video can play');
       setIsLoading(false);
@@ -35,21 +34,8 @@ export function useVideoEventListeners({
       setError(null);
     };
     
-    const handleError = (e: Event) => {
-      const videoElement = e.target as HTMLVideoElement;
-      
-      // Secure error logging - hide actual URLs
-      if (VIDEO_PLAYER.HIDE_STREAM_URLS) {
-        console.error('Video error detected:', 
-          videoElement.error ? 
-          { code: videoElement.error.code, message: videoElement.error.message.replace(/(https?:\/\/[^\s]+)/g, '[محمي]') } : 
-          'Unknown error'
-        );
-      } else {
-        console.error('Video error detected:', videoElement.error);
-      }
-      
-      // Always retry at least once automatically
+    const handleError = () => {
+      console.error('Video error occurred');
       handlePlaybackError();
     };
     
@@ -68,7 +54,7 @@ export function useVideoEventListeners({
       setIsPlaying(false);
     };
 
-    // Register all event listeners
+    // Add listeners
     video.addEventListener('canplay', handleCanPlay);
     video.addEventListener('playing', handlePlaying);
     video.addEventListener('error', handleError);
@@ -78,9 +64,7 @@ export function useVideoEventListeners({
     
     // Cleanup function
     return () => {
-      console.log('Cleaning up video player');
-      
-      // Remove all event listeners
+      // Remove listeners
       video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('playing', handlePlaying);
       video.removeEventListener('error', handleError);
@@ -88,13 +72,13 @@ export function useVideoEventListeners({
       video.removeEventListener('waiting', handleWaiting);
       video.removeEventListener('ended', handleEnded);
       
-      // Clean up video element
+      // Basic video cleanup
       try {
         video.pause();
         video.removeAttribute('src');
         video.load();
       } catch (e) {
-        console.error('Error during video cleanup:', e);
+        console.error('Cleanup error:', e);
       }
     };
   }, [videoRef, setIsPlaying, setIsLoading, setError, handlePlaybackError]);

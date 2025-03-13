@@ -13,7 +13,7 @@ interface PlayButtonProps {
 const PlayButton: React.FC<PlayButtonProps> = ({ channel, onPlay }) => {
   const [isLoading, setIsLoading] = useState(false);
 
-  const handlePlay = async (e: React.MouseEvent) => {
+  const handlePlay = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -21,8 +21,8 @@ const PlayButton: React.FC<PlayButtonProps> = ({ channel, onPlay }) => {
     
     setIsLoading(true);
     
+    // بسيط - فقط استدعاء دالة التشغيل مباشرة
     try {
-      // استدعاء دالة التشغيل مباشرة
       onPlay(channel);
       
       toast({
@@ -39,17 +39,17 @@ const PlayButton: React.FC<PlayButtonProps> = ({ channel, onPlay }) => {
         duration: 3000,
       });
     } finally {
-      // تأخير تعيين الحالة ليتمكن المستخدم من رؤية التحميل
+      // تأخير قصير فقط
       setTimeout(() => {
         setIsLoading(false);
-      }, 1000);
+      }, 500);
     }
   };
 
   return (
     <Button
       onClick={handlePlay}
-      className="w-full mt-2 bg-gradient-to-r from-primary/90 to-primary shadow-md group-hover:shadow-lg transform group-hover:scale-105 duration-200 rounded-lg"
+      className="w-full mt-2 bg-gradient-to-r from-primary/90 to-primary shadow-md hover:shadow-lg transform hover:scale-105 duration-200 rounded-lg"
       disabled={isLoading}
       size="lg"
     >
