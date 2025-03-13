@@ -72,6 +72,19 @@ export const setupVideoSource = (videoElement: HTMLVideoElement, streamUrl: stri
     if (VIDEO_PLAYER.REFERRER_PROTECTION) {
       videoElement.setAttribute('referrerpolicy', 'no-referrer');
     }
+    
+    // Optimize for TV playback
+    videoElement.playsInline = true;
+    videoElement.autoplay = true; // Most TV users expect auto-play
+    
+    // Enhanced video playback settings for TV
+    if (isTVDevice()) {
+      videoElement.style.objectFit = 'contain';
+      // Ensure good quality on large screens
+      if (videoElement.getAttribute('playsinline') !== null) {
+        videoElement.removeAttribute('playsinline');
+      }
+    }
 
     return true;
   } catch (error) {
@@ -80,6 +93,18 @@ export const setupVideoSource = (videoElement: HTMLVideoElement, streamUrl: stri
   }
 };
 
+// Helper function to detect if the current device is likely a TV
+function isTVDevice(): boolean {
+  const userAgent = navigator.userAgent.toLowerCase();
+  return (
+    userAgent.includes('tv') || 
+    userAgent.includes('android tv') || 
+    userAgent.includes('smart-tv') ||
+    // Common TV viewport size check (large landscape screen)
+    (window.innerWidth > 1280 && window.innerHeight < window.innerWidth)
+  );
+}
+
 /**
  * Hook for setting up video player state and references
  */
@@ -87,6 +112,12 @@ export function useVideoSetup() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isTV, setIsTV] = useState(false);
+
+  // Detect TV device on mount
+  useEffect(() => {
+    setIsTV(isTVDevice());
+  }, []);
 
   // Apply security measures on mount
   useEffect(() => {
@@ -110,14 +141,21 @@ export function useVideoSetup() {
           document.removeEventListener('contextmenu', disableRightClick);
         };
       }
+      
+      // TV-specific video element settings
+      if (isTV) {
+        videoRef.current.style.objectFit = 'contain';
+        videoRef.current.focus(); // Ensure video element can receive remote control input
+      }
     }
-  }, []);
+  }, [isTV]);
 
   return {
     videoRef,
     isLoading,
     setIsLoading,
     error,
-    setError
+    setError,
+    isTV
   };
 }

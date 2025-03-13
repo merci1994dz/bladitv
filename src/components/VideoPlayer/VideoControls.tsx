@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { 
   Volume2, 
@@ -29,6 +29,7 @@ interface VideoControlsProps {
   onSeek: (seconds: number) => (e: React.MouseEvent) => void;
   onClick: (e: React.MouseEvent) => void;
   onReload?: (e: React.MouseEvent) => void;
+  isTV?: boolean;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -43,15 +44,81 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onVolumeChange,
   onSeek,
   onClick,
-  onReload
+  onReload,
+  isTV = false
 }) => {
+  const [focusedButton, setFocusedButton] = useState<string | null>(null);
+  
+  // TV remote control keyboard navigation
+  useEffect(() => {
+    if (!isTV) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case 'Enter':
+          // Trigger action on focused button
+          if (focusedButton === 'play') {
+            const event = new MouseEvent('click', {
+              bubbles: true,
+              cancelable: true,
+              view: window
+            });
+            document.getElementById('video-play-button')?.dispatchEvent(event);
+          } else if (focusedButton === 'mute') {
+            const event = new MouseEvent('click', {
+              bubbles: true,
+              cancelable: true,
+              view: window
+            });
+            document.getElementById('video-mute-button')?.dispatchEvent(event);
+          }
+          // Add other buttons as needed
+          break;
+        
+        // Handle directional navigation
+        case 'ArrowRight':
+          if (focusedButton === 'play') {
+            setFocusedButton('forward');
+          } else if (focusedButton === 'mute') {
+            setFocusedButton('play');
+          }
+          e.preventDefault();
+          break;
+          
+        case 'ArrowLeft':
+          if (focusedButton === 'play') {
+            setFocusedButton('mute');
+          } else if (focusedButton === 'forward') {
+            setFocusedButton('play');
+          }
+          e.preventDefault();
+          break;
+          
+        // Space is often used as play/pause on TVs
+        case ' ':
+          onPlayPause(new MouseEvent('click') as any);
+          e.preventDefault();
+          break;
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    
+    // Set initial focus (usually on play/pause)
+    setFocusedButton('play');
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isTV, focusedButton, onPlayPause]);
+
   return (
     <>
       {/* Center play/pause button (visible on tap or hover) */}
       <div 
         className={`absolute inset-0 flex items-center justify-center z-10 cursor-pointer pointer-events-none transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
       >
-        <div className="bg-black/50 backdrop-blur-md rounded-full p-7 shadow-2xl transform transition-transform hover:scale-105 border border-white/10">
+        <div className={`bg-black/50 backdrop-blur-md rounded-full p-7 shadow-2xl transform transition-transform hover:scale-105 border ${focusedButton === 'play' && isTV ? 'border-primary border-2' : 'border-white/10'}`}>
           {isPlaying ? 
             <Pause className="w-16 h-16 text-white" /> : 
             <Play className="w-16 h-16 text-white" />
@@ -75,9 +142,10 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           {/* Left controls: volume */}
           <div className="flex items-center space-x-2 rtl:space-x-reverse">
             <Button 
+              id="video-mute-button"
               variant="ghost" 
               size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-10 w-10 backdrop-blur-sm" 
+              className={`rounded-full text-white hover:bg-white/20 h-10 w-10 backdrop-blur-sm ${focusedButton === 'mute' && isTV ? 'ring-2 ring-primary' : ''}`}
               onClick={onMuteToggle}
             >
               {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
@@ -103,27 +171,30 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           {/* Center controls: rewind, play, fast-forward */}
           <div className="flex items-center space-x-4 rtl:space-x-reverse">
             <Button 
+              id="video-rewind-button"
               variant="ghost" 
               size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex backdrop-blur-sm" 
+              className={`rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex backdrop-blur-sm ${focusedButton === 'rewind' && isTV ? 'ring-2 ring-primary' : ''}`}
               onClick={onSeek(-10)}
             >
               <Rewind className="w-4 h-4" />
             </Button>
             
             <Button 
+              id="video-play-button"
               variant="ghost" 
               size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-14 w-14 border border-white/30 backdrop-blur-sm shadow-md" 
+              className={`rounded-full text-white hover:bg-white/20 h-14 w-14 border border-white/30 backdrop-blur-sm shadow-md ${focusedButton === 'play' && isTV ? 'ring-2 ring-primary' : ''}`}
               onClick={onPlayPause}
             >
               {isPlaying ? <Pause className="w-7 h-7" /> : <Play className="w-7 h-7" />}
             </Button>
             
             <Button 
+              id="video-forward-button"
               variant="ghost" 
               size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex backdrop-blur-sm" 
+              className={`rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex backdrop-blur-sm ${focusedButton === 'forward' && isTV ? 'ring-2 ring-primary' : ''}`}
               onClick={onSeek(10)}
             >
               <FastForward className="w-4 h-4" />
@@ -134,9 +205,10 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           <div className="flex items-center space-x-2 rtl:space-x-reverse">
             {onReload && (
               <Button 
+                id="video-reload-button"
                 variant="ghost" 
                 size="icon"
-                className="rounded-full text-white hover:bg-white/20 h-9 w-9 backdrop-blur-sm" 
+                className={`rounded-full text-white hover:bg-white/20 h-9 w-9 backdrop-blur-sm ${focusedButton === 'reload' && isTV ? 'ring-2 ring-primary' : ''}`}
                 onClick={onReload}
               >
                 <RefreshCw className="w-4 h-4" />
@@ -144,18 +216,20 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             )}
             
             <Button 
+              id="video-settings-button"
               variant="ghost" 
               size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex backdrop-blur-sm" 
+              className={`rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex backdrop-blur-sm ${focusedButton === 'settings' && isTV ? 'ring-2 ring-primary' : ''}`}
               onClick={(e) => e.stopPropagation()}
             >
               <Settings className="w-4 h-4" />
             </Button>
             
             <Button 
+              id="video-fullscreen-button"
               variant="ghost" 
               size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-10 w-10 backdrop-blur-sm" 
+              className={`rounded-full text-white hover:bg-white/20 h-10 w-10 backdrop-blur-sm ${focusedButton === 'fullscreen' && isTV ? 'ring-2 ring-primary' : ''}`}
               onClick={onFullscreenToggle}
             >
               {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
@@ -169,6 +243,27 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         className={`fixed inset-0 bg-transparent z-0 ${show ? 'pointer-events-auto' : 'pointer-events-none'}`}
         onClick={onClick}
       />
+      
+      {/* TV Remote Helper UI (only shown on TV devices) */}
+      {isTV && show && (
+        <div className="absolute bottom-20 left-0 right-0 flex justify-center">
+          <div className="bg-black/70 backdrop-blur-sm rounded-lg p-2 text-white text-xs flex gap-4">
+            <div className="flex items-center">
+              <span className="border rounded px-1.5 mx-1">◄</span>
+              <span className="border rounded px-1.5 mx-1">►</span>
+              <span className="mr-1">تنقل</span>
+            </div>
+            <div className="flex items-center">
+              <span className="border rounded px-1.5 mx-1">OK</span>
+              <span className="mr-1">اختيار</span>
+            </div>
+            <div className="flex items-center">
+              <span className="border rounded px-1.5 mx-1">مسافة</span>
+              <span className="mr-1">تشغيل/إيقاف</span>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
