@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   useQuery, 
@@ -13,7 +14,9 @@ import {
   deleteChannel,
   addCountry,
   updateCountry,
-  deleteCountry
+  deleteCountry,
+  updateAdminPassword,
+  forceSync
 } from '@/services/api';
 import { Channel, Country, Category, AdminChannel, AdminCountry } from '@/types';
 import { 
@@ -39,7 +42,9 @@ import {
   Save, 
   X, 
   Flag, 
-  Tv 
+  Tv,
+  Settings,
+  RefreshCw
 } from 'lucide-react';
 import { 
   AlertDialog,
@@ -59,11 +64,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import AdminLogin from '@/components/AdminLogin';
 
 const Admin: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('channels');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  
+  // For settings
+  const [newPassword, setNewPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
   
   // For new items
   const [newChannel, setNewChannel] = useState<Omit<Channel, 'id'>>({
@@ -91,7 +103,8 @@ const Admin: React.FC = () => {
     isLoading: isLoadingChannels
   } = useQuery({
     queryKey: ['channels'],
-    queryFn: getChannels
+    queryFn: getChannels,
+    enabled: isAuthenticated
   });
   
   const { 
@@ -99,7 +112,8 @@ const Admin: React.FC = () => {
     isLoading: isLoadingCountries
   } = useQuery({
     queryKey: ['countries'],
-    queryFn: getCountries
+    queryFn: getCountries,
+    enabled: isAuthenticated
   });
   
   const { 
@@ -107,7 +121,8 @@ const Admin: React.FC = () => {
     isLoading: isLoadingCategories
   } = useQuery({
     queryKey: ['categories'],
-    queryFn: getCategories
+    queryFn: getCategories,
+    enabled: isAuthenticated
   });
 
   // Use useEffect instead of onSuccess callback for handling the data
@@ -314,6 +329,78 @@ const Admin: React.FC = () => {
     updateCountryMutation.mutate(countryData as Country);
     toggleEditCountry(country.id);
   };
+  
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newPassword || newPassword.length < 6) {
+      toast({
+        title: "كلمة مرور غير صالحة",
+        description: "يجب أن تكون كلمة المرور 6 أحرف على الأقل",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "كلمتا المرور غير متطابقتين",
+        description: "يرجى التأكد من تطابق كلمتي المرور",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      updateAdminPassword(newPassword);
+      toast({
+        title: "تم تغيير كلمة المرور",
+        description: "تم تغيير كلمة المرور بنجاح",
+      });
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      toast({
+        title: "حدث خطأ",
+        description: error instanceof Error ? error.message : "تعذر تغيير كلمة المرور",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleForceSync = async () => {
+    setIsSyncing(true);
+    try {
+      const success = await forceSync();
+      if (success) {
+        queryClient.invalidateQueries({ queryKey: ['channels'] });
+        queryClient.invalidateQueries({ queryKey: ['countries'] });
+        queryClient.invalidateQueries({ queryKey: ['categories'] });
+        toast({
+          title: "تم المزامنة بنجاح",
+          description: "تم تحديث البيانات من الخادم",
+        });
+      } else {
+        toast({
+          title: "فشلت المزامنة",
+          description: "تعذر تحديث البيانات من الخادم",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "حدث خطأ",
+        description: "تعذر الاتصال بالخادم",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  if (!isAuthenticated) {
+    return <AdminLogin onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
 
   if (isLoadingChannels || isLoadingCountries || isLoadingCategories) {
     return (
@@ -329,17 +416,33 @@ const Admin: React.FC = () => {
       <header className="mb-8 text-center">
         <h1 className="text-3xl font-bold mb-2">لوحة الإدارة</h1>
         <p className="text-muted-foreground">إدارة القنوات والبلدان في التطبيق</p>
+        
+        <div className="mt-4 flex justify-center gap-4">
+          <Button 
+            variant="outline" 
+            onClick={handleForceSync}
+            disabled={isSyncing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>{isSyncing ? 'جاري المزامنة...' : 'مزامنة مع الخادم'}</span>
+          </Button>
+        </div>
       </header>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl">
         <TabsList className="w-full mb-8">
-          <TabsTrigger value="channels" className="w-1/2">
+          <TabsTrigger value="channels" className="w-1/3">
             <Tv className="mr-2 h-4 w-4" />
             <span>القنوات</span>
           </TabsTrigger>
-          <TabsTrigger value="countries" className="w-1/2">
+          <TabsTrigger value="countries" className="w-1/3">
             <Flag className="mr-2 h-4 w-4" />
             <span>البلدان</span>
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="w-1/3">
+            <Settings className="mr-2 h-4 w-4" />
+            <span>الإعدادات</span>
           </TabsTrigger>
         </TabsList>
         
@@ -723,6 +826,47 @@ const Admin: React.FC = () => {
               </Card>
             ))}
           </div>
+        </TabsContent>
+        
+        <TabsContent value="settings" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Settings className="h-5 w-5 ml-2" />
+                <span>تغيير كلمة المرور</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form className="space-y-4" onSubmit={handleChangePassword}>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label htmlFor="newPassword" className="text-sm font-medium">كلمة المرور الجديدة</label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="كلمة المرور الجديدة"
+                      dir="rtl"
+                    />
+                    <p className="text-xs text-muted-foreground">كلمة المرور يجب أن تكون 6 أحرف على الأقل</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="confirmPassword" className="text-sm font-medium">تأكيد كلمة المرور</label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="تأكيد كلمة المرور"
+                      dir="rtl"
+                    />
+                  </div>
+                </div>
+                <Button type="submit" className="w-full">تغيير كلمة المرور</Button>
+              </form>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

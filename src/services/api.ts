@@ -8,8 +8,12 @@ const STORAGE_KEYS = {
   CHANNELS: 'tv_channels',
   COUNTRIES: 'tv_countries',
   CATEGORIES: 'tv_categories',
-  LAST_SYNC: 'tv_last_sync'
+  LAST_SYNC: 'tv_last_sync',
+  ADMIN_PASSWORD: 'tv_admin_password'
 };
+
+// Default admin password - will be saved to localStorage
+const DEFAULT_ADMIN_PASSWORD = 'admin123';
 
 // Fallback data (used only if API fails and no local data exists)
 const fallbackCategories: Category[] = [
@@ -215,6 +219,11 @@ const loadFromLocalStorage = () => {
     } else {
       categories = [...fallbackCategories];
     }
+    
+    // Initialize admin password if not exists
+    if (!localStorage.getItem(STORAGE_KEYS.ADMIN_PASSWORD)) {
+      localStorage.setItem(STORAGE_KEYS.ADMIN_PASSWORD, DEFAULT_ADMIN_PASSWORD);
+    }
   } catch (error) {
     console.error('Error loading data from localStorage:', error);
     
@@ -294,30 +303,98 @@ export const toggleFavoriteChannel = async (channelId: string): Promise<Channel>
   throw new Error('Channel not found');
 };
 
-// These functions are kept for compatibility with the Admin component
-// but they won't be accessible to users in the app anymore
+// Re-enable admin functions
 export const addChannel = async (channel: Omit<Channel, 'id'>): Promise<Channel> => {
-  throw new Error('Admin functions disabled in client app');
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  const newChannel: Channel = {
+    ...channel,
+    id: Date.now().toString()
+  };
+  
+  channels.push(newChannel);
+  localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
+  
+  return newChannel;
 };
 
 export const updateChannel = async (channel: Channel): Promise<Channel> => {
-  throw new Error('Admin functions disabled in client app');
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  const index = channels.findIndex(c => c.id === channel.id);
+  if (index === -1) throw new Error('Channel not found');
+  
+  channels[index] = { ...channel };
+  localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
+  
+  return channel;
 };
 
 export const deleteChannel = async (channelId: string): Promise<void> => {
-  throw new Error('Admin functions disabled in client app');
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  const index = channels.findIndex(c => c.id === channelId);
+  if (index === -1) throw new Error('Channel not found');
+  
+  channels.splice(index, 1);
+  localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
 };
 
 export const addCountry = async (country: Omit<Country, 'id'>): Promise<Country> => {
-  throw new Error('Admin functions disabled in client app');
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  const newCountry: Country = {
+    ...country,
+    id: Date.now().toString()
+  };
+  
+  countries.push(newCountry);
+  localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(countries));
+  
+  return newCountry;
 };
 
 export const updateCountry = async (country: Country): Promise<Country> => {
-  throw new Error('Admin functions disabled in client app');
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  const index = countries.findIndex(c => c.id === country.id);
+  if (index === -1) throw new Error('Country not found');
+  
+  countries[index] = { ...country };
+  localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(countries));
+  
+  return country;
 };
 
 export const deleteCountry = async (countryId: string): Promise<void> => {
-  throw new Error('Admin functions disabled in client app');
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  // Check if country is used by any channel
+  const countryInUse = channels.some(channel => channel.country === countryId);
+  if (countryInUse) {
+    throw new Error('Cannot delete country that is used by channels');
+  }
+  
+  const index = countries.findIndex(c => c.id === countryId);
+  if (index === -1) throw new Error('Country not found');
+  
+  countries.splice(index, 1);
+  localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(countries));
+};
+
+// Function to verify admin password
+export const verifyAdminPassword = (password: string): boolean => {
+  const storedPassword = localStorage.getItem(STORAGE_KEYS.ADMIN_PASSWORD) || DEFAULT_ADMIN_PASSWORD;
+  return password === storedPassword;
+};
+
+// Function to update admin password
+export const updateAdminPassword = (newPassword: string): void => {
+  if (newPassword && newPassword.length >= 6) {
+    localStorage.setItem(STORAGE_KEYS.ADMIN_PASSWORD, newPassword);
+  } else {
+    throw new Error('Password must be at least 6 characters long');
+  }
 };
 
 // New function to manually trigger sync with remote
