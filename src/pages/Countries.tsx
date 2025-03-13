@@ -7,7 +7,7 @@ import ChannelCard from '@/components/ChannelCard';
 import VideoPlayer from '@/components/VideoPlayer';
 import { Channel } from '@/types';
 import { useToast } from "@/hooks/use-toast";
-import { Globe, Flag } from 'lucide-react';
+import { Globe, Flag, Tv } from 'lucide-react';
 
 const Countries: React.FC = () => {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
@@ -85,6 +85,7 @@ const Countries: React.FC = () => {
     <div className="pb-20 pt-4">
       <header className="px-4 py-2 mb-6">
         <h1 className="text-2xl font-bold text-center">البلدان</h1>
+        <p className="text-center text-muted-foreground text-sm mt-1">اختر البلد لمشاهدة القنوات المتاحة</p>
       </header>
 
       {selectedChannel && (
@@ -102,12 +103,12 @@ const Countries: React.FC = () => {
           className="w-full"
         >
           <div className="relative">
-            <TabsList className="w-full overflow-x-auto flex justify-start mb-4 px-4 bg-transparent">
+            <TabsList className="w-full overflow-x-auto flex justify-start mb-4 px-4 bg-transparent shadow-sm rounded-lg">
               {countries.map(country => (
                 <TabsTrigger 
                   key={country.id} 
                   value={country.id}
-                  className="px-6 py-2 flex items-center gap-3 transition-all duration-200 hover:bg-primary/10"
+                  className="px-6 py-3 flex items-center gap-3 transition-all duration-200 hover:bg-primary/10 data-[state=active]:border-b-2 data-[state=active]:border-primary"
                 >
                   <span className="text-2xl">{country.flag}</span>
                   <span className="font-medium">{country.name}</span>
@@ -120,38 +121,43 @@ const Countries: React.FC = () => {
 
           {/* Country image banner */}
           {activeCountryData && (
-            <div className="relative h-40 md:h-56 lg:h-64 mb-6 overflow-hidden rounded-lg mx-4">
+            <div className="relative h-40 md:h-56 lg:h-64 mb-6 overflow-hidden rounded-lg mx-4 group transition-all duration-300">
               <img 
                 src={activeCountryData.image} 
                 alt={activeCountryData.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1589519160732-57fc498494f8?q=80&w=500&auto=format&fit=crop';
                 }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
               <div className="absolute bottom-0 right-0 p-4 flex items-center gap-3">
-                <span className="text-5xl">{activeCountryData.flag}</span>
-                <h2 className="text-white text-2xl font-bold">{activeCountryData.name}</h2>
+                <span className="text-5xl shadow-lg">{activeCountryData.flag}</span>
+                <h2 className="text-white text-2xl font-bold drop-shadow-md">{activeCountryData.name}</h2>
               </div>
             </div>
           )}
           
           {countries.map(country => (
-            <TabsContent key={country.id} value={country.id} className="px-4 animate-fade-in">
+            <TabsContent key={country.id} value={country.id} className="px-4 animate-in fade-in-50 duration-300">
               {isLoadingChannels ? (
                 <div className="py-10 flex flex-col justify-center items-center">
                   <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-2"></div>
-                  <p className="text-sm text-gray-500">جاري تحميل القنوات...</p>
+                  <p className="text-sm text-gray-500">جاري تحميل قنوات {country.name}...</p>
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center mb-4 gap-2">
-                    <Flag className="h-5 w-5 text-primary" />
-                    <h2 className="text-xl font-semibold">قنوات {country.name}</h2>
+                  <div className="flex items-center mb-6 gap-2 border-b pb-2">
+                    <div className="p-2 rounded-full bg-primary/10">
+                      <Tv className="h-5 w-5 text-primary" />
+                    </div>
+                    <h2 className="text-xl font-semibold">قنوات {country.name} <span className="text-xl mr-1">{country.flag}</span></h2>
+                    <span className="text-muted-foreground text-sm mr-auto">
+                      {countryChannels?.length || 0} قناة متاحة
+                    </span>
                   </div>
                 
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                     {countryChannels && countryChannels.length > 0 ? (
                       countryChannels.map(channel => (
                         <ChannelCard 
@@ -163,12 +169,12 @@ const Countries: React.FC = () => {
                       ))
                     ) : (
                       <div className="col-span-full py-10 text-center">
-                        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 max-w-md mx-auto">
+                        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 max-w-md mx-auto shadow-sm border border-gray-100 dark:border-gray-700">
                           <div className="flex justify-center mb-4">
                             <Globe className="h-10 w-10 text-gray-400" />
                           </div>
-                          <p className="text-gray-500 mb-2">لا توجد قنوات من {country.name}</p>
-                          <p className="text-sm text-gray-400">يمكنك مشاهدة قنوات من بلدان أخرى أو العودة لاحقًا</p>
+                          <p className="text-gray-500 mb-2 font-medium">لا توجد قنوات من {country.name} {country.flag}</p>
+                          <p className="text-sm text-gray-400">سيتم إضافة قنوات جديدة قريبًا، يمكنك تصفح قنوات من بلدان أخرى</p>
                         </div>
                       </div>
                     )}
