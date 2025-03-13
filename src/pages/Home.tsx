@@ -6,6 +6,7 @@ import ChannelCard from '@/components/ChannelCard';
 import VideoPlayer from '@/components/VideoPlayer';
 import { Channel } from '@/types';
 import { useToast } from "@/hooks/use-toast";
+import { Link } from 'react-router-dom';
 
 const Home: React.FC = () => {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
@@ -83,14 +84,11 @@ const Home: React.FC = () => {
       )}
 
       <section className="px-4 mb-8">
-        <div className="flex justify-end items-center mb-4">
-          <h2 className="text-xl font-bold">البلدان</h2>
-        </div>
-        
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {countries?.map(country => (
-            <div 
-              key={country.id}
+            <Link 
+              key={country.id} 
+              to={`/countries`}
               className="relative bg-gradient-to-t from-black/60 via-black/20 to-black/5 rounded-lg overflow-hidden h-24 group"
             >
               <img 
@@ -105,7 +103,7 @@ const Home: React.FC = () => {
                 <span className="text-2xl mb-1">{country.flag}</span>
                 <h3 className="text-white font-semibold text-center text-sm">{country.name}</h3>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </section>
