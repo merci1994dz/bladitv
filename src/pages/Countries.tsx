@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getCountries, getChannelsByCountry, toggleFavoriteChannel } from '@/services/api';
@@ -32,7 +31,6 @@ const Countries: React.FC = () => {
     enabled: !!activeCountry,
   });
 
-  // Set the first country as active when countries are loaded
   useEffect(() => {
     if (countries && countries.length > 0 && !activeCountry) {
       setActiveCountry(countries[0].id);
@@ -56,7 +54,6 @@ const Countries: React.FC = () => {
         description: `${updatedChannel.name} ${updatedChannel.isFavorite ? 'تمت إضافتها للمفضلة' : 'تمت إزالتها من المفضلة'}`,
         duration: 2000,
       });
-      // Refresh the channels list
       refetchChannels();
     } catch (error) {
       toast({
@@ -119,7 +116,6 @@ const Countries: React.FC = () => {
             <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none"></div>
           </div>
 
-          {/* Country flag banner */}
           {activeCountryData && (
             <div className="relative h-40 md:h-56 lg:h-64 mb-6 overflow-hidden rounded-lg mx-4 group transition-all duration-300">
               <img 
@@ -131,12 +127,7 @@ const Countries: React.FC = () => {
                 }}
               />
               
-              {/* Replacing the gradient with a prominent flag display */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-black/30 backdrop-blur-sm"></div>
-              
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[150px] md:text-[200px] lg:text-[250px] opacity-60 select-none filter drop-shadow-lg">{activeCountryData.flag}</span>
-              </div>
               
               <div className="absolute bottom-0 right-0 p-4 flex items-center gap-3 z-10">
                 <span className="text-5xl shadow-lg">{activeCountryData.flag}</span>
