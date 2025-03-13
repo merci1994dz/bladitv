@@ -13,13 +13,23 @@ export const STORAGE_KEYS = {
 export const DEFAULT_ADMIN_PASSWORD = 'admin123';
 
 // App version
-export const APP_VERSION = 'v1.3.1';
+export const APP_VERSION = 'v1.3.2';
 
 // Video Player settings
 export const VIDEO_PLAYER = {
   MAX_RETRIES: 3,
   RETRY_DELAY: 1500,
   CONTROLS_HIDE_DELAY: 3000,
-  HIDE_STREAM_URLS: true, // إضافة خيار لإخفاء روابط البث
-  OBFUSCATE_SOURCE: true  // تشفير مصدر البث
+  HIDE_STREAM_URLS: true,            // إخفاء روابط البث
+  OBFUSCATE_SOURCE: true,            // تشفير مصدر البث
+  USE_PROXY: false,                  // استخدام وسيط لإخفاء المصدر (يتطلب إعداد خادم)
+  DISABLE_INSPECT: true,             // منع فتح أدوات المطور
+  REFERRER_PROTECTION: true          // حماية الإحالة
+};
+
+// تكوين إضافي للأمان
+export const SECURITY_CONFIG = {
+  ALLOW_RIGHT_CLICK: false,          // منع النقر بالزر الأيمن
+  DISABLE_VIDEO_DOWNLOAD: true,      // منع تحميل الفيديو
+  LOG_ACCESS_ATTEMPTS: true          // تسجيل محاولات الوصول غير المصرح بها
 };

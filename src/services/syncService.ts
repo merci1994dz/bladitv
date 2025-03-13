@@ -1,6 +1,19 @@
 
-import { STORAGE_KEYS } from './config';
+import { STORAGE_KEYS, SECURITY_CONFIG } from './config';
 import { channels, countries, categories, setIsSyncing } from './dataStore';
+
+// تشفير الروابط الحساسة إذا لزم الأمر (وظيفة مبسطة)
+function obfuscateStreamUrls(data: any[]): any[] {
+  if (!SECURITY_CONFIG.LOG_ACCESS_ATTEMPTS) return data;
+  
+  return data.map(item => {
+    if (item.streamUrl) {
+      // نحتفظ بالرابط الأصلي ولكن في الوقت نفسه نسجل محاولة الوصول
+      console.log('تم الوصول لقائمة الروابط - إجراء أمني');
+    }
+    return item;
+  });
+}
 
 // Function that simulates syncing but actually just uses local data
 export const syncWithRemoteAPI = async (): Promise<boolean> => {

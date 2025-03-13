@@ -2,6 +2,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { VIDEO_PLAYER } from '@/services/config';
 
 interface VideoErrorProps {
   error: string;
