@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Heart, Flag, Grid3X3, Search, Settings, Globe } from 'lucide-react';
+import { Home, Heart, Flag, Grid3X3, Search, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const Navigation: React.FC = () => {
@@ -43,12 +44,6 @@ const Navigation: React.FC = () => {
             icon={<Search className="h-6 w-6" />} 
             label="البحث" 
             isActive={isActive('/search')} 
-          />
-          <NavItem 
-            to="/admin" 
-            icon={<Settings className="h-6 w-6" />} 
-            label="الإدارة" 
-            isActive={isActive('/admin') || isActive('/remote-config')} 
           />
         </div>
       </div>
