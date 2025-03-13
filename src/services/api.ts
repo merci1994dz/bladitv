@@ -1,7 +1,18 @@
 import { Channel, Category, Country } from '@/types';
 
-// بيانات وهمية للاختبار
-const categories: Category[] = [
+// API Base URL - Change this to your website API endpoint
+const API_BASE_URL = 'https://elhiwar.us/iptv/api';
+
+// Local storage keys
+const STORAGE_KEYS = {
+  CHANNELS: 'tv_channels',
+  COUNTRIES: 'tv_countries',
+  CATEGORIES: 'tv_categories',
+  LAST_SYNC: 'tv_last_sync'
+};
+
+// Fallback data (used only if API fails and no local data exists)
+const fallbackCategories: Category[] = [
   { id: '1', name: 'رياضة', icon: 'trophy' },
   { id: '2', name: 'أخبار', icon: 'newspaper' },
   { id: '3', name: 'ترفيه', icon: 'tv' },
@@ -9,7 +20,7 @@ const categories: Category[] = [
   { id: '5', name: 'ثقافة', icon: 'book' },
 ];
 
-const countries: Country[] = [
+const fallbackCountries: Country[] = [
   { 
     id: '1', 
     name: 'المغرب', 
@@ -60,7 +71,7 @@ const countries: Country[] = [
   },
 ];
 
-const channels: Channel[] = [
+const fallbackChannels: Channel[] = [
   { 
     id: '1', 
     name: 'الجزيرة', 
@@ -135,75 +146,130 @@ const channels: Channel[] = [
   },
 ];
 
-// Helper to save data to localStorage
-const saveToLocalStorage = () => {
-  localStorage.setItem('tv_channels', JSON.stringify(channels));
-  localStorage.setItem('tv_countries', JSON.stringify(countries));
-  localStorage.setItem('tv_categories', JSON.stringify(categories));
+// In-memory cache
+let channels: Channel[] = [];
+let countries: Country[] = [];
+let categories: Category[] = [];
+let isSyncing = false;
+
+// Function to fetch data from the remote API
+const syncWithRemoteAPI = async (): Promise<boolean> => {
+  if (isSyncing) return false;
+  
+  try {
+    isSyncing = true;
+    console.log('Syncing with remote API...');
+    
+    // Fetch channels, countries, and categories from your website API
+    const [channelsRes, countriesRes, categoriesRes] = await Promise.all([
+      fetch(`${API_BASE_URL}/channels`).then(res => res.json()),
+      fetch(`${API_BASE_URL}/countries`).then(res => res.json()),
+      fetch(`${API_BASE_URL}/categories`).then(res => res.json())
+    ]);
+    
+    // Update local data
+    channels = channelsRes;
+    countries = countriesRes;
+    categories = categoriesRes;
+    
+    // Save to localStorage
+    localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
+    localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(countries));
+    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+    
+    // Update last sync time
+    const lastSyncTime = new Date().toISOString();
+    localStorage.setItem(STORAGE_KEYS.LAST_SYNC, lastSyncTime);
+    
+    console.log('Sync completed successfully');
+    return true;
+  } catch (error) {
+    console.error('Error syncing with remote API:', error);
+    return false;
+  } finally {
+    isSyncing = false;
+  }
 };
 
-// Helper to load data from localStorage
+// Helper to load data from localStorage or use fallbacks
 const loadFromLocalStorage = () => {
-  const storedChannels = localStorage.getItem('tv_channels');
-  const storedCountries = localStorage.getItem('tv_countries');
-  const storedCategories = localStorage.getItem('tv_categories');
+  try {
+    const storedChannels = localStorage.getItem(STORAGE_KEYS.CHANNELS);
+    const storedCountries = localStorage.getItem(STORAGE_KEYS.COUNTRIES);
+    const storedCategories = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
 
-  if (storedChannels) {
-    channels.length = 0;
-    channels.push(...JSON.parse(storedChannels));
-  }
+    if (storedChannels) {
+      channels = JSON.parse(storedChannels);
+    } else {
+      channels = [...fallbackChannels];
+    }
 
-  if (storedCountries) {
-    countries.length = 0;
-    countries.push(...JSON.parse(storedCountries));
-  }
+    if (storedCountries) {
+      countries = JSON.parse(storedCountries);
+    } else {
+      countries = [...fallbackCountries];
+    }
 
-  if (storedCategories) {
-    categories.length = 0;
-    categories.push(...JSON.parse(storedCategories));
+    if (storedCategories) {
+      categories = JSON.parse(storedCategories);
+    } else {
+      categories = [...fallbackCategories];
+    }
+  } catch (error) {
+    console.error('Error loading data from localStorage:', error);
+    
+    // Use fallback data
+    channels = [...fallbackChannels];
+    countries = [...fallbackCountries];
+    categories = [...fallbackCategories];
   }
 };
 
-// Load data from localStorage on initialization
-try {
-  loadFromLocalStorage();
-} catch (error) {
-  console.error('Error loading data from localStorage:', error);
-  // If there's an error, we'll use the default data
-}
+// Initialize data
+loadFromLocalStorage();
 
-// استرجاع جميع القنوات
+// Try to sync with remote API on application start
+syncWithRemoteAPI().catch(error => {
+  console.error('Initial sync failed:', error);
+});
+
+// Periodic sync (every 1 hour)
+setInterval(() => {
+  syncWithRemoteAPI().catch(error => {
+    console.error('Periodic sync failed:', error);
+  });
+}, 60 * 60 * 1000);
+
+// API Functions
 export const getChannels = async (): Promise<Channel[]> => {
-  // محاكاة تأخير لشبكة الاتصال
   await new Promise(resolve => setTimeout(resolve, 500));
+  
+  // Try to sync with remote API first (but don't wait for it)
+  syncWithRemoteAPI().catch(console.error);
+  
   return [...channels];
 };
 
-// استرجاع القنوات حسب الفئة
 export const getChannelsByCategory = async (categoryId: string): Promise<Channel[]> => {
   await new Promise(resolve => setTimeout(resolve, 300));
   return channels.filter(channel => channel.category === categoryId);
 };
 
-// استرجاع القنوات حسب البلد
 export const getChannelsByCountry = async (countryId: string): Promise<Channel[]> => {
   await new Promise(resolve => setTimeout(resolve, 300));
   return channels.filter(channel => channel.country === countryId);
 };
 
-// استرجاع قائمة الفئات
 export const getCategories = async (): Promise<Category[]> => {
   await new Promise(resolve => setTimeout(resolve, 200));
   return [...categories];
 };
 
-// استرجاع قائمة البلدان
 export const getCountries = async (): Promise<Country[]> => {
   await new Promise(resolve => setTimeout(resolve, 200));
   return [...countries];
 };
 
-// البحث عن القنوات
 export const searchChannels = async (query: string): Promise<Channel[]> => {
   await new Promise(resolve => setTimeout(resolve, 300));
   const searchQuery = query.toLowerCase();
@@ -212,102 +278,49 @@ export const searchChannels = async (query: string): Promise<Channel[]> => {
   );
 };
 
-// استرجاع القنوات المفضلة
 export const getFavoriteChannels = async (): Promise<Channel[]> => {
   await new Promise(resolve => setTimeout(resolve, 300));
   return channels.filter(channel => channel.isFavorite);
 };
 
-// تحديث حالة المفضلة للقناة
 export const toggleFavoriteChannel = async (channelId: string): Promise<Channel> => {
   await new Promise(resolve => setTimeout(resolve, 200));
   const channelIndex = channels.findIndex(c => c.id === channelId);
   if (channelIndex >= 0) {
     channels[channelIndex].isFavorite = !channels[channelIndex].isFavorite;
-    saveToLocalStorage();
+    localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
     return channels[channelIndex];
   }
   throw new Error('Channel not found');
 };
 
-// Admin functions for channels
-
-// Add a new channel
+// These functions are kept for compatibility with the Admin component
+// but they won't be accessible to users in the app anymore
 export const addChannel = async (channel: Omit<Channel, 'id'>): Promise<Channel> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const newChannel: Channel = {
-    ...channel,
-    id: Date.now().toString(),
-    isFavorite: false
-  };
-  channels.push(newChannel);
-  saveToLocalStorage();
-  return newChannel;
+  throw new Error('Admin functions disabled in client app');
 };
 
-// Update a channel
 export const updateChannel = async (channel: Channel): Promise<Channel> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const channelIndex = channels.findIndex(c => c.id === channel.id);
-  if (channelIndex >= 0) {
-    channels[channelIndex] = channel;
-    saveToLocalStorage();
-    return channel;
-  }
-  throw new Error('Channel not found');
+  throw new Error('Admin functions disabled in client app');
 };
 
-// Delete a channel
 export const deleteChannel = async (channelId: string): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const channelIndex = channels.findIndex(c => c.id === channelId);
-  if (channelIndex >= 0) {
-    channels.splice(channelIndex, 1);
-    saveToLocalStorage();
-    return;
-  }
-  throw new Error('Channel not found');
+  throw new Error('Admin functions disabled in client app');
 };
 
-// Admin functions for countries
-
-// Add a new country
 export const addCountry = async (country: Omit<Country, 'id'>): Promise<Country> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const newCountry: Country = {
-    ...country,
-    id: Date.now().toString()
-  };
-  countries.push(newCountry);
-  saveToLocalStorage();
-  return newCountry;
+  throw new Error('Admin functions disabled in client app');
 };
 
-// Update a country
 export const updateCountry = async (country: Country): Promise<Country> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const countryIndex = countries.findIndex(c => c.id === country.id);
-  if (countryIndex >= 0) {
-    countries[countryIndex] = country;
-    saveToLocalStorage();
-    return country;
-  }
-  throw new Error('Country not found');
+  throw new Error('Admin functions disabled in client app');
 };
 
-// Delete a country
 export const deleteCountry = async (countryId: string): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const countryIndex = countries.findIndex(c => c.id === countryId);
-  if (countryIndex >= 0) {
-    // Check if there are channels associated with this country
-    const hasChannels = channels.some(channel => channel.country === countryId);
-    if (hasChannels) {
-      throw new Error('Cannot delete country with associated channels');
-    }
-    countries.splice(countryIndex, 1);
-    saveToLocalStorage();
-    return;
-  }
-  throw new Error('Country not found');
+  throw new Error('Admin functions disabled in client app');
+};
+
+// New function to manually trigger sync with remote
+export const forceSync = async (): Promise<boolean> => {
+  return await syncWithRemoteAPI();
 };

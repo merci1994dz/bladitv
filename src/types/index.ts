@@ -30,3 +30,11 @@ export interface AdminChannel extends Channel {
 export interface AdminCountry extends Country {
   isEditing?: boolean;
 }
+
+// New types for remote admin configuration
+export interface RemoteAdminConfig {
+  enabled: boolean;
+  adminUrl: string;
+  lastSyncTime?: string;
+}
+

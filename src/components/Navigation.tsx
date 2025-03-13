@@ -4,6 +4,10 @@ import { NavLink } from 'react-router-dom';
 import { Home, Search, Heart, Tv, Globe, Settings } from 'lucide-react';
 
 const Navigation: React.FC = () => {
+  // Hide admin panel from regular users since administration will happen
+  // through the external website
+  const showAdminLink = false; // This ensures regular users don't see the admin link
+
   return (
     <nav className="fixed bottom-0 inset-x-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 py-2 z-30">
       <div className="max-w-screen-xl mx-auto px-4">
@@ -58,15 +62,17 @@ const Navigation: React.FC = () => {
             <span className="text-xs mt-1">المفضلة</span>
           </NavLink>
 
-          <NavLink 
-            to="/admin" 
-            className={({ isActive }) => 
-              `flex flex-col items-center p-2 ${isActive ? 'text-primary' : 'text-gray-600 dark:text-gray-400'}`
-            }
-          >
-            <Settings size={24} />
-            <span className="text-xs mt-1">الإدارة</span>
-          </NavLink>
+          {showAdminLink && (
+            <NavLink 
+              to="/admin" 
+              className={({ isActive }) => 
+                `flex flex-col items-center p-2 ${isActive ? 'text-primary' : 'text-gray-600 dark:text-gray-400'}`
+              }
+            >
+              <Settings size={24} />
+              <span className="text-xs mt-1">الإدارة</span>
+            </NavLink>
+          )}
         </div>
       </div>
     </nav>

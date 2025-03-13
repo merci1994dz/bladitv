@@ -55,6 +55,7 @@ const App = () => (
                 <Navigation />
               </>
             } />
+            {/* Admin route is still present but hidden from navigation */}
             <Route path="/admin" element={
               <>
                 <Admin />
