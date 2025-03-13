@@ -26,7 +26,7 @@ export function useVideoEvents({
 }) {
   const { initializeVideoPlayback } = useVideoLoadHandler();
   
-  // Register video event listeners
+  // تسجيل مستمعي أحداث الفيديو
   useVideoEventListeners({
     videoRef,
     setIsPlaying,
@@ -35,15 +35,15 @@ export function useVideoEvents({
     handlePlaybackError
   });
 
-  // Setup effect - simplified for better compatibility
+  // تأثير الإعداد - مبسط لتوافق أفضل
   useEffect(() => {
     console.log("Setting up video for channel:", channel.name, "attempt:", retryCount);
     
-    // Reset states
+    // إعادة تعيين الحالات
     setError(null);
     setIsLoading(true);
     
-    // Clear any existing video source
+    // تنظيف أي مصدر فيديو موجود
     if (videoRef.current) {
       try {
         videoRef.current.pause();
@@ -54,7 +54,7 @@ export function useVideoEvents({
       }
     }
     
-    // Initialize video playback with a short delay
+    // تهيئة تشغيل الفيديو بعد تأخير قصير للأجهزة المحمولة
     const timeoutId = setTimeout(() => {
       if (videoRef.current) {
         console.log("Initializing video playback after delay");
@@ -62,13 +62,13 @@ export function useVideoEvents({
       }
     }, 300);
     
-    // Cleanup function
+    // وظيفة التنظيف
     return () => {
       clearTimeout(timeoutId);
       if (videoRef.current) {
         console.log("Cleaning up video element");
         try {
-          // Remove event listeners first
+          // إزالة المستمعين أولاً
           videoRef.current.oncanplay = null;
           videoRef.current.onplaying = null;
           videoRef.current.onerror = null;
@@ -76,7 +76,7 @@ export function useVideoEvents({
           videoRef.current.onwaiting = null;
           videoRef.current.onended = null;
           
-          // Stop and clean video
+          // إيقاف وتنظيف الفيديو
           videoRef.current.pause();
           videoRef.current.src = '';
           videoRef.current.load();

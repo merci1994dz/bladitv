@@ -18,41 +18,42 @@ export function useVideoLoadHandler() {
       return;
     }
     
-    console.log('Initializing video for channel:', channel.name);
+    console.log('تهيئة الفيديو للقناة:', channel.name);
     
     try {
-      // Clear the video player first
+      // تنظيف مشغل الفيديو أولاً
       videoRef.current.pause();
       videoRef.current.removeAttribute('src');
       videoRef.current.load();
       
-      // Set some essential attributes for mobile
+      // تعيين بعض السمات الأساسية للأجهزة المحمولة
       videoRef.current.playsInline = true;
-      videoRef.current.autoplay = false; // Let the play logic handle this
+      videoRef.current.autoplay = false; // دع منطق التشغيل يتعامل مع هذا
       videoRef.current.muted = false;
+      videoRef.current.volume = 1.0; // تأكد من أن الصوت عالٍ
       
-      // Setup the source and add event handlers
+      // إعداد المصدر وإضافة معالجات الأحداث
       if (setupVideoSource(videoRef.current, channel.streamUrl)) {
-        console.log("Video source set up successfully");
+        console.log("تم إعداد مصدر الفيديو بنجاح");
         
-        // Basic event handlers
+        // معالجات الأحداث الأساسية للتوافق مع الأجهزة المحمولة
         videoRef.current.oncanplay = () => {
-          console.log("Video can play now");
+          console.log("يمكن تشغيل الفيديو الآن");
           setIsLoading(false);
         };
         
         videoRef.current.onplaying = () => {
-          console.log("Video has started playing");
+          console.log("بدأ تشغيل الفيديو");
           setIsLoading(false);
         };
         
-        videoRef.current.onerror = () => {
-          console.error("Error loading video");
+        videoRef.current.onerror = (e) => {
+          console.error("خطأ في تحميل الفيديو", e);
           setError('فشل في تحميل الفيديو');
           setIsLoading(false);
         };
         
-        // Attempt to play with delay for mobile
+        // محاولة التشغيل مع تأخير للأجهزة المحمولة
         setTimeout(() => {
           if (!videoRef.current) return;
           
@@ -61,11 +62,11 @@ export function useVideoLoadHandler() {
             
             if (playPromise !== undefined) {
               playPromise.catch(err => {
-                console.error("Play error:", err.name);
+                console.error("خطأ في التشغيل:", err.name);
                 
-                // Handle autoplay restrictions
+                // التعامل مع قيود التشغيل التلقائي
                 if (err.name === "NotAllowedError") {
-                  console.log("Autoplay restricted - user needs to interact");
+                  console.log("التشغيل التلقائي مقيد - يحتاج المستخدم إلى التفاعل");
                   setIsLoading(false);
                   setError('انقر للتشغيل');
                   
@@ -74,19 +75,22 @@ export function useVideoLoadHandler() {
                     description: "انقر على الشاشة لبدء البث",
                     duration: 3000,
                   });
+                } else {
+                  // أخطاء أخرى (مثل الشبكة)
+                  setError('فشل في تشغيل البث، تحقق من اتصالك بالإنترنت');
                 }
               });
             }
           } catch (e) {
-            console.error("General play error:", e);
+            console.error("خطأ عام في التشغيل:", e);
           }
-        }, 300);
+        }, 500); // زيادة التأخير قليلاً لإعطاء وقت أكبر لتهيئة الفيديو
       } else {
         setError("فشل في إعداد مصدر الفيديو");
         setIsLoading(false);
       }
     } catch (err) {
-      console.error("Error initializing video:", err);
+      console.error("خطأ في تهيئة الفيديو:", err);
       setError("حدث خطأ أثناء تحميل الفيديو");
       setIsLoading(false);
     }

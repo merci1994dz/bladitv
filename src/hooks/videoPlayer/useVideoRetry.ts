@@ -18,14 +18,14 @@ export function useVideoRetry({
   setIsPlaying: (playing: boolean) => void;
 }) {
   const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 1; // Reduced to minimize delay and frustration
+  const maxRetries = 2; // عدد محاولات معقول
 
-  // Simple retry function
+  // وظيفة إعادة المحاولة البسيطة
   const retryPlayback = () => {
-    console.log("Starting manual retry");
+    console.log("بدء إعادة المحاولة اليدوية");
     setError(null);
     setIsLoading(true);
-    setRetryCount(0);
+    setRetryCount(prevCount => prevCount + 1);
     
     toast({
       title: "جاري إعادة المحاولة",
@@ -34,37 +34,44 @@ export function useVideoRetry({
     });
     
     if (videoRef.current) {
-      // Basic reset
+      // إعادة تعيين أساسية
       try {
         videoRef.current.pause();
         videoRef.current.src = '';
         videoRef.current.load();
       } catch (e) {
-        console.error("Error resetting video:", e);
+        console.error("خطأ في إعادة تعيين الفيديو:", e);
       }
       
-      // Add short delay before retrying
+      // إضافة تأخير قصير قبل إعادة المحاولة
       setTimeout(() => {
         if (!videoRef.current) return;
         
         try {
           if (setupVideoSource(videoRef.current, channel.streamUrl)) {
-            // Set essential attributes for mobile
+            // تعيين السمات الأساسية للأجهزة المحمولة
             videoRef.current.playsInline = true;
             
-            // Try to play
+            // محاولة التشغيل
             const playPromise = videoRef.current.play();
             if (playPromise !== undefined) {
               playPromise
                 .then(() => {
-                  console.log("Manual retry succeeded");
+                  console.log("نجحت إعادة المحاولة اليدوية");
                   setIsPlaying(true);
                   setIsLoading(false);
+                  
+                  // عرض رسالة نجاح
+                  toast({
+                    title: "تم استئناف التشغيل",
+                    description: "تم استئناف تشغيل البث بنجاح",
+                    duration: 3000,
+                  });
                 })
                 .catch(err => {
-                  console.error('Error playing video on retry:', err);
+                  console.error('خطأ في تشغيل الفيديو عند إعادة المحاولة:', err);
                   
-                  // Handle autoplay restrictions
+                  // التعامل مع قيود التشغيل التلقائي
                   if (err.name === "NotAllowedError") {
                     setError('انقر على الشاشة لبدء التشغيل');
                     setIsLoading(false);
@@ -79,22 +86,39 @@ export function useVideoRetry({
             setIsLoading(false);
           }
         } catch (error) {
-          console.error('Error during manual retry:', error);
+          console.error('خطأ أثناء إعادة المحاولة اليدوية:', error);
           setError('حدث خطأ غير متوقع');
           setIsLoading(false);
         }
-      }, 300);
+      }, 500);
     }
   };
 
-  // Simplified auto-retry logic
+  // منطق إعادة المحاولة التلقائية المبسط
   const handlePlaybackError = () => {
     if (retryCount < maxRetries) {
-      console.log(`Auto-retry (${retryCount + 1}/${maxRetries})...`);
-      setRetryCount(prev => prev + 1);
+      console.log(`إعادة محاولة تلقائية (${retryCount + 1}/${maxRetries})...`);
+      
+      // تأخير إعادة المحاولة للتوافق مع الأجهزة المحمولة
+      setTimeout(() => {
+        setRetryCount(prev => prev + 1);
+        
+        if (videoRef.current) {
+          try {
+            if (setupVideoSource(videoRef.current, channel.streamUrl)) {
+              videoRef.current.play().catch(e => {
+                console.error("فشلت إعادة المحاولة التلقائية:", e);
+              });
+            }
+          } catch (e) {
+            console.error("خطأ في إعادة المحاولة التلقائية:", e);
+          }
+        }
+      }, 1000);
+      
       return true;
     } else {
-      setError('تعذر تشغيل البث. حاول مرة أخرى.');
+      setError('تعذر تشغيل البث. انقر على إعادة المحاولة.');
       setIsLoading(false);
       
       toast({

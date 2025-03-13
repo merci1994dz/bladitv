@@ -12,7 +12,7 @@ interface VideoErrorProps {
 const VideoError: React.FC<VideoErrorProps> = ({ error, onRetry }) => {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center z-40 bg-black/80">
-      <div className="bg-black/70 rounded-xl p-4 flex flex-col items-center justify-center max-w-sm mx-auto border border-red-500/20">
+      <div className="bg-black/90 rounded-xl p-4 flex flex-col items-center justify-center max-w-sm mx-auto border border-red-500/20">
         <AlertTriangle className="h-8 w-8 text-red-500 mb-2" />
         
         <h3 className="text-white text-lg font-bold mb-1">خطأ في التشغيل</h3>

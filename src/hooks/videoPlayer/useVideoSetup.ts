@@ -22,6 +22,7 @@ export const setupVideoSource = (videoElement: HTMLVideoElement, streamUrl: stri
     videoElement.pause();
     videoElement.currentTime = 0;
     videoElement.src = '';
+    videoElement.load();
     
     // إعداد بسيط للمصدر - بدون تشفير للتوافق مع الأجهزة المحمولة
     videoElement.src = streamUrl;
@@ -53,10 +54,11 @@ export const setupVideoSource = (videoElement: HTMLVideoElement, streamUrl: stri
   }
 };
 
-// دالة مساعدة للكشف عما إذا كان الجهاز الحالي محمولًا على الأرجح
+// دالة مساعدة محسنة للكشف عما إذا كان الجهاز الحالي محمولًا
 function isMobileDevice(): boolean {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-         (typeof window !== 'undefined' && window.innerWidth < 768);
+         (typeof window !== 'undefined' && window.innerWidth < 768) ||
+         (typeof window !== 'undefined' && 'ontouchstart' in window);
 }
 
 /**
@@ -84,6 +86,17 @@ export function useVideoSetup() {
       }
       viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no');
     }
+    
+    // عودة دالة التنظيف
+    return () => {
+      // تنظيف سمة meta عند إلغاء التثبيت إذا قمنا بإنشائها
+      if (mobile && document.head) {
+        const createdViewportMeta = document.querySelector('meta[name="viewport"][content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"]');
+        if (createdViewportMeta) {
+          document.head.removeChild(createdViewportMeta);
+        }
+      }
+    };
   }, []);
 
   // تطبيق الإجراءات الأمنية عند التركيب
