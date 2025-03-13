@@ -6,7 +6,7 @@ import { Clock, CloudOff, RefreshCw } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 
 const SyncStatus: React.FC = () => {
@@ -14,9 +14,10 @@ const SyncStatus: React.FC = () => {
   const queryClient = useQueryClient();
   
   // جلب وقت آخر مزامنة
-  const { data: lastSync } = useQuery({
+  const { data: lastSync, refetch: refetchLastSync } = useQuery({
     queryKey: ['lastSync'],
     queryFn: getLastSyncTime,
+    refetchInterval: 60000, // إعادة الفحص كل دقيقة للتأكد من حداثة البيانات
   });
 
   // تشغيل المزامنة اليدوية
@@ -24,6 +25,7 @@ const SyncStatus: React.FC = () => {
     mutationFn: syncAllData,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lastSync'] });
+      refetchLastSync();
       toast({
         title: "تمت المزامنة",
         description: "تم تحديث البيانات بنجاح",
@@ -40,9 +42,49 @@ const SyncStatus: React.FC = () => {
 
   if (!lastSync) {
     return (
+      <TooltipProvider>
+        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+          <CloudOff className="w-3 h-3" />
+          <span>لم تتم المزامنة بعد</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 rounded-full"
+                onClick={() => runSync()}
+                disabled={isSyncing}
+              >
+                <RefreshCw className={`h-3 w-3 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span className="sr-only">تحديث</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>تحديث الآن</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
+    );
+  }
+
+  const lastSyncDate = new Date(lastSync);
+  const timeAgo = formatDistanceToNow(lastSyncDate, { 
+    addSuffix: true,
+    locale: ar 
+  });
+
+  const isRecent = Date.now() - lastSyncDate.getTime() < 1000 * 60 * 5;
+
+  return (
+    <TooltipProvider>
       <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-        <CloudOff className="w-3 h-3" />
-        <span>لم تتم المزامنة بعد</span>
+        {isRecent ? (
+          <RefreshCw className="w-3 h-3 text-green-500" />
+        ) : (
+          <Clock className="w-3 h-3" />
+        )}
+        <span>آخر تحديث: {timeAgo}</span>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -61,43 +103,7 @@ const SyncStatus: React.FC = () => {
           </TooltipContent>
         </Tooltip>
       </div>
-    );
-  }
-
-  const lastSyncDate = new Date(lastSync);
-  const timeAgo = formatDistanceToNow(lastSyncDate, { 
-    addSuffix: true,
-    locale: ar 
-  });
-
-  const isRecent = Date.now() - lastSyncDate.getTime() < 1000 * 60 * 5;
-
-  return (
-    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-      {isRecent ? (
-        <RefreshCw className="w-3 h-3 text-green-500" />
-      ) : (
-        <Clock className="w-3 h-3" />
-      )}
-      <span>آخر تحديث: {timeAgo}</span>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 rounded-full"
-            onClick={() => runSync()}
-            disabled={isSyncing}
-          >
-            <RefreshCw className={`h-3 w-3 ${isSyncing ? 'animate-spin' : ''}`} />
-            <span className="sr-only">تحديث</span>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>تحديث الآن</p>
-        </TooltipContent>
-      </Tooltip>
-    </div>
+    </TooltipProvider>
   );
 };
 

@@ -1,6 +1,6 @@
 
 import { STORAGE_KEYS, SECURITY_CONFIG, REMOTE_CONFIG } from './config';
-import { channels, countries, categories, setIsSyncing } from './dataStore';
+import { channels, countries, categories, setIsSyncing, isSyncing } from './dataStore';
 
 // تشفير الروابط الحساسة إذا لزم الأمر (وظيفة مبسطة)
 function obfuscateStreamUrls(data: any[]): any[] {
@@ -112,13 +112,13 @@ export const syncWithRemoteSource = async (remoteUrl: string): Promise<boolean> 
 
 // Sync all data 
 export const syncAllData = async (): Promise<boolean> => {
-  if (syncInProgress) {
+  if (isSyncing) {
     console.log('المزامنة قيد التنفيذ بالفعل');
     return false;
   }
   
   try {
-    syncInProgress = true;
+    setIsSyncing(true);
     
     // التحقق من وجود تكوين للتحديث عن بُعد
     const remoteConfigStr = localStorage.getItem(STORAGE_KEYS.REMOTE_CONFIG);
@@ -136,7 +136,7 @@ export const syncAllData = async (): Promise<boolean> => {
     // إذا لم يكن هناك مصدر خارجي أو فشلت المزامنة، استخدم البيانات المحلية
     return await syncWithRemoteAPI();
   } finally {
-    syncInProgress = false;
+    setIsSyncing(false);
   }
 };
 
@@ -162,12 +162,9 @@ export const isSyncNeeded = (): boolean => {
   return !hasChannels || !hasCategories || !hasCountries;
 };
 
-// This variable tracks if sync is currently in progress
-let syncInProgress = false;
-
 // Check if sync is currently in progress
 export const isSyncInProgress = (): boolean => {
-  return syncInProgress;
+  return isSyncing;
 };
 
 // وظيفة للحصول على تكوين المصدر الخارجي
@@ -208,7 +205,7 @@ export const setupAutoSync = (): (() => void) => {
   // إنشاء مزامنة دورية
   const intervalId = setInterval(() => {
     // إذا كانت هناك مزامنة قيد التنفيذ، تخطي هذه الدورة
-    if (syncInProgress) return;
+    if (isSyncing) return;
     
     // التحقق مما إذا كانت المزامنة مطلوبة (أكثر من فترة زمنية معينة منذ آخر مزامنة)
     const lastSyncStr = localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
