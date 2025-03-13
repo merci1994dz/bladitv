@@ -1,11 +1,12 @@
 
-import React, { useRef } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Channel } from '@/types';
 import { useVideoPlayer } from '@/hooks/videoPlayer';
 import VideoHeader from './VideoHeader';
 import VideoControls from './VideoControls';
 import VideoError from './VideoError';
 import VideoLoading from './VideoLoading';
+import { toast } from "@/hooks/use-toast";
 
 interface VideoPlayerProps {
   channel: Channel;
@@ -14,6 +15,7 @@ interface VideoPlayerProps {
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
   const playerContainerRef = useRef<HTMLDivElement>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const {
     videoRef,
@@ -33,6 +35,28 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     retryPlayback,
     seekVideo
   } = useVideoPlayer({ channel });
+
+  // Log state values for debugging
+  useEffect(() => {
+    console.log("VideoPlayer state:", { 
+      isLoading, 
+      error, 
+      retryCount, 
+      channelName: channel.name,
+      streamUrl: channel.streamUrl
+    });
+    
+    if (!isInitialized && channel.streamUrl) {
+      setIsInitialized(true);
+      
+      // Notify user that channel is loading
+      toast({
+        title: `جاري تشغيل ${channel.name}`,
+        description: "يرجى الانتظار قليلاً...",
+        duration: 3000,
+      });
+    }
+  }, [isLoading, error, retryCount, channel, isInitialized]);
 
   const handleClose = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -71,15 +95,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
   const handleBackdropClick = (e: React.MouseEvent) => {
     e.stopPropagation();
   };
-
-  // Log state values for debugging
-  console.log("VideoPlayer state:", { 
-    isLoading, 
-    error, 
-    retryCount, 
-    channelName: channel.name,
-    streamUrl: channel.streamUrl
-  });
 
   return (
     <div 

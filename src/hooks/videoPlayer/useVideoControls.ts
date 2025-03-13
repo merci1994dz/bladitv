@@ -14,13 +14,24 @@ export function useVideoControls(isPlaying: boolean) {
       clearTimeout(controlsTimeoutRef.current);
     }
     
-    // Set new timeout to hide controls after 3 seconds
-    controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying) {
+    // Set new timeout to hide controls after 3 seconds if video is playing
+    if (isPlaying) {
+      controlsTimeoutRef.current = setTimeout(() => {
         setShowControls(false);
-      }
-    }, 3000);
+      }, 3000);
+    }
   };
+
+  // Show controls when video pauses
+  useEffect(() => {
+    if (!isPlaying) {
+      setShowControls(true);
+      // Clear any existing timeout
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    }
+  }, [isPlaying]);
 
   // Handle fullscreen change event
   useEffect(() => {
