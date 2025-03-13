@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getChannels, getCategories, getCountries, toggleFavoriteChannel } from '@/services/api';
+import { getChannels, getCountries, toggleFavoriteChannel } from '@/services/api';
 import ChannelCard from '@/components/ChannelCard';
 import VideoPlayer from '@/components/VideoPlayer';
 import { Channel } from '@/types';
@@ -19,14 +20,6 @@ const Home: React.FC = () => {
   } = useQuery({
     queryKey: ['channels'],
     queryFn: getChannels,
-  });
-
-  const { 
-    data: categories,
-    isLoading: isLoadingCategories,
-  } = useQuery({
-    queryKey: ['categories'],
-    queryFn: getCategories,
   });
 
   const { 
@@ -59,7 +52,7 @@ const Home: React.FC = () => {
     }
   };
 
-  if (isLoadingChannels || isLoadingCategories || isLoadingCountries) {
+  if (isLoadingChannels || isLoadingCountries) {
     return (
       <div className="min-h-screen flex justify-center items-center">
         <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -92,20 +85,6 @@ const Home: React.FC = () => {
       )}
 
       <section className="px-4 mb-8">
-        <h2 className="text-xl font-bold mb-4 text-right">القنوات الشائعة</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {channels?.slice(0, 6).map(channel => (
-            <ChannelCard 
-              key={channel.id} 
-              channel={channel} 
-              onPlay={handlePlayChannel}
-              onToggleFavorite={handleToggleFavorite}
-            />
-          ))}
-        </div>
-      </section>
-
-      <section className="px-4 mb-8">
         <div className="flex justify-between items-center mb-4">
           <Link to="/countries" className="text-primary flex items-center text-sm">
             المزيد <ArrowRight className="h-4 w-4 mr-1" />
@@ -114,7 +93,7 @@ const Home: React.FC = () => {
         </div>
         
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {countries?.slice(0, 10).map(country => (
+          {countries?.map(country => (
             <Link 
               key={country.id} 
               to={`/countries`}
@@ -136,27 +115,6 @@ const Home: React.FC = () => {
           ))}
         </div>
       </section>
-
-      {categories?.map(category => {
-        const categoryChannels = channels?.filter(channel => channel.category === category.id) || [];
-        if (categoryChannels.length === 0) return null;
-
-        return (
-          <section key={category.id} className="px-4 mb-8">
-            <h2 className="text-xl font-bold mb-4 text-right">{category.name}</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {categoryChannels.slice(0, 4).map(channel => (
-                <ChannelCard 
-                  key={channel.id} 
-                  channel={channel} 
-                  onPlay={handlePlayChannel}
-                  onToggleFavorite={handleToggleFavorite}
-                />
-              ))}
-            </div>
-          </section>
-        );
-      })}
     </div>
   );
 };
