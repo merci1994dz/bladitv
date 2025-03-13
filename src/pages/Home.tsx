@@ -99,6 +99,7 @@ const Home: React.FC = () => {
                 }}
               />
               <div className="absolute inset-0 flex items-center justify-center flex-col">
+                <span className="text-2xl mb-1">{country.flag}</span>
                 <h3 className="text-white font-semibold text-center text-sm">{country.name}</h3>
               </div>
             </Link>
