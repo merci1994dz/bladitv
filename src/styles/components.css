@@ -1,0 +1,59 @@
+
+@tailwind components;
+
+/* ===== مكونات واجهة المستخدم ===== */
+
+/* تنسيق الظلال والنصوص */
+.shadow-text {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.card-shadow {
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05), 0 6px 6px rgba(0, 0, 0, 0.03);
+}
+
+/* تأثيرات البطاقات */
+.card-hover {
+  @apply transition-all duration-300 shadow-md hover:shadow-xl hover:translate-y-[-4px];
+}
+
+/* تأثيرات زجاجية */
+.glass {
+  @apply backdrop-blur-lg bg-white/15 border border-white/20 shadow-lg;
+}
+
+.glass-dark {
+  @apply backdrop-blur-lg bg-black/40 border border-white/10 shadow-lg;
+}
+
+/* تصميم الأزرار */
+.btn-primary {
+  @apply bg-gradient-to-r from-primary/90 to-primary text-white rounded-full px-5 py-2.5 shadow-md hover:shadow-lg hover:scale-[1.02] transition-all;
+}
+
+.btn-secondary {
+  @apply bg-gradient-to-r from-secondary/80 to-secondary text-secondary-foreground rounded-full px-5 py-2.5 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all;
+}
+
+/* عناوين الأقسام */
+.section-title {
+  @apply text-2xl font-bold mb-6 relative inline-block after:content-[''] after:absolute after:bottom-[-8px] after:left-0 after:right-0 after:mx-auto after:w-12 after:h-1 after:bg-primary after:rounded-full;
+}
+
+/* تأثيرات التدرج */
+.gradient-blue {
+  @apply bg-gradient-to-r from-blue-500 to-indigo-600;
+}
+
+.gradient-purple {
+  @apply bg-gradient-to-r from-purple-500 to-pink-500;
+}
+
+.gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-400;
+}
+
+/* تأثيرات الحدود المتوهجة */
+.border-glow {
+  box-shadow: 0 0 5px theme('colors.primary.DEFAULT'), 0 0 10px theme('colors.primary.DEFAULT');
+}
