@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getChannels, getCountries, toggleFavoriteChannel } from '@/services/api';
@@ -88,7 +89,7 @@ const Home: React.FC = () => {
             <Link 
               key={country.id} 
               to={`/countries`}
-              className="relative bg-gradient-to-t from-black/60 via-black/20 to-black/5 rounded-lg overflow-hidden h-24 group"
+              className="relative bg-gradient-to-t from-black/70 via-black/40 to-black/20 rounded-lg overflow-hidden h-28 group shadow-md hover:shadow-lg transition-all duration-300"
             >
               <img 
                 src={country.image} 
@@ -98,9 +99,8 @@ const Home: React.FC = () => {
                   (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1589519160732-57fc498494f8?q=80&w=500&auto=format&fit=crop';
                 }}
               />
-              <div className="absolute inset-0 flex items-center justify-center flex-col">
-                <span className="text-2xl mb-1">{country.flag}</span>
-                <h3 className="text-white font-semibold text-center text-sm">{country.name}</h3>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <h3 className="text-white font-bold text-center text-sm px-2">{country.name}</h3>
               </div>
             </Link>
           ))}
