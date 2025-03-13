@@ -1,17 +1,13 @@
-import React, { useRef, useEffect, useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Channel } from '@/types';
-import { Button } from "@/components/ui/button";
-import { Volume2, VolumeX, Maximize, Minimize, X, RotateCcw, Play, Pause, FastForward, Rewind, Settings } from 'lucide-react';
 import { toast } from "@/hooks/use-toast";
 
-interface VideoPlayerProps {
+interface UseVideoPlayerProps {
   channel: Channel;
-  onClose: () => void;
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
+export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const playerContainerRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -215,11 +211,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
   };
 
   // Handle fullscreen toggle
-  const toggleFullscreen = () => {
-    if (!playerContainerRef.current) return;
+  const toggleFullscreen = (containerRef: React.RefObject<HTMLDivElement>) => {
+    if (!containerRef.current) return;
 
     if (!document.fullscreenElement) {
-      playerContainerRef.current.requestFullscreen().then(() => {
+      containerRef.current.requestFullscreen().then(() => {
         setIsFullscreen(true);
         // Keep controls visible for a bit after entering fullscreen
         setShowControls(true);
@@ -243,18 +239,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     }
   };
 
-  // Handle fullscreen change event
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    };
-  }, []);
-
   // Toggle mute
   const toggleMute = () => {
     if (videoRef.current) {
@@ -270,8 +254,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
   };
   
   // Handle volume change
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(e.target.value);
+  const handleVolumeChange = (newVolume: number) => {
     if (videoRef.current) {
       videoRef.current.volume = newVolume;
       setCurrentVolume(newVolume);
@@ -332,194 +315,33 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     }
   };
 
-  return (
-    <div 
-      className="fixed inset-0 bg-black z-50 flex flex-col" 
-      ref={playerContainerRef}
-      onMouseMove={handleMouseMove}
-      onClick={() => togglePlayPause()}
-    >
-      {/* Gradient overlay for header and footer controls */}
-      <div 
-        className={`p-4 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent absolute top-0 left-0 right-0 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
-      >
-        <div className="flex items-center space-x-2 rtl:space-x-reverse">
-          <div className="relative w-10 h-10 bg-black/20 rounded overflow-hidden flex items-center justify-center">
-            <img 
-              src={channel.logo} 
-              alt={channel.name} 
-              className="w-full h-full object-contain"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=TV';
-              }}
-            />
-          </div>
-          <h2 className="text-white text-xl font-bold shadow-text">{channel.name}</h2>
-        </div>
-        <Button 
-          variant="ghost" 
-          size="icon"
-          className="rounded-full text-white hover:bg-red-500/20 h-9 w-9" 
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-        >
-          <X className="w-5 h-5" />
-        </Button>
-      </div>
-      
-      {/* Video player */}
-      <div className="flex-1 flex items-center justify-center relative">
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          </div>
-        )}
-        
-        {error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-20 p-4">
-            <div className="max-w-md w-full bg-gray-900/90 p-5 rounded-lg shadow-lg backdrop-blur-sm">
-              <p className="text-white text-lg mb-4 text-center">
-                <span className="text-red-400 block text-4xl mb-2">⚠️</span>
-                {error}
-              </p>
-              <div className="flex justify-center">
-                <Button onClick={(e) => {
-                  e.stopPropagation();
-                  retryPlayback();
-                }} className="bg-primary hover:bg-primary/90 gap-2">
-                  <RotateCcw className="w-4 h-4" />
-                  إعادة المحاولة
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        <video
-          ref={videoRef}
-          className="w-full h-full object-contain"
-          controls={false}
-          playsInline
-        />
-        
-        {/* Center play/pause button (visible on tap or hover) */}
-        <div 
-          className={`absolute inset-0 flex items-center justify-center z-10 cursor-pointer pointer-events-none transition-opacity duration-300 ${showControls && !isLoading && !error ? 'opacity-100' : 'opacity-0'}`}
-        >
-          <div className="bg-black/40 rounded-full p-5 backdrop-blur-sm">
-            {isPlaying ? 
-              <Pause className="w-14 h-14 text-white" /> : 
-              <Play className="w-14 h-14 text-white" />
-            }
-          </div>
-        </div>
-      </div>
-      
-      {/* Footer controls */}
-      <div className={`p-4 flex flex-col justify-end items-stretch bg-gradient-to-t from-black/80 to-transparent absolute bottom-0 left-0 right-0 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
-        {/* Progress indicator - If this is a VOD, not a live stream (placeholder for future functionality) */}
-        {/* <div className="w-full bg-gray-600/30 h-1 rounded-full mb-4 hidden">
-          <div className="bg-primary h-full rounded-full w-1/2"></div>
-        </div> */}
-        
-        {/* Control buttons */}
-        <div className="flex justify-between items-center">
-          {/* Left controls: volume */}
-          <div className="flex items-center space-x-2 rtl:space-x-reverse">
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-10 w-10" 
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleMute();
-              }}
-            >
-              {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-            </Button>
-            
-            {/* Volume slider */}
-            <div 
-              className="w-20 hidden md:block" 
-              onClick={(e) => e.stopPropagation()}
-            >
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={isMuted ? 0 : currentVolume}
-                onChange={handleVolumeChange}
-                className="slider-thumb w-full h-1.5 bg-white/30 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 focus:outline-none"
-              />
-            </div>
-          </div>
-          
-          {/* Center controls: rewind, play, fast-forward */}
-          <div className="flex items-center space-x-2 rtl:space-x-reverse">
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex" 
-              onClick={(e) => {
-                e.stopPropagation();
-                seekVideo(-10);
-              }}
-            >
-              <Rewind className="w-4 h-4" />
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-10 w-10" 
-              onClick={(e) => {
-                e.stopPropagation();
-                togglePlayPause();
-              }}
-            >
-              {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex" 
-              onClick={(e) => {
-                e.stopPropagation();
-                seekVideo(10);
-              }}
-            >
-              <FastForward className="w-4 h-4" />
-            </Button>
-          </div>
-          
-          {/* Right controls: fullscreen */}
-          <div className="flex items-center space-x-2 rtl:space-x-reverse">
-            <Button 
-              variant="ghost" 
-              size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-10 w-10" 
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleFullscreen();
-              }}
-            >
-              {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
-            </Button>
-          </div>
-        </div>
-      </div>
-      
-      {/* Backdrop for mobile controls - to ensure they don't disappear when touching */}
-      <div 
-        className={`fixed inset-0 bg-transparent z-0 ${showControls ? 'pointer-events-auto' : 'pointer-events-none'}`}
-        onClick={(e) => e.stopPropagation()}
-      />
-    </div>
-  );
-};
+  // Handle fullscreen change event
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
 
-export default VideoPlayer;
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  return {
+    videoRef,
+    isFullscreen,
+    isMuted,
+    isPlaying,
+    isLoading,
+    showControls,
+    currentVolume,
+    error,
+    handleMouseMove,
+    togglePlayPause,
+    toggleFullscreen,
+    toggleMute,
+    handleVolumeChange,
+    retryPlayback,
+    seekVideo
+  };
+}
