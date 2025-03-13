@@ -1,7 +1,7 @@
 
 import { STORAGE_KEYS } from './config';
 import { channels, countries, categories } from './dataStore';
-import { syncAllData, updateLastSyncTime } from './sync';
+import { syncAllData, getLastSyncTime } from './sync';
 import { toast } from '@/hooks/use-toast';
 
 interface BackupData {
