@@ -1,4 +1,3 @@
-
 // Local storage keys
 export const STORAGE_KEYS = {
   CHANNELS: 'tv_channels',
@@ -7,7 +6,8 @@ export const STORAGE_KEYS = {
   LAST_SYNC: 'tv_last_sync',
   ADMIN_PASSWORD: 'tv_admin_password',
   USER_SETTINGS: 'tv_user_settings',
-  REMOTE_CONFIG: 'tv_remote_config'
+  REMOTE_CONFIG: 'tv_remote_config',
+  WATCH_HISTORY: 'watch_history'  // Added this line
 };
 
 // Default admin password - will be saved to localStorage

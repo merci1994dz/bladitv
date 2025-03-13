@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { Clock, ClockX, Search, X, Trash2, Play } from 'lucide-react';
+import { Clock, Search, X, Trash2, Play, History as HistoryIcon } from 'lucide-react';
 import { 
   Dialog,
   DialogContent,
@@ -169,7 +169,7 @@ const History: React.FC = () => {
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <ClockX size={64} className="text-muted-foreground mb-4" />
+          <HistoryIcon size={64} className="text-muted-foreground mb-4" />
           <h3 className="text-xl font-medium mb-2">لا توجد قنوات في سجل المشاهدة</h3>
           <p className="text-muted-foreground mb-6 max-w-md">
             {searchQuery ? 
