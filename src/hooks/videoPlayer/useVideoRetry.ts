@@ -18,11 +18,11 @@ export function useVideoRetry({
   setIsPlaying: (playing: boolean) => void;
 }) {
   const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 2; // تقليل عدد المحاولات
+  const maxRetries = 1; // Reduced to minimize delay and frustration
 
-  // وظيفة إعادة المحاولة البسيطة
+  // Simple retry function
   const retryPlayback = () => {
-    console.log("بدء إعادة المحاولة اليدوية");
+    console.log("Starting manual retry");
     setError(null);
     setIsLoading(true);
     setRetryCount(0);
@@ -34,95 +34,77 @@ export function useVideoRetry({
     });
     
     if (videoRef.current) {
-      // إعادة تعيين أساسية
+      // Basic reset
       try {
         videoRef.current.pause();
         videoRef.current.src = '';
         videoRef.current.load();
       } catch (e) {
-        console.error("خطأ أثناء إعادة تعيين الفيديو:", e);
+        console.error("Error resetting video:", e);
       }
       
+      // Add short delay before retrying
       setTimeout(() => {
-        if (videoRef.current) {
-          try {
-            // تنظيف أي أحداث قبل إعادة المحاولة
-            videoRef.current.oncanplay = null;
-            videoRef.current.onplaying = null;
-            videoRef.current.onerror = null;
+        if (!videoRef.current) return;
+        
+        try {
+          if (setupVideoSource(videoRef.current, channel.streamUrl)) {
+            // Set essential attributes for mobile
+            videoRef.current.playsInline = true;
             
-            if (setupVideoSource(videoRef.current, channel.streamUrl)) {
-              // إضافة مراقبي الأحداث للتشغيل اليدوي
-              videoRef.current.oncanplay = () => {
-                console.log("الفيديو جاهز للتشغيل بعد إعادة المحاولة");
-                setIsLoading(false);
-              };
-              
-              videoRef.current.onplaying = () => {
-                console.log("بدأ تشغيل الفيديو بعد إعادة المحاولة");
-                setIsPlaying(true);
-                setIsLoading(false);
-              };
-              
-              videoRef.current.onerror = () => {
-                console.error("خطأ بعد إعادة المحاولة");
-                setError("فشلت محاولة إعادة التشغيل");
-                setIsLoading(false);
-              };
-              
-              // محاولة التشغيل
-              const playPromise = videoRef.current.play();
-              if (playPromise !== undefined) {
-                playPromise
-                  .then(() => {
-                    console.log("نجحت إعادة المحاولة اليدوية");
-                  })
-                  .catch(err => {
-                    console.error('خطأ في تشغيل الفيديو عند إعادة المحاولة:', err);
-                    
-                    // التعامل مع قيود التشغيل التلقائي
-                    if (err.name === "NotAllowedError") {
-                      setError('انقر على الشاشة لبدء التشغيل');
-                      setIsLoading(false);
-                    } else {
-                      setError('فشل في تشغيل البث');
-                      setIsLoading(false);
-                    }
-                  });
-              }
-            } else {
-              setError("فشل في إعداد مصدر الفيديو");
-              setIsLoading(false);
+            // Try to play
+            const playPromise = videoRef.current.play();
+            if (playPromise !== undefined) {
+              playPromise
+                .then(() => {
+                  console.log("Manual retry succeeded");
+                  setIsPlaying(true);
+                  setIsLoading(false);
+                })
+                .catch(err => {
+                  console.error('Error playing video on retry:', err);
+                  
+                  // Handle autoplay restrictions
+                  if (err.name === "NotAllowedError") {
+                    setError('انقر على الشاشة لبدء التشغيل');
+                    setIsLoading(false);
+                  } else {
+                    setError('فشل في تشغيل البث');
+                    setIsLoading(false);
+                  }
+                });
             }
-          } catch (error) {
-            console.error('خطأ أثناء إعادة المحاولة اليدوية:', error);
-            setError('حدث خطأ غير متوقع');
+          } else {
+            setError("فشل في إعداد مصدر الفيديو");
             setIsLoading(false);
           }
+        } catch (error) {
+          console.error('Error during manual retry:', error);
+          setError('حدث خطأ غير متوقع');
+          setIsLoading(false);
         }
-      }, 500);
+      }, 300);
     }
   };
 
-  // منطق إعادة المحاولة التلقائي المبسط
+  // Simplified auto-retry logic
   const handlePlaybackError = () => {
     if (retryCount < maxRetries) {
-      console.log(`إعادة محاولة تلقائية (${retryCount + 1}/${maxRetries})...`);
+      console.log(`Auto-retry (${retryCount + 1}/${maxRetries})...`);
       setRetryCount(prev => prev + 1);
-      return true; // متابعة إعادة المحاولة التلقائية
+      return true;
     } else {
-      setError('تعذر تشغيل البث. جرب قناة أخرى أو انقر على إعادة المحاولة.');
+      setError('تعذر تشغيل البث. حاول مرة أخرى.');
       setIsLoading(false);
-      setIsPlaying(false);
       
       toast({
         title: "تعذر تشغيل القناة",
-        description: "فشل في تشغيل القناة بعد عدة محاولات",
+        description: "انقر على إعادة المحاولة",
         variant: "destructive",
         duration: 5000,
       });
       
-      return false; // إيقاف إعادة المحاولة التلقائية
+      return false;
     }
   };
 

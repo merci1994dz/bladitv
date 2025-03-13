@@ -1,7 +1,6 @@
 
-import { VideoRef } from './useVideoSetup';
+import { VideoRef, setupVideoSource } from './useVideoSetup';
 import { Channel } from '@/types';
-import { setupVideoSource } from './useVideoSetup';
 import { toast } from "@/hooks/use-toast";
 
 export function useVideoLoadHandler() {
@@ -19,82 +18,75 @@ export function useVideoLoadHandler() {
       return;
     }
     
-    console.log('تهيئة الفيديو للقناة:', channel.name);
+    console.log('Initializing video for channel:', channel.name);
     
     try {
-      // تنظيف مشغل الفيديو قبل تعيين المصدر الجديد
+      // Clear the video player first
       videoRef.current.pause();
-      videoRef.current.src = '';
+      videoRef.current.removeAttribute('src');
       videoRef.current.load();
       
-      // تعيين المصدر بعد إعطاء وقت للتنظيف
-      setTimeout(() => {
-        if (!videoRef.current) return;
+      // Set some essential attributes for mobile
+      videoRef.current.playsInline = true;
+      videoRef.current.autoplay = false; // Let the play logic handle this
+      videoRef.current.muted = false;
+      
+      // Setup the source and add event handlers
+      if (setupVideoSource(videoRef.current, channel.streamUrl)) {
+        console.log("Video source set up successfully");
         
-        // إعداد مصدر الفيديو
-        if (setupVideoSource(videoRef.current, channel.streamUrl)) {
-          console.log("تم إعداد مصدر الفيديو بنجاح");
-          
-          // محاولة التشغيل بعد تأخير قصير للتوافق مع الأجهزة المحمولة
-          setTimeout(() => {
-            if (!videoRef.current) return;
-            
-            console.log("محاولة تشغيل الفيديو");
-            try {
-              // تعيين خصائص إضافية للتوافق مع الأجهزة المحمولة
-              videoRef.current.playsInline = true;
-              videoRef.current.volume = 1.0;
-              
-              const playPromise = videoRef.current.play();
-              
-              if (playPromise !== undefined) {
-                playPromise
-                  .then(() => {
-                    console.log("بدأ تشغيل الفيديو بنجاح");
-                    setIsLoading(false);
-                  })
-                  .catch(err => {
-                    console.error("خطأ في التشغيل:", err);
-                    
-                    // التعامل مع قيود التشغيل التلقائي (شائع في الأجهزة المحمولة)
-                    if (err.name === "NotAllowedError") {
-                      console.log("خطأ NotAllowedError - قيود التشغيل التلقائي");
-                      setIsLoading(false);
-                      toast({
-                        title: "التشغيل التلقائي محظور",
-                        description: "انقر على الفيديو للتشغيل",
-                        duration: 3000,
-                      });
-                    } else {
-                      setError(`فشل في تشغيل الفيديو: ${err.message || 'خطأ غير معروف'}`);
-                      setIsLoading(false);
-                    }
-                  });
-              } else {
-                console.log("وعد التشغيل غير معرف - جاري محاولة تشغيل تقليدية");
-                videoRef.current.onplay = () => {
-                  console.log("تم تشغيل الفيديو بطريقة تقليدية");
-                  setIsLoading(false);
-                };
-                videoRef.current.onerror = (e) => {
-                  console.error("خطأ في التشغيل التقليدي:", e);
-                  setError("فشل في تشغيل الفيديو بشكل تقليدي");
-                  setIsLoading(false);
-                };
-              }
-            } catch (playError) {
-              console.error("خطأ أثناء محاولة التشغيل:", playError);
-              setError("حدث خطأ أثناء محاولة التشغيل");
-              setIsLoading(false);
-            }
-          }, 500);
-        } else {
-          setError("فشل في تهيئة مصدر الفيديو");
+        // Basic event handlers
+        videoRef.current.oncanplay = () => {
+          console.log("Video can play now");
           setIsLoading(false);
-        }
-      }, 300);
+        };
+        
+        videoRef.current.onplaying = () => {
+          console.log("Video has started playing");
+          setIsLoading(false);
+        };
+        
+        videoRef.current.onerror = () => {
+          console.error("Error loading video");
+          setError('فشل في تحميل الفيديو');
+          setIsLoading(false);
+        };
+        
+        // Attempt to play with delay for mobile
+        setTimeout(() => {
+          if (!videoRef.current) return;
+          
+          try {
+            const playPromise = videoRef.current.play();
+            
+            if (playPromise !== undefined) {
+              playPromise.catch(err => {
+                console.error("Play error:", err.name);
+                
+                // Handle autoplay restrictions
+                if (err.name === "NotAllowedError") {
+                  console.log("Autoplay restricted - user needs to interact");
+                  setIsLoading(false);
+                  setError('انقر للتشغيل');
+                  
+                  toast({
+                    title: "انقر للتشغيل",
+                    description: "انقر على الشاشة لبدء البث",
+                    duration: 3000,
+                  });
+                }
+              });
+            }
+          } catch (e) {
+            console.error("General play error:", e);
+          }
+        }, 300);
+      } else {
+        setError("فشل في إعداد مصدر الفيديو");
+        setIsLoading(false);
+      }
     } catch (err) {
-      console.error("خطأ في تهيئة الفيديو:", err);
+      console.error("Error initializing video:", err);
       setError("حدث خطأ أثناء تحميل الفيديو");
       setIsLoading(false);
     }

@@ -26,7 +26,7 @@ export function useVideoEvents({
 }) {
   const { initializeVideoPlayback } = useVideoLoadHandler();
   
-  // تسجيل مستمعي أحداث الفيديو
+  // Register video event listeners
   useVideoEventListeners({
     videoRef,
     setIsPlaying,
@@ -35,38 +35,40 @@ export function useVideoEvents({
     handlePlaybackError
   });
 
-  // تأثير الإعداد - مبسط للتوافق الأفضل مع الأجهزة المحمولة
+  // Setup effect - simplified for better compatibility
   useEffect(() => {
-    console.log("إعداد الفيديو للقناة:", channel.name, "محاولة:", retryCount);
+    console.log("Setting up video for channel:", channel.name, "attempt:", retryCount);
     
-    // إعادة تعيين الحالات
+    // Reset states
     setError(null);
     setIsLoading(true);
     
-    // تهيئة تشغيل الفيديو مع تأخير أطول للسماح بالتنظيف
+    // Clear any existing video source
+    if (videoRef.current) {
+      try {
+        videoRef.current.pause();
+        videoRef.current.removeAttribute('src');
+        videoRef.current.load();
+      } catch (e) {
+        console.error("Error clearing video:", e);
+      }
+    }
+    
+    // Initialize video playback with a short delay
     const timeoutId = setTimeout(() => {
       if (videoRef.current) {
-        console.log("تهيئة تشغيل الفيديو بعد التأخير");
-        
-        // تنظيف أي أحداث سابقة
-        videoRef.current.oncanplay = null;
-        videoRef.current.onplaying = null;
-        videoRef.current.onerror = null;
-        videoRef.current.onstalled = null;
-        videoRef.current.onwaiting = null;
-        videoRef.current.onended = null;
-        
+        console.log("Initializing video playback after delay");
         initializeVideoPlayback(videoRef, channel, setIsLoading, setError);
       }
     }, 300);
     
-    // دالة التنظيف
+    // Cleanup function
     return () => {
       clearTimeout(timeoutId);
       if (videoRef.current) {
-        console.log("تنظيف عنصر الفيديو");
+        console.log("Cleaning up video element");
         try {
-          // إزالة مستمعي الأحداث أولاً
+          // Remove event listeners first
           videoRef.current.oncanplay = null;
           videoRef.current.onplaying = null;
           videoRef.current.onerror = null;
@@ -74,12 +76,13 @@ export function useVideoEvents({
           videoRef.current.onwaiting = null;
           videoRef.current.onended = null;
           
-          // إيقاف وتنظيف الفيديو
+          // Stop and clean video
           videoRef.current.pause();
-          videoRef.current.removeAttribute('src');
+          videoRef.current.src = '';
           videoRef.current.load();
+          videoRef.current.removeAttribute('src');
         } catch (e) {
-          console.error("خطأ أثناء تنظيف الفيديو:", e);
+          console.error("Error during video cleanup:", e);
         }
       }
     };
