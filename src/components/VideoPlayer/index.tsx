@@ -72,6 +72,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     e.stopPropagation();
   };
 
+  // اطبع قيم الحالة للتصحيح
+  console.log("VideoPlayer state:", { 
+    isLoading, 
+    error, 
+    retryCount, 
+    channelName: channel.name,
+    streamUrl: channel.streamUrl
+  });
+
   return (
     <div 
       className="fixed inset-0 bg-black z-50 flex flex-col" 

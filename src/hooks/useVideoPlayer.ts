@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Channel } from '@/types';
 import { toast } from "@/hooks/use-toast";
@@ -40,21 +39,44 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
 
   // التعامل مع ملفات M3U8 بطريقة HLS للدعم الأفضل
   const setupHlsIfNeeded = (video: HTMLVideoElement, src: string) => {
+    if (!src) {
+      console.error('Stream URL is empty or invalid');
+      setError('رابط البث غير صالح. الرجاء المحاولة لاحقًا.');
+      setIsLoading(false);
+      return;
+    }
+
+    console.log('Setting up video with source:', src);
+    
     // إذا كان المتصفح يدعم HLS بشكل مدمج
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      console.log('Native HLS support');
+      console.log('Native HLS support detected');
       video.src = src;
       return;
     }
     
     // للمتصفحات التي لا تدعم HLS بشكل مدمج، نستخدم الملفات المدعومة فقط
     console.log('No HLS support, trying direct playback');
-    video.src = src;
+    
+    // تجربة بعض الخيارات الإضافية لزيادة التوافق
+    try {
+      video.src = src;
+      video.onerror = (e) => {
+        console.error('Video error during setup:', e);
+      };
+    } catch (e) {
+      console.error('Error setting video source:', e);
+      setError('حدث خطأ أثناء تحميل الفيديو. الرجاء المحاولة لاحقًا.');
+      setIsLoading(false);
+    }
   };
 
   // طريقة جديدة لتحسين التعامل مع الأخطاء وتجربة أنواع مختلفة من صيغ الفيديو
   const tryAlternativeFormats = async () => {
     if (!videoRef.current || !channel.streamUrl) return;
+    
+    // سجل المحاولة
+    console.log('Trying alternative format for:', channel.streamUrl);
     
     // إعادة تعيين حالة الفيديو
     const video = videoRef.current;
@@ -63,12 +85,16 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
     video.load();
     
     // محاولة مع المصدر الأصلي
-    setupHlsIfNeeded(video, channel.streamUrl);
-    
     try {
-      await video.play();
-    } catch (e) {
-      console.error('Error playing video with original source:', e);
+      setupHlsIfNeeded(video, channel.streamUrl);
+      
+      await video.play().catch(e => {
+        console.error('Error playing video with original source:', e);
+        setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى لاحقًا.');
+        setIsLoading(false);
+      });
+    } catch (err) {
+      console.error('Complete failure in tryAlternativeFormats:', err);
       setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى لاحقًا.');
       setIsLoading(false);
     }
@@ -76,7 +102,20 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
 
   // Initialize video player
   useEffect(() => {
-    if (!videoRef.current) return;
+    console.log('Initializing video player for channel:', channel.name);
+    console.log('Stream URL:', channel.streamUrl);
+    
+    if (!videoRef.current) {
+      console.error('Video ref is not available');
+      return;
+    }
+    
+    if (!channel.streamUrl) {
+      console.error('Channel stream URL is empty');
+      setError('لا يوجد رابط بث متاح لهذه القناة');
+      setIsLoading(false);
+      return;
+    }
     
     // Reset states on new video
     setError(null);
@@ -87,6 +126,9 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
     const video = videoRef.current;
     video.muted = isMuted;
     video.volume = currentVolume;
+    
+    // تسجيل الأحداث للتشخيص
+    console.log('Setting up video event listeners');
     
     // Register event listeners
     const handleCanPlay = () => {
@@ -101,8 +143,11 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
       setError(null);
     };
     
-    const handleError = () => {
-      console.error('Video error:', video.error);
+    const handleError = (e: Event) => {
+      const videoElement = e.target as HTMLVideoElement;
+      console.error('Video error detected:', videoElement.error);
+      console.error('Error code:', videoElement.error?.code);
+      console.error('Error message:', videoElement.error?.message);
       
       // Only increment retry count if there's a real error (not abort)
       if (retryCount < maxRetries) {
@@ -111,21 +156,25 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
         
         setTimeout(() => {
           // Use a slightly different approach for retrying
-          video.removeAttribute('src');
-          video.load();
-          setupHlsIfNeeded(video, channel.streamUrl);
-          video.load();
-          
-          const playPromise = video.play().catch(e => {
-            console.error('Retry play failed:', e);
+          try {
+            video.removeAttribute('src');
+            video.load();
+            setupHlsIfNeeded(video, channel.streamUrl);
+            video.load();
             
-            // Check if it's a format error - this is often not recoverable
-            if (e.name === "NotSupportedError") {
-              setError('فشل في تشغيل البث. تنسيق الفيديو غير مدعوم في متصفحك.');
-              setIsLoading(false);
-            }
-          });
-        }, 1000);
+            const playPromise = video.play().catch(e => {
+              console.error('Retry play failed:', e);
+              
+              // Check if it's a format error - this is often not recoverable
+              if (e.name === "NotSupportedError") {
+                setError('فشل في تشغيل البث. تنسيق الفيديو غير مدعوم في متصفحك.');
+                setIsLoading(false);
+              }
+            });
+          } catch (err) {
+            console.error('Error during retry attempt:', err);
+          }
+        }, 1500);
       } else {
         setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى لاحقًا.');
         setIsLoading(false);
@@ -162,42 +211,55 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
     video.addEventListener('waiting', handleWaiting);
     video.addEventListener('ended', handleEnded);
     
-    // Set source and play
-    setupHlsIfNeeded(video, channel.streamUrl);
-    
-    // Try playing after a small delay
-    setTimeout(() => {
-      if (videoRef.current) {
-        videoRef.current.load();
-        const playPromise = videoRef.current.play();
-        
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => {
-              console.log('Initial play successful');
-            })
-            .catch(err => {
-              console.error('Error on initial play:', err);
-              
-              // Check if it's a user interaction error
-              if (err.name === "NotAllowedError") {
-                setIsPlaying(false);
-                setIsLoading(false);
-              }
-              // For format errors, set the appropriate error
-              else if (err.name === "NotSupportedError") {
-                setError('تنسيق الفيديو غير مدعوم في متصفحك.');
-                setIsLoading(false);
-                // محاولة تشغيل بصيغة بديلة
-                tryAlternativeFormats();
-              }
-            });
+    // Set source and play with error handling
+    try {
+      console.log('Setting up video source for:', channel.streamUrl);
+      setupHlsIfNeeded(video, channel.streamUrl);
+      
+      // Try playing after a small delay
+      setTimeout(() => {
+        if (videoRef.current) {
+          console.log('Attempting to play video');
+          videoRef.current.load();
+          const playPromise = videoRef.current.play();
+          
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => {
+                console.log('Initial play successful');
+              })
+              .catch(err => {
+                console.error('Error on initial play:', err);
+                console.error('Error name:', err.name);
+                console.error('Error message:', err.message);
+                
+                // Check if it's a user interaction error
+                if (err.name === "NotAllowedError") {
+                  console.log('Autoplay blocked by browser - needs user interaction');
+                  setIsPlaying(false);
+                  setIsLoading(false);
+                }
+                // For format errors, set the appropriate error
+                else if (err.name === "NotSupportedError") {
+                  setError('تنسيق الفيديو غير مدعوم في متصفحك.');
+                  setIsLoading(false);
+                  // محاولة تشغيل بصيغة بديلة
+                  tryAlternativeFormats();
+                }
+              });
+          }
         }
-      }
-    }, 300);
+      }, 500);
+    } catch (err) {
+      console.error('Unexpected error during video initialization:', err);
+      setError('حدث خطأ غير متوقع أثناء تحميل الفيديو.');
+      setIsLoading(false);
+    }
     
     // Cleanup function
     return () => {
+      console.log('Cleaning up video player');
+      
       // First remove all event listeners to prevent errors during cleanup
       video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('playing', handlePlaying);
@@ -225,7 +287,7 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
         document.exitFullscreen().catch(e => console.error('Error exiting fullscreen:', e));
       }
     };
-  }, [channel.streamUrl, currentVolume, isMuted, retryCount, channel.name]);
+  }, [channel.streamUrl, channel.name, currentVolume, isMuted, retryCount]);
 
   // Handle play/pause
   const togglePlayPause = () => {
