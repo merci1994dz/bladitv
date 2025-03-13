@@ -17,7 +17,7 @@ export interface VideoControlsProps {
   onMuteToggle: (e: React.MouseEvent) => void;
   onFullscreenToggle: (e: React.MouseEvent) => void;
   onVolumeChange: (value: number) => void;
-  onSeek?: (time: number) => void;
+  onSeek?: (seconds: number) => (e: React.MouseEvent) => void;
   onClick: (e: React.MouseEvent) => void;
   onReload?: (e: React.MouseEvent) => void;
   isTV?: boolean;
@@ -113,7 +113,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         <PlaybackControls
           isPlaying={isPlaying}
           onPlayPause={onPlayPause}
-          onSeek={onSeek || ((time: number) => {})}
+          onSeek={onSeek || ((seconds: number) => (e: React.MouseEvent) => {})}
           isTV={isTV}
           focusedButton={focusedButton}
         />

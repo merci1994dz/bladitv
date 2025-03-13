@@ -1,135 +1,138 @@
 
-import { useState, useRef, useEffect } from 'react';
-import { Channel } from '@/types';
+import { useState, useRef, useMemo } from 'react';
+import { useVideoSetup } from './useVideoSetup';
+import { useVideoPlayback } from './useVideoPlayback';
 import { useVideoVolume } from './useVideoVolume';
+import { useVideoFullscreen } from './useVideoFullscreen';
 import { useVideoRetry } from './useVideoRetry';
 import { useVideoControl } from './useVideoControl';
-import { useVideoSetup } from './useVideoSetup';
+import { useVideoLoadHandler } from './useVideoLoadHandler';
+import { useVideoEventListeners } from './useVideoEventListeners';
 import { useVideoEvents } from './useVideoEvents';
-import { VIDEO_PLAYER } from '@/services/config';
+import { useMobile } from '@/hooks/use-mobile';
+import { Channel } from '@/types';
 
-interface UseVideoProps {
-  channel: Channel;
-  initialStreamUrl?: string;
-}
+export const useVideo = (channel: Channel) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { isMobile } = useMobile();
 
-export function useVideo({ channel, initialStreamUrl }: UseVideoProps) {
-  // إعداد المراجع وحالة الفيديو
-  const {
-    videoRef,
-    isLoading,
+  // Video controls visibility
+  const [showControls, setShowControls] = useState(true);
+  
+  // Handle control visibility with timeout
+  const handleMouseMove = () => {
+    setShowControls(true);
+    resetControlsTimer();
+  };
+
+  // Auto-hide controls after a delay
+  const controlsTimerRef = useRef<number | null>(null);
+
+  const resetControlsTimer = () => {
+    if (controlsTimerRef.current) {
+      clearTimeout(controlsTimerRef.current);
+    }
+    controlsTimerRef.current = window.setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
+  };
+
+  // Use all video-related hooks
+  const videoSetup = useVideoSetup({ 
+    videoRef, 
+    isLoading, 
     setIsLoading,
     error,
     setError,
-    showControls,
-    setShowControls,
-    handleMouseMove
-  } = useVideoSetup();
-
-  // إعداد حالة التشغيل
-  const {
-    isPlaying,
-    setIsPlaying,
-    togglePlayPause,
-    seekVideo,
-    toggleFullscreen
-  } = useVideoControl({
+    isMobile
+  });
+  
+  const videoPlayback = useVideoPlayback({ 
+    videoRef
+  });
+  
+  const videoVolume = useVideoVolume({
+    videoRef
+  });
+  
+  const videoFullscreen = useVideoFullscreen({
+    videoRef
+  });
+  
+  const videoRetry = useVideoRetry({
+    channel,
+    setIsLoading,
+    setError,
+    videoRef
+  });
+  
+  const videoControl = useVideoControl();
+  
+  const videoLoadHandler = useVideoLoadHandler({
     videoRef,
+    channel,
     setIsLoading,
     setError
   });
-
-  // إعداد عناصر التحكم في الصوت
-  const {
-    isMuted,
-    currentVolume,
-    toggleMute,
-    handleVolumeChange,
-    initializeVolume
-  } = useVideoVolume();
-
-  // إعداد آلية إعادة المحاولة
-  const {
-    retryCount,
-    retryPlayback,
-    handlePlaybackError
-  } = useVideoRetry({
+  
+  const videoEventHandlers = useMemo(() => ({
+    onSeek: (seconds: number) => (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (videoRef.current) {
+        videoRef.current.currentTime += seconds;
+      }
+    },
+    // ... all other handlers
+  }), []);
+  
+  // Set up event listeners
+  useVideoEventListeners({
     videoRef,
-    channel,
-    setIsLoading,
-    setError,
-    setIsPlaying
+    onVideoEnd: videoPlayback.handleVideoEnd,
+    onVideoError: videoLoadHandler.handleVideoError,
+    onVideoLoaded: videoLoadHandler.handleVideoLoaded,
+    onVideoPause: videoPlayback.handleVideoPause,
+    onVideoPlay: videoPlayback.handleVideoPlay
   });
-
-  // إعداد مصدر البث الحالي
-  const [currentStreamUrl, setCurrentStreamUrl] = useState(initialStreamUrl || channel.streamUrl);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  // معالج تغيير حالة ملء الشاشة
-  const handleFullscreenChange = () => {
-    setIsFullscreen(document.fullscreenElement !== null);
-  };
-
-  // تهيئة مشغل الفيديو عند تغيير القناة
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.src = currentStreamUrl;
-      videoRef.current.load();
-      initializeVolume(videoRef);
-      setIsLoading(true);
-    }
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    };
-  }, [currentStreamUrl]);
-
-  // إعداد مستمعي أحداث الفيديو
+  
+  // Handle special TV-related events
   useVideoEvents({
-    videoRef,
-    channel,
-    isPlaying,
-    setIsPlaying,
-    setIsLoading,
-    setError,
-    retryCount,
-    handlePlaybackError
+    togglePlayPause: videoPlayback.togglePlayPause,
+    toggleMute: videoVolume.toggleMute,
+    toggleFullscreen: videoFullscreen.toggleFullscreen,
+    increaseVolume: videoVolume.increaseVolume,
+    decreaseVolume: videoVolume.decreaseVolume,
+    seekForward: videoControl.seekForward,
+    seekBackward: videoControl.seekBackward
   });
 
-  // القناة المحمية (لإخفاء عنوان URL)
-  const secureChannel = {
-    ...channel,
-    streamUrl: currentStreamUrl,
-    _displayUrl: VIDEO_PLAYER.HIDE_STREAM_URLS ? '[محمي]' : currentStreamUrl
-  };
-
-  // معالج تغيير مصدر البث
-  const handleChangeStreamSource = (url: string) => {
-    setCurrentStreamUrl(url);
-    retryPlayback();
+  // Clean up timeout on unmount
+  const cleanup = () => {
+    if (controlsTimerRef.current) {
+      clearTimeout(controlsTimerRef.current);
+    }
   };
 
   return {
     videoRef,
-    secureChannel,
-    isPlaying,
     isLoading,
-    isMuted,
-    isFullscreen,
-    currentVolume,
-    showControls,
     error,
-    retryCount,
-    currentStreamUrl,
+    showControls,
+    setShowControls,
     handleMouseMove,
-    togglePlayPause,
-    toggleFullscreen,
-    toggleMute,
-    handleVolumeChange,
-    retryPlayback,
-    seekVideo,
-    handleChangeStreamSource
+    resetControlsTimer,
+    cleanup,
+    ...videoSetup,
+    ...videoPlayback,
+    ...videoVolume,
+    ...videoFullscreen,
+    ...videoRetry,
+    ...videoControl,
+    ...videoLoadHandler,
+    ...videoEventHandlers
   };
-}
+};
+
+export default useVideo;

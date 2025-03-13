@@ -1,16 +1,14 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Channel } from '@/types';
-import VideoHeader from './VideoHeader';
-import VideoControls from './VideoControls';
-import VideoContent from './VideoContent';
-import TVControls from './TVControls';
-import InspectProtection from './InspectProtection';
 import { useVideo } from '@/hooks/videoPlayer/useVideo';
-import { usePlayerEventHandlers } from './PlayerEventHandlers';
-import { toast } from "@/hooks/use-toast";
 import { useDeviceType } from '@/hooks/use-tv';
-import { playChannel } from '@/services/channelService';
+
+import VideoHeader from './VideoHeader';
+import TVControls from './TVControls';
+import VideoContent from './VideoContent';
+import VideoControls from './VideoControls';
+import InspectProtection from './InspectProtection';
 
 interface VideoPlayerProps {
   channel: Channel;
@@ -18,108 +16,106 @@ interface VideoPlayerProps {
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
-  const playerContainerRef = React.useRef<HTMLDivElement>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [showStreamSources, setShowStreamSources] = useState(false);
-  const [showProgramGuide, setShowProgramGuide] = useState(false);
   const { isTV } = useDeviceType();
-  
-  // استخدام هوك الفيديو
+  const [showStreamSources, setShowStreamSources] = React.useState(false);
+  const [showProgramGuide, setShowProgramGuide] = React.useState(false);
+  const [currentStreamUrl, setCurrentStreamUrl] = React.useState(channel.streamUrl);
+
   const {
     videoRef,
-    secureChannel,
-    isPlaying,
     isLoading,
-    isMuted,
-    isFullscreen,
-    currentVolume,
-    showControls,
     error,
+    isPlaying,
+    togglePlayPause,
+    isMuted,
+    toggleMute,
+    currentVolume,
+    setVolume,
+    isFullscreen,
+    toggleFullscreen,
     retryCount,
-    currentStreamUrl,
-    handleMouseMove,
-    togglePlayPause,
-    toggleFullscreen,
-    toggleMute,
-    handleVolumeChange,
     retryPlayback,
-    seekVideo,
-    handleChangeStreamSource
-  } = useVideo({ 
-    channel,
-    initialStreamUrl: channel.streamUrl
-  });
+    showControls,
+    setShowControls,
+    handleMouseMove,
+    cleanup
+  } = useVideo(channel);
 
-  // إعداد معالجات الأحداث
-  const eventHandlers = usePlayerEventHandlers({
-    onClose,
-    togglePlayPause,
-    toggleFullscreen,
-    toggleMute,
-    handleVolumeChange,
-    seekVideo,
-    retryPlayback
-  });
-
-  // تسجيل المشاهدة
+  // Update stream URL when channel changes
   useEffect(() => {
-    if (!isInitialized && channel.streamUrl) {
-      setIsInitialized(true);
-      playChannel(channel.id).catch(console.error);
-      
-      toast({
-        title: `جاري تشغيل ${channel.name}`,
-        description: isTV ? "استخدم أزرار التنقل للتحكم" : "يرجى الانتظار قليلاً...",
-        duration: 3000,
-      });
-    }
-  }, [isInitialized, channel, isTV]);
+    setCurrentStreamUrl(channel.streamUrl);
+  }, [channel]);
 
-  // تحسينات واجهة المستخدم لأجهزة التلفزيون
-  useEffect(() => {
-    if (isTV && playerContainerRef.current) {
-      // تعيين التركيز للحاوية
-      playerContainerRef.current.setAttribute('tabindex', '0');
-      playerContainerRef.current.focus();
-      
-      // إظهار عناصر التحكم عند بدء التشغيل
-      handleMouseMove();
-      
-      // تعديل حجم المشغل للتلفزيون
-      document.body.classList.add('tv-mode');
-      
-      // تعطيل التمرير في الصفحة عند تشغيل الفيديو
-      document.body.style.overflow = 'hidden';
-      
-      // زيادة حجم مشغل الفيديو لتلفزيونات Smart TV
-      if (playerContainerRef.current) {
-        playerContainerRef.current.style.fontSize = '1.2rem';
-      }
+  // Handle stream source change
+  const handleChangeStreamSource = (url: string) => {
+    setCurrentStreamUrl(url);
+    // Force video to load new source
+    if (videoRef.current) {
+      videoRef.current.src = url;
+      videoRef.current.load();
+      videoRef.current.play().catch(console.error);
     }
-    
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
-      document.body.classList.remove('tv-mode');
-      document.body.style.overflow = '';
+      cleanup();
     };
-  }, [isTV, handleMouseMove]);
+  }, [cleanup]);
+
+  // Handle click on video to toggle controls
+  const handleVideoClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowControls(prev => !prev);
+  };
+
+  // Handle reload button
+  const handleReload = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    retryPlayback();
+  };
+
+  // Handle volume change
+  const handleVolumeChange = (value: number) => {
+    setVolume(value);
+  };
+
+  // Handle toggling stream sources panel
+  const handleToggleStreamSources = () => {
+    setShowStreamSources(prev => !prev);
+    setShowProgramGuide(false);
+  };
+
+  // Handle toggling program guide panel
+  const handleToggleProgramGuide = () => {
+    setShowProgramGuide(prev => !prev);
+    setShowStreamSources(false);
+  };
+
+  // Modify container click behavior based on streaming mode
+  const handleContainerClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (showStreamSources || showProgramGuide) {
+      setShowStreamSources(false);
+      setShowProgramGuide(false);
+    }
+  };
 
   return (
     <div 
-      className={`fixed inset-0 bg-black z-50 flex flex-col ${isTV ? 'tv-player' : ''}`} 
-      ref={playerContainerRef}
-      onMouseMove={handleMouseMove}
-      onClick={togglePlayPause}
-      tabIndex={0}
+      className="relative w-full aspect-video bg-black overflow-hidden mb-4 z-10 shadow-lg rounded-lg"
+      onClick={handleContainerClick}
     >
       <InspectProtection />
       
       <VideoHeader 
-        channel={secureChannel} 
-        onClose={eventHandlers.handleClose} 
-        show={showControls} 
+        channel={channel} 
+        onClose={onClose}
+        showControls={showControls}
       />
       
-      <VideoContent 
+      <VideoContent
         videoRef={videoRef}
         isLoading={isLoading}
         error={error}
@@ -135,37 +131,26 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
         showControls={showControls}
         handleMouseMove={handleMouseMove}
       />
-      
-      <VideoControls 
-        show={showControls && !isLoading && !error}
+
+      <VideoControls
+        show={showControls}
         isPlaying={isPlaying}
         isMuted={isMuted}
         isFullscreen={isFullscreen}
         currentVolume={currentVolume}
-        onPlayPause={eventHandlers.handlePlayPauseClick}
-        onMuteToggle={eventHandlers.handleMuteToggle}
-        onFullscreenToggle={eventHandlers.handleFullscreenToggle}
+        onPlayPause={togglePlayPause}
+        onMuteToggle={toggleMute}
+        onFullscreenToggle={toggleFullscreen}
         onVolumeChange={handleVolumeChange}
-        onSeek={eventHandlers.handleSeek}
-        onClick={eventHandlers.handleBackdropClick}
-        onReload={eventHandlers.handleReload}
+        onClick={handleVideoClick}
+        onReload={handleReload}
         isTV={isTV}
         channel={channel}
-        onShowStreamSources={() => setShowStreamSources(true)}
-        onShowProgramGuide={() => setShowProgramGuide(true)}
+        onShowStreamSources={handleToggleStreamSources}
+        onShowProgramGuide={handleToggleProgramGuide}
       />
       
-      <TVControls 
-        isTV={isTV}
-        isInitialized={isInitialized}
-        isLoading={isLoading}
-        onClose={onClose}
-        togglePlayPause={togglePlayPause}
-        seekVideo={seekVideo}
-        toggleMute={toggleMute}
-        toggleFullscreen={toggleFullscreen}
-        playerContainerRef={playerContainerRef}
-      />
+      {isTV && <TVControls show={showControls} />}
     </div>
   );
 };
