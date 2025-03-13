@@ -16,6 +16,7 @@ export const STORAGE_KEYS = {
   
   // إعدادات المزامنة
   REMOTE_CONFIG: 'tv_remote_config',
+  REMOTE_ADMIN_CONFIG: 'tv_remote_config',
   LAST_SYNC_TIME: 'last_sync_time',
   LAST_SYNC: 'last_sync', // Adding this key for backward compatibility
 };

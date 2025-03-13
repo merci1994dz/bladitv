@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Heart, Flag, Grid3X3, Search } from 'lucide-react';
+import { Home, Heart, Flag, Grid3X3, Search, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const Navigation: React.FC = () => {
@@ -38,6 +38,13 @@ const Navigation: React.FC = () => {
             label="البحث" 
             isActive={isActive('/search')} 
           />
+          <NavItem 
+            to="/backup" 
+            icon={<Save className="h-5 w-5" />} 
+            label="النسخ الاحتياطية" 
+            isActive={isActive('/backup')} 
+            adminOnly={true}
+          />
         </div>
       </div>
     </nav>
@@ -49,9 +56,10 @@ interface NavItemProps {
   icon: React.ReactNode;
   label: string;
   isActive: boolean;
+  adminOnly?: boolean;
 }
 
-const NavItem: React.FC<NavItemProps> = ({ to, icon, label, isActive }) => {
+const NavItem: React.FC<NavItemProps> = ({ to, icon, label, isActive, adminOnly }) => {
   return (
     <Link 
       to={to} 
@@ -59,7 +67,8 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, isActive }) => {
         "flex flex-col items-center justify-center px-2 py-1 rounded-lg transition-colors",
         isActive 
           ? "text-primary" 
-          : "text-muted-foreground hover:text-foreground"
+          : "text-muted-foreground hover:text-foreground",
+        adminOnly && "text-red-500"
       )}
     >
       {icon}
