@@ -33,7 +33,7 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -94,6 +94,8 @@
     direction: rtl;
   }
 }
+
+/* تحسين تأثيرات الواجهة */
 
 /* Animation for loading progress bar */
 @keyframes progress {
@@ -163,42 +165,42 @@
   animation: scale 0.3s ease-out forwards;
 }
 
-/* Card hover effects */
+/* تحسين تأثيرات البطاقات */
 .card-hover {
-  @apply transition-all duration-300 hover:shadow-md hover:translate-y-[-2px];
+  @apply transition-all duration-300 shadow-md hover:shadow-xl hover:translate-y-[-4px];
 }
 
-/* Glassmorphism effects */
+/* تأثيرات زجاجية محسنة */
 .glass {
-  @apply backdrop-blur-lg bg-white/10 border border-white/20;
+  @apply backdrop-blur-lg bg-white/15 border border-white/20 shadow-lg;
 }
 
 .glass-dark {
-  @apply backdrop-blur-lg bg-black/30 border border-white/10;
+  @apply backdrop-blur-lg bg-black/40 border border-white/10 shadow-lg;
 }
 
-/* Improve container look */
+/* تحسين مظهر الحاويات */
 .container {
   @apply px-4 sm:px-6 lg:px-8 mx-auto;
 }
 
-/* Professional buttons */
+/* تصميم أزرار محسنة */
 .btn-primary {
-  @apply bg-primary text-white rounded-full px-4 py-2 hover:bg-primary/90 transition-colors;
+  @apply bg-gradient-to-r from-primary/90 to-primary text-white rounded-full px-5 py-2.5 shadow-md hover:shadow-lg hover:scale-[1.02] transition-all;
 }
 
 .btn-secondary {
-  @apply bg-secondary text-secondary-foreground rounded-full px-4 py-2 hover:bg-secondary/90 transition-colors;
+  @apply bg-gradient-to-r from-secondary/80 to-secondary text-secondary-foreground rounded-full px-5 py-2.5 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all;
 }
 
-/* Enhanced scrollbar for modern browsers */
+/* تحسين شريط التمرير */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-100 dark:bg-gray-800;
+  @apply bg-gray-100 dark:bg-gray-800 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -207,4 +209,36 @@
 
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-gray-400 dark:bg-gray-500;
+}
+
+/* تحسينات UI إضافية */
+.section-title {
+  @apply text-2xl font-bold mb-6 relative inline-block after:content-[''] after:absolute after:bottom-[-8px] after:left-0 after:right-0 after:mx-auto after:w-12 after:h-1 after:bg-primary after:rounded-full;
+}
+
+.card-shadow {
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05), 0 6px 6px rgba(0, 0, 0, 0.03);
+}
+
+/* تأثيرات تدرج */
+.gradient-blue {
+  @apply bg-gradient-to-r from-blue-500 to-indigo-600;
+}
+
+.gradient-purple {
+  @apply bg-gradient-to-r from-purple-500 to-pink-500;
+}
+
+.gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-400;
+}
+
+/* تأثيرات حدود متوهجة */
+.border-glow {
+  box-shadow: 0 0 5px theme('colors.primary.DEFAULT'), 0 0 10px theme('colors.primary.DEFAULT');
+}
+
+/* تصميم شبكة محسن */
+.grid-auto-fit {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
 }

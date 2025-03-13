@@ -4,6 +4,7 @@ import { Play, Loader2 } from 'lucide-react';
 import { Channel } from '@/types';
 import { toast } from "@/hooks/use-toast";
 import { playChannel } from '@/services/channelService';
+import { Button } from "@/components/ui/button";
 
 interface PlayButtonProps {
   channel: Channel;
@@ -47,18 +48,19 @@ const PlayButton: React.FC<PlayButtonProps> = ({ channel, onPlay }) => {
   };
 
   return (
-    <button
+    <Button
       onClick={handlePlay}
-      className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-full w-full transition-colors flex items-center justify-center gap-2 mt-2 shadow-md group-hover:shadow-lg transform group-hover:scale-105 duration-200"
+      className="w-full mt-2 bg-gradient-to-r from-primary/90 to-primary shadow-md group-hover:shadow-lg transform group-hover:scale-105 duration-200 rounded-lg"
       disabled={isLoading}
+      size="lg"
     >
       {isLoading ? (
-        <Loader2 size={16} className="animate-spin" />
+        <Loader2 size={18} className="animate-spin ml-2" />
       ) : (
-        <Play size={16} />
+        <Play size={18} className="ml-2" />
       )}
-      <span>{isLoading ? "جاري التحميل..." : "مشاهدة"}</span>
-    </button>
+      <span className="text-base">{isLoading ? "جاري التحميل..." : "مشاهدة"}</span>
+    </Button>
   );
 };
 
