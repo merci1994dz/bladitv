@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import { Channel } from '@/types';
 import { useVideoPlayer } from '@/hooks/videoPlayer';
@@ -46,14 +45,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     seekVideo
   } = useVideoPlayer({ channel: secureChannel });
 
-  // For TV devices, we want to show controls for longer periods
   useEffect(() => {
     if (isTV && playerContainerRef.current) {
-      // Make the container focusable for TV navigation
       playerContainerRef.current.setAttribute('tabindex', '0');
       playerContainerRef.current.focus();
       
-      // Trigger initial handleMouseMove to show controls
       handleMouseMove();
     }
   }, [isTV, handleMouseMove]);
@@ -106,12 +102,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     }
   }, []);
 
-  // TV-specific keyboard event handling
   useEffect(() => {
     if (!isTV) return;
     
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Common TV remote control buttons
       switch (e.key) {
         case ' ':
         case 'Enter':
@@ -127,7 +121,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
           e.preventDefault();
           break;
         case 'Escape':
-          onClose(new MouseEvent('click') as any);
+          onClose();
           e.preventDefault();
           break;
         case 'm':
@@ -254,7 +248,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
         />
       </div>
       
-      {/* TV-specific helper message (only shows briefly on channel change) */}
       {isTV && isInitialized && (
         <div className={`absolute top-20 left-0 right-0 flex justify-center transition-opacity duration-1000 ${isLoading ? 'opacity-100' : 'opacity-0'}`}>
           <div className="bg-black/70 backdrop-blur-sm rounded-lg p-3 text-white">
