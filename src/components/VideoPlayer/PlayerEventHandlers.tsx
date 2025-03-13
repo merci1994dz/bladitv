@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface PlayerEventHandlersProps {
@@ -12,8 +11,8 @@ interface PlayerEventHandlersProps {
   children: React.ReactNode;
 }
 
-const PlayerEventHandlers: React.FC<PlayerEventHandlersProps> = ({ 
-  children,
+// Instead of a React component, we'll create a custom hook to return event handlers
+export function usePlayerEventHandlers({ 
   onClose,
   togglePlayPause,
   toggleFullscreen,
@@ -21,7 +20,7 @@ const PlayerEventHandlers: React.FC<PlayerEventHandlersProps> = ({
   handleVolumeChange,
   seekVideo,
   retryPlayback
-}) => {
+}: Omit<PlayerEventHandlersProps, 'children'>) {
   // Handler functions wrapped to prevent event propagation
   const handleClose = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -77,6 +76,12 @@ const PlayerEventHandlers: React.FC<PlayerEventHandlersProps> = ({
     handleBackdropClick,
     handleReload
   };
+}
+
+// We're converting the original component to a hook, but we'll keep a wrapper component for backward compatibility
+const PlayerEventHandlers: React.FC<PlayerEventHandlersProps> = (props) => {
+  // Just render children - the actual handlers will be used via the hook
+  return <>{props.children}</>;
 };
 
 export default PlayerEventHandlers;

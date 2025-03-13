@@ -8,6 +8,7 @@ import VideoError from './VideoError';
 import VideoLoading from './VideoLoading';
 import TVControls from './TVControls';
 import InspectProtection from './InspectProtection';
+import { usePlayerEventHandlers } from './PlayerEventHandlers';
 import { toast } from "@/hooks/use-toast";
 import { VIDEO_PLAYER } from '@/services/config';
 import { useDeviceType } from '@/hooks/use-tv';
@@ -50,6 +51,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     seekVideo
   } = useVideoPlayer({ channel: secureChannel });
 
+  // Now using the hook instead of the component's returned object
+  const eventHandlers = usePlayerEventHandlers({
+    onClose,
+    togglePlayPause,
+    toggleFullscreen,
+    toggleMute,
+    handleVolumeChange,
+    seekVideo,
+    retryPlayback
+  });
+
   // Handle TV focus
   useEffect(() => {
     if (isTV && playerContainerRef.current) {
@@ -91,69 +103,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     }
   }, [isLoading, error, retryCount, channel, isInitialized]);
 
-  // Event handlers for UI components
-  const handleClose = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onClose();
-  };
-
-  const handleVolumeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleVolumeChange(parseFloat(e.target.value));
-  };
-
-  const handleFullscreenToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    toggleFullscreen(playerContainerRef);
-  };
-
-  const handleRetry = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    retryPlayback();
-    
-    toast({
-      title: "إعادة المحاولة",
-      description: "جاري إعادة تحميل البث...",
-      duration: 2000,
-    });
-  };
-
-  const handleSeek = (seconds: number) => (e: React.MouseEvent) => {
-    e.stopPropagation();
-    seekVideo(seconds);
-  };
-
-  const handlePlayPauseClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    togglePlayPause();
-  };
-
-  const handleMuteToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    toggleMute();
-  };
-
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-
-  const handleReload = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    retryPlayback();
-    
-    toast({
-      title: "إعادة تحميل",
-      description: "جاري إعادة تحميل البث...",
-      duration: 2000,
-    });
-  };
-
-  // Secure error display function
-  const secureErrorDisplay = React.useCallback((errorMsg: string | null) => {
-    if (!errorMsg) return null;
-    
-    return errorMsg.replace(/(https?:\/\/[^\s]+)/g, '[محمي]');
-  }, []);
-
   return (
     <div 
       className="fixed inset-0 bg-black z-50 flex flex-col" 
@@ -167,7 +116,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
       {/* Channel info header */}
       <VideoHeader 
         channel={secureChannel} 
-        onClose={handleClose} 
+        onClose={eventHandlers.handleClose} 
         show={showControls} 
       />
       
@@ -177,7 +126,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
         {error && (
           <VideoError 
             error={secureErrorDisplay(error)} 
-            onRetry={handleRetry} 
+            onRetry={eventHandlers.handleRetry} 
             streamUrl={VIDEO_PLAYER.HIDE_STREAM_URLS ? '[محمي]' : channel.streamUrl}
           />
         )}
@@ -195,13 +144,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
           isMuted={isMuted}
           isFullscreen={isFullscreen}
           currentVolume={currentVolume}
-          onPlayPause={handlePlayPauseClick}
-          onMuteToggle={handleMuteToggle}
-          onFullscreenToggle={handleFullscreenToggle}
-          onVolumeChange={handleVolumeInputChange}
-          onSeek={handleSeek}
-          onClick={handleBackdropClick}
-          onReload={handleReload}
+          onPlayPause={eventHandlers.handlePlayPauseClick}
+          onMuteToggle={eventHandlers.handleMuteToggle}
+          onFullscreenToggle={eventHandlers.handleFullscreenToggle}
+          onVolumeChange={eventHandlers.handleVolumeInputChange}
+          onSeek={eventHandlers.handleSeek}
+          onClick={eventHandlers.handleBackdropClick}
+          onReload={eventHandlers.handleReload}
           isTV={isTV}
         />
       </div>
@@ -220,6 +169,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
       />
     </div>
   );
+
+  // Secure error display function
+  function secureErrorDisplay(errorMsg: string | null) {
+    if (!errorMsg) return null;
+    
+    return errorMsg.replace(/(https?:\/\/[^\s]+)/g, '[محمي]');
+  }
 };
 
 export default VideoPlayer;
