@@ -1,20 +1,9 @@
 
 import React, { useEffect, useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { 
-  Volume2, 
-  VolumeX, 
-  Maximize, 
-  Minimize, 
-  Play, 
-  Pause, 
-  FastForward, 
-  Rewind,
-  Settings,
-  SkipBack,
-  SkipForward,
-  RefreshCw
-} from 'lucide-react';
+import VolumeControls from './controls/VolumeControls';
+import PlaybackControls from './controls/PlaybackControls';
+import SettingsControls from './controls/SettingsControls';
+import TVRemoteHelp from './controls/TVRemoteHelp';
 
 interface VideoControlsProps {
   show: boolean;
@@ -72,7 +61,6 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             });
             document.getElementById('video-mute-button')?.dispatchEvent(event);
           }
-          // Add other buttons as needed
           break;
         
         // Handle directional navigation
@@ -118,12 +106,10 @@ const VideoControls: React.FC<VideoControlsProps> = ({
       <div 
         className={`absolute inset-0 flex items-center justify-center z-10 cursor-pointer pointer-events-none transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
       >
-        <div className={`bg-black/50 backdrop-blur-md rounded-full p-7 shadow-2xl transform transition-transform hover:scale-105 border ${focusedButton === 'play' && isTV ? 'border-primary border-2' : 'border-white/10'}`}>
-          {isPlaying ? 
-            <Pause className="w-16 h-16 text-white" /> : 
-            <Play className="w-16 h-16 text-white" />
-          }
-        </div>
+        <PlaybackControls.CenterPlayButton 
+          isPlaying={isPlaying} 
+          isFocused={focusedButton === 'play' && isTV}
+        />
       </div>
       
       {/* Footer controls */}
@@ -140,101 +126,32 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         {/* Control buttons */}
         <div className="flex justify-between items-center">
           {/* Left controls: volume */}
-          <div className="flex items-center space-x-2 rtl:space-x-reverse">
-            <Button 
-              id="video-mute-button"
-              variant="ghost" 
-              size="icon"
-              className={`rounded-full text-white hover:bg-white/20 h-10 w-10 backdrop-blur-sm ${focusedButton === 'mute' && isTV ? 'ring-2 ring-primary' : ''}`}
-              onClick={onMuteToggle}
-            >
-              {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-            </Button>
-            
-            {/* Volume slider */}
-            <div 
-              className="w-24 hidden md:block" 
-              onClick={(e) => e.stopPropagation()}
-            >
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={isMuted ? 0 : currentVolume}
-                onChange={onVolumeChange}
-                className="slider-thumb w-full h-1.5 bg-white/30 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 focus:outline-none"
-              />
-            </div>
-          </div>
+          <VolumeControls 
+            isMuted={isMuted}
+            currentVolume={currentVolume}
+            onMuteToggle={onMuteToggle}
+            onVolumeChange={onVolumeChange}
+            isTV={isTV}
+            isFocused={focusedButton === 'mute'}
+          />
           
           {/* Center controls: rewind, play, fast-forward */}
-          <div className="flex items-center space-x-4 rtl:space-x-reverse">
-            <Button 
-              id="video-rewind-button"
-              variant="ghost" 
-              size="icon"
-              className={`rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex backdrop-blur-sm ${focusedButton === 'rewind' && isTV ? 'ring-2 ring-primary' : ''}`}
-              onClick={onSeek(-10)}
-            >
-              <Rewind className="w-4 h-4" />
-            </Button>
-            
-            <Button 
-              id="video-play-button"
-              variant="ghost" 
-              size="icon"
-              className={`rounded-full text-white hover:bg-white/20 h-14 w-14 border border-white/30 backdrop-blur-sm shadow-md ${focusedButton === 'play' && isTV ? 'ring-2 ring-primary' : ''}`}
-              onClick={onPlayPause}
-            >
-              {isPlaying ? <Pause className="w-7 h-7" /> : <Play className="w-7 h-7" />}
-            </Button>
-            
-            <Button 
-              id="video-forward-button"
-              variant="ghost" 
-              size="icon"
-              className={`rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex backdrop-blur-sm ${focusedButton === 'forward' && isTV ? 'ring-2 ring-primary' : ''}`}
-              onClick={onSeek(10)}
-            >
-              <FastForward className="w-4 h-4" />
-            </Button>
-          </div>
+          <PlaybackControls 
+            isPlaying={isPlaying}
+            onPlayPause={onPlayPause}
+            onSeek={onSeek}
+            isTV={isTV}
+            focusedButton={focusedButton}
+          />
           
           {/* Right controls: reload, settings, fullscreen */}
-          <div className="flex items-center space-x-2 rtl:space-x-reverse">
-            {onReload && (
-              <Button 
-                id="video-reload-button"
-                variant="ghost" 
-                size="icon"
-                className={`rounded-full text-white hover:bg-white/20 h-9 w-9 backdrop-blur-sm ${focusedButton === 'reload' && isTV ? 'ring-2 ring-primary' : ''}`}
-                onClick={onReload}
-              >
-                <RefreshCw className="w-4 h-4" />
-              </Button>
-            )}
-            
-            <Button 
-              id="video-settings-button"
-              variant="ghost" 
-              size="icon"
-              className={`rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex backdrop-blur-sm ${focusedButton === 'settings' && isTV ? 'ring-2 ring-primary' : ''}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Settings className="w-4 h-4" />
-            </Button>
-            
-            <Button 
-              id="video-fullscreen-button"
-              variant="ghost" 
-              size="icon"
-              className={`rounded-full text-white hover:bg-white/20 h-10 w-10 backdrop-blur-sm ${focusedButton === 'fullscreen' && isTV ? 'ring-2 ring-primary' : ''}`}
-              onClick={onFullscreenToggle}
-            >
-              {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
-            </Button>
-          </div>
+          <SettingsControls 
+            isFullscreen={isFullscreen}
+            onFullscreenToggle={onFullscreenToggle}
+            onReload={onReload}
+            isTV={isTV}
+            focusedButton={focusedButton}
+          />
         </div>
       </div>
       
@@ -245,25 +162,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
       />
       
       {/* TV Remote Helper UI (only shown on TV devices) */}
-      {isTV && show && (
-        <div className="absolute bottom-20 left-0 right-0 flex justify-center">
-          <div className="bg-black/70 backdrop-blur-sm rounded-lg p-2 text-white text-xs flex gap-4">
-            <div className="flex items-center">
-              <span className="border rounded px-1.5 mx-1">◄</span>
-              <span className="border rounded px-1.5 mx-1">►</span>
-              <span className="mr-1">تنقل</span>
-            </div>
-            <div className="flex items-center">
-              <span className="border rounded px-1.5 mx-1">OK</span>
-              <span className="mr-1">اختيار</span>
-            </div>
-            <div className="flex items-center">
-              <span className="border rounded px-1.5 mx-1">مسافة</span>
-              <span className="mr-1">تشغيل/إيقاف</span>
-            </div>
-          </div>
-        </div>
-      )}
+      {isTV && show && <TVRemoteHelp />}
     </>
   );
 };
