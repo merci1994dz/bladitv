@@ -18,70 +18,95 @@ export function useVideoRetry({
   setIsPlaying: (playing: boolean) => void;
 }) {
   const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 2; // Reduced max retries to make the experience smoother
+  const maxRetries = 3; // زيادة عدد المحاولات
 
-  // Retry playback after error
+  // إعادة المحاولة بعد حدوث خطأ
   const retryPlayback = () => {
     console.log("Retrying playback manually");
     setError(null);
     setIsLoading(true);
     setRetryCount(0);
     
+    toast({
+      title: "جاري إعادة المحاولة",
+      description: "يتم إعادة تشغيل البث...",
+      duration: 3000,
+    });
+    
     if (videoRef.current) {
-      // Reset completely
+      // إعادة ضبط كاملة
       videoRef.current.pause();
       videoRef.current.removeAttribute('src');
       videoRef.current.load();
       
-      // Set new source with a slight delay
+      // تعيين مصدر جديد مع تأخير طفيف
       setTimeout(() => {
         if (videoRef.current) {
-          if (setupVideoSource(videoRef.current, channel.streamUrl)) {
-            videoRef.current.load();
-            
-            // Try to play
-            const playPromise = videoRef.current.play();
-            
-            if (playPromise !== undefined) {
-              playPromise
-                .then(() => {
-                  console.log("Manual retry successful");
-                  setIsPlaying(true);
-                  setIsLoading(false);
-                })
-                .catch(err => {
-                  console.error('Error playing video on retry:', err);
-                  setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى.');
-                  setIsLoading(false);
-                });
+          try {
+            if (setupVideoSource(videoRef.current, channel.streamUrl)) {
+              videoRef.current.load();
+              
+              // محاولة التشغيل
+              const playPromise = videoRef.current.play();
+              
+              if (playPromise !== undefined) {
+                playPromise
+                  .then(() => {
+                    console.log("Manual retry successful");
+                    setIsPlaying(true);
+                    setIsLoading(false);
+                    
+                    toast({
+                      title: "تم التشغيل بنجاح",
+                      description: `يتم الآن تشغيل ${channel.name}`,
+                      duration: 3000,
+                    });
+                  })
+                  .catch(err => {
+                    console.error('Error playing video on retry:', err);
+                    setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى لاحقًا.');
+                    setIsLoading(false);
+                    
+                    toast({
+                      title: "فشل في التشغيل",
+                      description: "تعذر تشغيل البث بعد المحاولة اليدوية",
+                      variant: "destructive",
+                      duration: 4000,
+                    });
+                  });
+              }
             }
+          } catch (error) {
+            console.error('Error during manual retry:', error);
+            setError('حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى لاحقًا.');
+            setIsLoading(false);
           }
         }
-      }, 500);
+      }, 1000);
     }
   };
 
-  // Auto-retry logic
+  // منطق إعادة المحاولة التلقائية
   const handlePlaybackError = () => {
-    // Only increment retry count if there's a real error
+    // زيادة عداد المحاولات فقط إذا كان هناك خطأ حقيقي
     if (retryCount < maxRetries) {
       console.log(`Auto-retrying (${retryCount + 1}/${maxRetries})...`);
       setRetryCount(prev => prev + 1);
       
-      return true; // Should auto-retry
+      return true; // يجب إعادة المحاولة تلقائيًا
     } else {
       setError('تعذر تشغيل البث. تأكد من صلاحية الرابط أو جرب قناة أخرى.');
       setIsLoading(false);
       setIsPlaying(false);
       
       toast({
-        title: "تنبيه",
-        description: `فشل في تشغيل القناة ${channel.name}. تأكد من صلاحية عنوان البث.`,
+        title: "تعذر تشغيل القناة",
+        description: `فشل في تشغيل ${channel.name} بعد عدة محاولات. يرجى التحقق من اتصال الإنترنت أو جرب قناة أخرى.`,
         variant: "destructive",
         duration: 5000,
       });
       
-      return false; // Should not auto-retry
+      return false; // لا ينبغي إعادة المحاولة تلقائيًا
     }
   };
 

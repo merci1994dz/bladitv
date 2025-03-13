@@ -6,6 +6,7 @@ import { useVideoControl } from './useVideoControl';
 import { useVideoEvents } from './useVideoEvents';
 import { useEffect, useRef } from 'react';
 import { VIDEO_PLAYER } from '@/services/config';
+import { toast } from "@/hooks/use-toast";
 
 interface UseVideoPlaybackProps {
   channel: Channel;
@@ -67,30 +68,53 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     handlePlaybackError
   });
   
-  // Reset state when channel changes
+  // إعادة تهيئة المشغل عند تغيير القناة
   useEffect(() => {
-    // Only reset if the channel ID actually changed
+    console.log("Channel changed in useVideoPlayback:", channel.name, channel.streamUrl);
+    
+    // فقط إعادة الضبط إذا تغير معرف القناة
     if (currentChannelIdRef.current !== channel.id) {
+      console.log("Resetting player for new channel:", channel.name);
       currentChannelIdRef.current = channel.id;
       setIsLoading(true);
       setError(null);
       setIsPlaying(false);
       
-      // Try to play the new channel after a short delay
+      // التحقق من وجود رابط بث
+      if (!channel.streamUrl) {
+        setError("لا يوجد رابط بث متاح لهذه القناة");
+        setIsLoading(false);
+        
+        toast({
+          title: "تعذر تشغيل القناة",
+          description: "لا يوجد رابط بث متاح لهذه القناة",
+          variant: "destructive",
+          duration: 4000,
+        });
+        
+        return;
+      }
+      
+      // محاولة تشغيل القناة الجديدة بعد فترة قصيرة
       const timer = setTimeout(() => {
         if (videoRef.current) {
-          const playPromise = videoRef.current.play();
-          if (playPromise !== undefined) {
-            playPromise.catch(err => {
-              console.error('Failed to auto-play new channel:', err);
-            });
+          try {
+            const playPromise = videoRef.current.play();
+            if (playPromise !== undefined) {
+              playPromise.catch(err => {
+                console.error('Failed to auto-play new channel:', err);
+                // لا نعرض خطأ للمستخدم هنا لأن النظام سيحاول مرة أخرى تلقائيًا
+              });
+            }
+          } catch (err) {
+            console.error('Error during initial play attempt:', err);
           }
         }
-      }, 500);
+      }, 800); // زيادة التأخير للسماح للمتصفح بتهيئة مشغل الفيديو
       
       return () => clearTimeout(timer);
     }
-  }, [channel.id, setIsLoading, setError, setIsPlaying, videoRef]);
+  }, [channel.id, channel.name, channel.streamUrl, setIsLoading, setError, setIsPlaying, videoRef]);
 
   return {
     videoRef,
