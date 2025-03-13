@@ -1,21 +1,22 @@
 
-import { useRef } from 'react';
 import { Channel } from '@/types';
 import { useVideoPlayback } from './useVideoPlayback';
 import { useVideoControls } from './useVideoControls';
 import { useVideoVolume } from './useVideoVolume';
 import { useVideoFullscreen } from './useVideoFullscreen';
+import { useEffect, useRef } from 'react';
 
 interface UseVideoPlayerProps {
   channel: Channel;
 }
 
 export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
-  // Set up the player container ref
-  const videoRef = useRef<HTMLVideoElement>(null);
+  // Reference to track if the volume was initialized
+  const volumeInitializedRef = useRef(false);
   
-  // Combine the different hooks
+  // Get video playback functionality
   const {
+    videoRef,
     isPlaying,
     isLoading,
     error,
@@ -25,11 +26,13 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
     seekVideo
   } = useVideoPlayback({ channel });
   
+  // Get controls visibility
   const {
     showControls,
     handleMouseMove
   } = useVideoControls(isPlaying);
   
+  // Get volume control
   const {
     isMuted,
     currentVolume,
@@ -38,13 +41,26 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
     initializeVolume
   } = useVideoVolume();
   
+  // Get fullscreen control
   const {
     isFullscreen,
     toggleFullscreen
   } = useVideoFullscreen();
   
-  // Initialize volume on first render and when channel changes
-  initializeVolume(videoRef);
+  // Initialize volume only once when video ref is available
+  useEffect(() => {
+    if (videoRef.current && !volumeInitializedRef.current) {
+      initializeVolume(videoRef);
+      volumeInitializedRef.current = true;
+    }
+  }, [videoRef, initializeVolume]);
+  
+  // Re-initialize volume when channel changes
+  useEffect(() => {
+    if (videoRef.current) {
+      initializeVolume(videoRef);
+    }
+  }, [channel.id, initializeVolume, videoRef]);
   
   // Wrap the volume methods to simplify their usage
   const toggleMute = () => toggleMuteBase(videoRef);

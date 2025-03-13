@@ -1,9 +1,9 @@
-
 import { Channel } from '@/types';
 import { useVideoSetup } from './useVideoSetup';
 import { useVideoRetry } from './useVideoRetry';
 import { useVideoControl } from './useVideoControl';
 import { useVideoEvents } from './useVideoEvents';
+import { useEffect, useRef } from 'react';
 
 interface UseVideoPlaybackProps {
   channel: Channel;
@@ -19,6 +19,9 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     setError
   } = useVideoSetup();
 
+  // Create a ref to keep track of current channel ID
+  const currentChannelIdRef = useRef(channel.id);
+  
   // Set up video playback controls
   const {
     isPlaying,
@@ -55,6 +58,31 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     retryCount,
     handlePlaybackError
   });
+  
+  // Reset state when channel changes
+  useEffect(() => {
+    // Only reset if the channel ID actually changed
+    if (currentChannelIdRef.current !== channel.id) {
+      currentChannelIdRef.current = channel.id;
+      setIsLoading(true);
+      setError(null);
+      setIsPlaying(false);
+      
+      // Try to play the new channel after a short delay
+      const timer = setTimeout(() => {
+        if (videoRef.current) {
+          const playPromise = videoRef.current.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(err => {
+              console.error('Failed to auto-play new channel:', err);
+            });
+          }
+        }
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [channel.id, setIsLoading, setError, setIsPlaying, videoRef]);
 
   return {
     videoRef,
