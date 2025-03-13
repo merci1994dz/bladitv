@@ -7,9 +7,13 @@ import LoadingSpinner from '@/components/ui/loading-spinner';
 import ErrorMessage from '@/components/ui/error-message';
 import HomeHeader from '@/components/header/HomeHeader';
 import CountriesList from '@/components/country/CountriesList';
+import RecentlyWatchedChannels from '@/components/recently-watched/RecentlyWatchedChannels';
+import { Channel } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const { 
     data: countries,
@@ -22,6 +26,21 @@ const Home: React.FC = () => {
 
   const handleCountryClick = (countryId: string) => {
     navigate(`/country/${countryId}`);
+  };
+
+  const handleChannelClick = (channel: Channel) => {
+    // هنا يمكن إضافة منطق لمعالجة النقر على القناة
+    // إما تشغيلها مباشرة أو الانتقال إلى صفحة القناة
+    toast({
+      title: "فتح القناة",
+      description: `جاري فتح قناة ${channel.name}`,
+      duration: 2000,
+    });
+    
+    // يمكننا الانتقال إلى صفحة البلد التي تنتمي إليها القناة
+    if (channel.countryId) {
+      navigate(`/country/${channel.countryId}`, { state: { selectedChannelId: channel.id } });
+    }
   };
 
   if (isLoadingCountries) {
@@ -43,6 +62,9 @@ const Home: React.FC = () => {
   return (
     <div className="pb-24 min-h-screen bg-gradient-to-b from-background to-muted/10">
       <HomeHeader />
+      
+      {/* إضافة قسم القنوات المشاهدة مؤخراً */}
+      <RecentlyWatchedChannels onChannelClick={handleChannelClick} />
 
       <CountriesList 
         countries={countries} 

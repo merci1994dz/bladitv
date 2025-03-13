@@ -26,6 +26,10 @@
   @apply backdrop-blur-lg bg-black/40 border border-white/10 shadow-lg;
 }
 
+.glass-card {
+  @apply bg-white/80 dark:bg-gray-800/80 backdrop-blur border border-white/20 dark:border-gray-700/30 shadow-lg;
+}
+
 /* تصميم الأزرار */
 .btn-primary {
   @apply bg-gradient-to-r from-primary/90 to-primary text-white rounded-full px-5 py-2.5 shadow-md hover:shadow-lg hover:scale-[1.02] transition-all;
@@ -56,4 +60,19 @@
 /* تأثيرات الحدود المتوهجة */
 .border-glow {
   box-shadow: 0 0 5px theme('colors.primary.DEFAULT'), 0 0 10px theme('colors.primary.DEFAULT');
+}
+
+/* بطاقات للمحتوى */
+.content-card {
+  @apply rounded-xl bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm p-4 border border-white/20 dark:border-gray-700/30 shadow-lg hover:shadow-xl transition-all duration-300;
+}
+
+/* تنسيق لتحسين قراءة النصوص العربية */
+.arabic-text {
+  @apply font-sans leading-relaxed tracking-wide;
+}
+
+/* تأثير الرفع للعناصر التفاعلية */
+.lift-on-hover {
+  @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
 }
