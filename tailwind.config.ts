@@ -97,14 +97,30 @@ export default {
 				'shimmer': {
 					from: { backgroundPosition: '0 0' },
 					to: { backgroundPosition: '-200% 0' }
+				},
+				'progress': {
+					'0%': { width: '0%' },
+					'100%': { width: '100%' }
+				},
+				'ping': {
+					'75%, 100%': { transform: 'scale(2)', opacity: '0' }
+				},
+				'bounce-slow': {
+					'0%, 100%': { transform: 'translateY(0)' },
+					'50%': { transform: 'translateY(-5px)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'float': 'float 6s ease-in-out infinite',
+				'float-slow': 'float 8s ease-in-out infinite',
 				'spotlight': 'spotlight 2s ease forwards',
-				'shimmer': 'shimmer 2s infinite'
+				'shimmer': 'shimmer 2s infinite',
+				'progress': 'progress 2s linear',
+				'progress-infinite': 'progress 1.5s linear infinite',
+				'ping-slow': 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
+				'bounce-slow': 'bounce-slow 3s infinite'
 			}
 		}
 	},

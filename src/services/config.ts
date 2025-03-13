@@ -13,5 +13,12 @@ export const STORAGE_KEYS = {
 export const DEFAULT_ADMIN_PASSWORD = 'admin123';
 
 // App version
-export const APP_VERSION = 'v1.2.0';
+export const APP_VERSION = 'v1.3.0';
+
+// Video Player settings
+export const VIDEO_PLAYER = {
+  MAX_RETRIES: 3,
+  RETRY_DELAY: 1500,
+  CONTROLS_HIDE_DELAY: 3000
+};
 

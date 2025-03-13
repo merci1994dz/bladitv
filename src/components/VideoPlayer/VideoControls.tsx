@@ -12,7 +12,8 @@ import {
   Rewind,
   Settings,
   SkipBack,
-  SkipForward
+  SkipForward,
+  RefreshCw
 } from 'lucide-react';
 
 interface VideoControlsProps {
@@ -27,6 +28,7 @@ interface VideoControlsProps {
   onVolumeChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSeek: (seconds: number) => (e: React.MouseEvent) => void;
   onClick: (e: React.MouseEvent) => void;
+  onReload?: (e: React.MouseEvent) => void;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -40,7 +42,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onFullscreenToggle,
   onVolumeChange,
   onSeek,
-  onClick
+  onClick,
+  onReload
 }) => {
   return (
     <>
@@ -48,7 +51,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
       <div 
         className={`absolute inset-0 flex items-center justify-center z-10 cursor-pointer pointer-events-none transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
       >
-        <div className="bg-black/40 backdrop-blur-md rounded-full p-6 shadow-2xl transform transition-transform hover:scale-105">
+        <div className="bg-black/50 backdrop-blur-md rounded-full p-7 shadow-2xl transform transition-transform hover:scale-105 border border-white/10">
           {isPlaying ? 
             <Pause className="w-16 h-16 text-white" /> : 
             <Play className="w-16 h-16 text-white" />
@@ -58,12 +61,12 @@ const VideoControls: React.FC<VideoControlsProps> = ({
       
       {/* Footer controls */}
       <div 
-        className={`p-4 flex flex-col justify-end items-stretch bg-gradient-to-t from-black/90 via-black/70 to-transparent absolute bottom-0 left-0 right-0 z-10 transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
+        className={`p-5 flex flex-col justify-end items-stretch bg-gradient-to-t from-black/90 via-black/70 to-transparent absolute bottom-0 left-0 right-0 z-10 transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
       >
         {/* Progress bar (non-functional but adds to the UI) */}
-        <div className="w-full h-1.5 bg-white/20 rounded-full mb-4 overflow-hidden hover:h-2 transition-all">
-          <div className="w-[30%] h-full bg-primary rounded-full relative">
-            <div className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-primary rounded-full border-2 border-white shadow-md"></div>
+        <div className="w-full h-1.5 bg-white/20 rounded-full mb-4 overflow-hidden hover:h-2.5 transition-all cursor-pointer group">
+          <div className="w-[30%] h-full bg-primary rounded-full relative group-hover:shadow-lg">
+            <div className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-primary shadow-md scale-0 group-hover:scale-100 transition-transform"></div>
           </div>
         </div>
         
@@ -127,8 +130,19 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             </Button>
           </div>
           
-          {/* Right controls: settings, fullscreen */}
+          {/* Right controls: reload, settings, fullscreen */}
           <div className="flex items-center space-x-2 rtl:space-x-reverse">
+            {onReload && (
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="rounded-full text-white hover:bg-white/20 h-9 w-9 backdrop-blur-sm" 
+                onClick={onReload}
+              >
+                <RefreshCw className="w-4 h-4" />
+              </Button>
+            )}
+            
             <Button 
               variant="ghost" 
               size="icon"

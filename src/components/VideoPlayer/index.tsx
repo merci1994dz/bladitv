@@ -75,6 +75,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
   const handleRetry = (e: React.MouseEvent) => {
     e.stopPropagation();
     retryPlayback();
+    
+    toast({
+      title: "إعادة المحاولة",
+      description: "جاري إعادة تحميل البث...",
+      duration: 2000,
+    });
   };
 
   const handleSeek = (seconds: number) => (e: React.MouseEvent) => {
@@ -94,6 +100,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+  };
+
+  const handleReload = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    retryPlayback();
+    
+    toast({
+      title: "إعادة تحميل",
+      description: "جاري إعادة تحميل البث...",
+      duration: 2000,
+    });
   };
 
   return (
@@ -139,6 +156,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
           onVolumeChange={handleVolumeInputChange}
           onSeek={handleSeek}
           onClick={handleBackdropClick}
+          onReload={handleReload}
         />
       </div>
     </div>
