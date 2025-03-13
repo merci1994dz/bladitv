@@ -7,6 +7,7 @@ export interface Channel {
   category: string;
   country: string;
   isFavorite: boolean;
+  externalLinks?: ExternalStreamingService[];
 }
 
 export interface Category {
@@ -38,3 +39,39 @@ export interface RemoteAdminConfig {
   lastSyncTime?: string;
 }
 
+// New type for external streaming services
+export interface ExternalStreamingService {
+  id: string;
+  name: string;
+  url: string;
+  icon: string;
+}
+
+// New type for program guides
+export interface TVProgram {
+  id: string;
+  channelId: string;
+  title: string;
+  description: string;
+  startTime: string;
+  endTime: string;
+  duration: number;
+  genre: string;
+  isLive: boolean;
+}
+
+// User settings type
+export interface UserInterfaceSettings {
+  theme: 'light' | 'dark' | 'system';
+  fontSize: number;
+  layout: 'grid' | 'list';
+  animations: boolean;
+}
+
+// Device information
+export interface DeviceInfo {
+  id: string;
+  name: string;
+  type: 'mobile' | 'tablet' | 'desktop' | 'tv' | 'unknown';
+  lastSync: string;
+}

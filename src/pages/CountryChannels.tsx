@@ -1,46 +1,86 @@
 
-import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getCountries, getChannelsByCountry, toggleFavoriteChannel } from '@/services/api';
-import { Channel } from '@/types';
-import { useToast } from "@/hooks/use-toast";
+import { 
+  getCountry, 
+  getChannelsByCountry, 
+  toggleFavoriteChannel, 
+  playChannel 
+} from '@/services/api';
+import ChannelsList from '@/components/channel/ChannelsList';
+import CountryDetails from '@/components/country/CountryDetails';
 import VideoPlayer from '@/components/VideoPlayer';
+import { Channel } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import ErrorMessage from '@/components/ui/error-message';
-import ChannelsList from '@/components/channel/ChannelsList';
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
-import { ArrowRight, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ArrowLeft, Calendar } from 'lucide-react';
+import { useDeviceType } from '@/hooks/use-tv';
+import ProgramGuide from '@/components/guide/ProgramGuide';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 const CountryChannels: React.FC = () => {
   const { countryId } = useParams<{ countryId: string }>();
   const navigate = useNavigate();
-  const [selectedChannel, setSelectedChannel] = React.useState<Channel | null>(null);
+  const location = useLocation();
+  const { isTV } = useDeviceType();
   const { toast } = useToast();
+  
+  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
+  const [showProgramGuide, setShowProgramGuide] = useState(false);
 
+  // استعلام لجلب بيانات البلد
   const { 
-    data: countries,
-    isLoading: isLoadingCountries,
-    error: countriesError
+    data: country,
+    isLoading: isLoadingCountry,
+    error: countryError
   } = useQuery({
-    queryKey: ['countries'],
-    queryFn: getCountries,
+    queryKey: ['country', countryId],
+    queryFn: () => countryId ? getCountry(countryId) : Promise.reject('No country ID'),
+    enabled: !!countryId,
   });
-
+  
+  // استعلام لجلب قنوات البلد
   const { 
-    data: channels,
+    data: channels, 
     isLoading: isLoadingChannels,
+    error: channelsError,
+    refetch: refetchChannels
   } = useQuery({
     queryKey: ['channelsByCountry', countryId],
-    queryFn: () => countryId ? getChannelsByCountry(countryId) : Promise.resolve([]),
+    queryFn: () => countryId ? getChannelsByCountry(countryId) : Promise.reject('No country ID'),
     enabled: !!countryId,
   });
 
-  const handlePlayChannel = (channel: Channel) => {
+  // التحقق من وجود قناة محددة في الـ state عند تحميل الصفحة
+  useEffect(() => {
+    const state = location.state as { selectedChannelId?: string } | null;
+    if (state?.selectedChannelId && channels) {
+      const channel = channels.find(c => c.id === state.selectedChannelId);
+      if (channel) {
+        setSelectedChannel(channel);
+      }
+    }
+  }, [location.state, channels]);
+
+  // معالج النقر على قناة
+  const handleChannelClick = (channel: Channel) => {
     setSelectedChannel(channel);
+    
+    // تسجيل المشاهدة
+    playChannel(channel.id).catch(console.error);
+    
+    // إظهار إشعار
+    toast({
+      title: `جاري تشغيل ${channel.name}`,
+      description: isTV ? "استخدم أزرار التنقل للتحكم" : "يرجى الانتظار قليلاً...",
+      duration: 3000,
+    });
   };
 
+  // معالج تبديل المفضلة
   const handleToggleFavorite = async (channelId: string) => {
     try {
       const updatedChannel = await toggleFavoriteChannel(channelId);
@@ -49,6 +89,7 @@ const CountryChannels: React.FC = () => {
         description: `${updatedChannel.name} ${updatedChannel.isFavorite ? 'تمت إضافتها للمفضلة' : 'تمت إزالتها من المفضلة'}`,
         duration: 2000,
       });
+      refetchChannels();
     } catch (error) {
       toast({
         title: "حدث خطأ",
@@ -59,52 +100,72 @@ const CountryChannels: React.FC = () => {
     }
   };
 
-  const countryName = countries?.find(c => c.id === countryId)?.name || 'البلد';
-
-  if (isLoadingCountries) {
-    return <LoadingSpinner />;
+  // عرض شاشة التحميل
+  if (isLoadingCountry || isLoadingChannels) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner />
+      </div>
+    );
   }
 
-  if (countriesError) {
-    return <ErrorMessage />;
+  // عرض رسالة الخطأ
+  if (countryError || channelsError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <ErrorMessage />
+      </div>
+    );
   }
 
   return (
-    <div className="pb-24 min-h-screen bg-gradient-to-b from-background to-muted/10">
-      {/* Header */}
-      <header className="bg-gradient-to-b from-background to-muted p-4 shadow-sm">
-        <div className="container mx-auto">
+    <div className="pb-20 pt-4 min-h-screen">
+      {/* رأس الصفحة */}
+      <header className="px-4 py-2 mb-2 flex items-center justify-between">
+        <div className="flex items-center">
           <Button 
             variant="ghost" 
-            className="mb-4" 
-            onClick={() => navigate('/home')}
+            size="icon" 
+            onClick={() => navigate('/countries')}
+            className="mr-2 rounded-full"
           >
-            <ArrowRight className="mr-2" />
-            العودة
+            <ArrowLeft className="h-5 w-5" />
           </Button>
-          
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink onClick={() => navigate('/home')}>
-                  <Home className="h-4 w-4 mr-1" />
-                  <span>الرئيسية</span>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                {countries?.find(c => c.id === countryId)?.flag} {countryName}
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-          
-          <h1 className="text-2xl font-bold mt-4 flex items-center">
-            <span className="text-4xl mr-2">{countries?.find(c => c.id === countryId)?.flag}</span>
-            <span>قنوات {countryName}</span>
+          <h1 className={`text-xl font-bold ${isTV ? 'tv-text text-2xl' : ''}`}>
+            {country?.name || 'تحميل البلد...'}
           </h1>
         </div>
+
+        {/* زر دليل البرامج */}
+        {isTV ? (
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setShowProgramGuide(!showProgramGuide)}
+            className={`${isTV ? 'tv-focus-item px-4 py-2' : ''}`}
+          >
+            <Calendar className="h-4 w-4 mr-1" />
+            <span>دليل البرامج</span>
+          </Button>
+        ) : (
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Calendar className="h-4 w-4 mr-1" />
+                <span>دليل البرامج</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full sm:max-w-lg">
+              <ProgramGuide 
+                channelId={selectedChannel?.id}
+                onSelectProgram={() => {}} // يمكن إضافة وظيفة للتفاعل مع البرامج المحددة
+              />
+            </SheetContent>
+          </Sheet>
+        )}
       </header>
 
+      {/* مشغل الفيديو للقناة المحددة */}
       {selectedChannel && (
         <VideoPlayer 
           channel={selectedChannel} 
@@ -112,16 +173,39 @@ const CountryChannels: React.FC = () => {
         />
       )}
 
-      {countryId && (
-        <ChannelsList 
-          channels={channels}
-          countries={countries}
-          activeCountry={countryId}
-          isLoading={isLoadingChannels}
-          onPlayChannel={handlePlayChannel}
-          onToggleFavorite={handleToggleFavorite}
-        />
-      )}
+      {/* عرض تفاصيل البلد والقنوات */}
+      <div className="flex flex-col md:flex-row">
+        <div className={`w-full ${showProgramGuide && isTV ? 'md:w-2/3' : 'w-full'}`}>
+          {country && (
+            <div className="px-4">
+              <CountryDetails 
+                country={country} 
+                channelsCount={channels?.length || 0} 
+                isTV={isTV}
+              />
+            </div>
+          )}
+
+          <ChannelsList 
+            channels={channels}
+            countries={[country!]}
+            activeCountry={countryId || null}
+            isLoading={isLoadingChannels}
+            onPlayChannel={handleChannelClick}
+            onToggleFavorite={handleToggleFavorite}
+          />
+        </div>
+        
+        {/* دليل البرامج - يظهر فقط على أجهزة التلفزيون عند الطلب */}
+        {showProgramGuide && isTV && (
+          <div className="md:w-1/3 p-4">
+            <ProgramGuide 
+              channelId={selectedChannel?.id}
+              onSelectProgram={() => {}} // يمكن إضافة وظيفة للتفاعل مع البرامج المحددة
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 };
