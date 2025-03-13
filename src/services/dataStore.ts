@@ -9,6 +9,11 @@ export let countries: Country[] = [];
 export let categories: Category[] = [];
 export let isSyncing = false;
 
+// Function to update the sync state
+export const setIsSyncing = (value: boolean) => {
+  isSyncing = value;
+};
+
 // Helper to load data from localStorage or use fallbacks
 export const loadFromLocalStorage = () => {
   try {

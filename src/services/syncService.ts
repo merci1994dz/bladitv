@@ -2,59 +2,70 @@
 import { useState } from 'react';
 import { Channel, Country, Category } from '@/types';
 import { API_BASE_URL, STORAGE_KEYS } from './config';
+import { channels, countries, categories, isSyncing, setIsSyncing } from './dataStore';
 import * as channelService from './channelService';
 import * as categoryService from './categoryService';
 import * as countryService from './countryService';
 
-// Sync state
-let syncInProgress = false;
+// Function to fetch data from the remote API
+export const syncWithRemoteAPI = async (): Promise<boolean> => {
+  if (isSyncing) return false;
+  
+  try {
+    setIsSyncing(true);
+    console.log('Syncing with remote API...');
+    
+    // Fetch channels, countries, and categories from your website API
+    const [channelsRes, countriesRes, categoriesRes] = await Promise.all([
+      fetch(`${API_BASE_URL}/channels`).then(res => res.json()),
+      fetch(`${API_BASE_URL}/countries`).then(res => res.json()),
+      fetch(`${API_BASE_URL}/categories`).then(res => res.json())
+    ]);
+    
+    // Update local data
+    Object.assign(channels, channelsRes);
+    Object.assign(countries, countriesRes);
+    Object.assign(categories, categoriesRes);
+    
+    // Save to localStorage
+    localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
+    localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(countries));
+    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+    
+    // Update last sync time
+    const lastSyncTime = new Date().toISOString();
+    localStorage.setItem(STORAGE_KEYS.LAST_SYNC, lastSyncTime);
+    
+    console.log('Sync completed successfully');
+    return true;
+  } catch (error) {
+    console.error('Error syncing with remote API:', error);
+    return false;
+  } finally {
+    setIsSyncing(false);
+  }
+};
+
+// Try to sync with remote API on application start
+syncWithRemoteAPI().catch(error => {
+  console.error('Initial sync failed:', error);
+});
+
+// Periodic sync (every 1 hour)
+setInterval(() => {
+  syncWithRemoteAPI().catch(error => {
+    console.error('Periodic sync failed:', error);
+  });
+}, 60 * 60 * 1000);
+
+// Function to manually trigger sync with remote
+export const forceSync = async (): Promise<boolean> => {
+  return await syncWithRemoteAPI();
+};
 
 // Sync all data from the API
 export const syncAllData = async (): Promise<boolean> => {
-  // Prevent multiple simultaneous syncs
-  if (syncInProgress) {
-    console.log('Sync already in progress');
-    return false;
-  }
-  
-  syncInProgress = true;
-  console.log('Starting data sync...');
-  
-  try {
-    // Fetch all data types
-    const channelsPromise = fetch(`${API_BASE_URL}/channels`);
-    const categoriesPromise = fetch(`${API_BASE_URL}/categories`);
-    const countriesPromise = fetch(`${API_BASE_URL}/countries`);
-    
-    const [channelsResponse, categoriesResponse, countriesResponse] = 
-      await Promise.all([channelsPromise, categoriesPromise, countriesPromise]);
-    
-    if (!channelsResponse.ok || !categoriesResponse.ok || !countriesResponse.ok) {
-      throw new Error('Failed to fetch data from API');
-    }
-    
-    // Parse responses
-    const channels: Channel[] = await channelsResponse.json();
-    const categories: Category[] = await categoriesResponse.json();
-    const countries: Country[] = await countriesResponse.json();
-    
-    // Store data locally
-    localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
-    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
-    localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(countries));
-    
-    // Update last sync time
-    const syncTime = new Date().toISOString();
-    localStorage.setItem(STORAGE_KEYS.LAST_SYNC, syncTime);
-    
-    console.log('Data sync completed successfully');
-    syncInProgress = false;
-    return true;
-  } catch (error) {
-    console.error('Error during data sync:', error);
-    syncInProgress = false;
-    return false;
-  }
+  return await syncWithRemoteAPI();
 };
 
 // Get the last sync time
@@ -89,5 +100,5 @@ export const isSyncNeeded = (): boolean => {
 
 // Check if sync is currently in progress
 export const isSyncInProgress = (): boolean => {
-  return syncInProgress;
+  return isSyncing;
 };
