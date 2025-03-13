@@ -18,11 +18,11 @@ export function useVideoRetry({
   setIsPlaying: (playing: boolean) => void;
 }) {
   const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 3; // عدد محاولات أقل
+  const maxRetries = 2; // تقليل عدد المحاولات
 
-  // Simple retry function
+  // وظيفة إعادة المحاولة البسيطة
   const retryPlayback = () => {
-    console.log("Manual retry initiated");
+    console.log("بدء إعادة المحاولة اليدوية");
     setError(null);
     setIsLoading(true);
     setRetryCount(0);
@@ -34,49 +34,84 @@ export function useVideoRetry({
     });
     
     if (videoRef.current) {
-      // Basic reset
-      videoRef.current.pause();
-      videoRef.current.removeAttribute('src');
-      videoRef.current.load();
+      // إعادة تعيين أساسية
+      try {
+        videoRef.current.pause();
+        videoRef.current.src = '';
+        videoRef.current.load();
+      } catch (e) {
+        console.error("خطأ أثناء إعادة تعيين الفيديو:", e);
+      }
       
       setTimeout(() => {
         if (videoRef.current) {
           try {
-            setupVideoSource(videoRef.current, channel.streamUrl);
-            videoRef.current.load();
+            // تنظيف أي أحداث قبل إعادة المحاولة
+            videoRef.current.oncanplay = null;
+            videoRef.current.onplaying = null;
+            videoRef.current.onerror = null;
             
-            const playPromise = videoRef.current.play();
-            if (playPromise !== undefined) {
-              playPromise
-                .then(() => {
-                  console.log("Manual retry successful");
-                  setIsPlaying(true);
-                  setIsLoading(false);
-                })
-                .catch(err => {
-                  console.error('Error playing video on retry:', err);
-                  setError('فشل في تشغيل البث');
-                  setIsLoading(false);
-                });
+            if (setupVideoSource(videoRef.current, channel.streamUrl)) {
+              // إضافة مراقبي الأحداث للتشغيل اليدوي
+              videoRef.current.oncanplay = () => {
+                console.log("الفيديو جاهز للتشغيل بعد إعادة المحاولة");
+                setIsLoading(false);
+              };
+              
+              videoRef.current.onplaying = () => {
+                console.log("بدأ تشغيل الفيديو بعد إعادة المحاولة");
+                setIsPlaying(true);
+                setIsLoading(false);
+              };
+              
+              videoRef.current.onerror = () => {
+                console.error("خطأ بعد إعادة المحاولة");
+                setError("فشلت محاولة إعادة التشغيل");
+                setIsLoading(false);
+              };
+              
+              // محاولة التشغيل
+              const playPromise = videoRef.current.play();
+              if (playPromise !== undefined) {
+                playPromise
+                  .then(() => {
+                    console.log("نجحت إعادة المحاولة اليدوية");
+                  })
+                  .catch(err => {
+                    console.error('خطأ في تشغيل الفيديو عند إعادة المحاولة:', err);
+                    
+                    // التعامل مع قيود التشغيل التلقائي
+                    if (err.name === "NotAllowedError") {
+                      setError('انقر على الشاشة لبدء التشغيل');
+                      setIsLoading(false);
+                    } else {
+                      setError('فشل في تشغيل البث');
+                      setIsLoading(false);
+                    }
+                  });
+              }
+            } else {
+              setError("فشل في إعداد مصدر الفيديو");
+              setIsLoading(false);
             }
           } catch (error) {
-            console.error('Error during manual retry:', error);
+            console.error('خطأ أثناء إعادة المحاولة اليدوية:', error);
             setError('حدث خطأ غير متوقع');
             setIsLoading(false);
           }
         }
-      }, 1000);
+      }, 500);
     }
   };
 
-  // Simple auto-retry logic
+  // منطق إعادة المحاولة التلقائي المبسط
   const handlePlaybackError = () => {
     if (retryCount < maxRetries) {
-      console.log(`Auto-retry (${retryCount + 1}/${maxRetries})...`);
+      console.log(`إعادة محاولة تلقائية (${retryCount + 1}/${maxRetries})...`);
       setRetryCount(prev => prev + 1);
-      return true; // continue auto-retry
+      return true; // متابعة إعادة المحاولة التلقائية
     } else {
-      setError('تعذر تشغيل البث. جرب قناة أخرى.');
+      setError('تعذر تشغيل البث. جرب قناة أخرى أو انقر على إعادة المحاولة.');
       setIsLoading(false);
       setIsPlaying(false);
       
@@ -87,7 +122,7 @@ export function useVideoRetry({
         duration: 5000,
       });
       
-      return false; // stop auto-retry
+      return false; // إيقاف إعادة المحاولة التلقائية
     }
   };
 

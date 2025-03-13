@@ -2,63 +2,65 @@
 import { useState, useRef, useEffect } from 'react';
 import { VIDEO_PLAYER, SECURITY_CONFIG } from '@/services/config';
 
-// Define the VideoRef type for use in other files
+// تعريف نوع VideoRef للاستخدام في الملفات الأخرى
 export type VideoRef = React.RefObject<HTMLVideoElement>;
 
 /**
- * Sets up the video source with security measures
- * @param videoElement The video element to set up
- * @param streamUrl The URL of the stream
- * @returns boolean indicating if setup was successful
+ * إعداد مصدر الفيديو مع إجراءات أمنية
+ * @param videoElement عنصر الفيديو المراد إعداده
+ * @param streamUrl عنوان URL للبث
+ * @returns قيمة منطقية تشير إلى نجاح الإعداد
  */
 export const setupVideoSource = (videoElement: HTMLVideoElement, streamUrl: string): boolean => {
   if (!streamUrl) {
-    console.error('Stream URL is empty');
+    console.error('عنوان URL للبث فارغ');
     return false;
   }
 
   try {
-    // Reset video element state
+    // إعادة تعيين حالة عنصر الفيديو
     videoElement.pause();
     videoElement.currentTime = 0;
     videoElement.src = '';
-    videoElement.load();
     
-    // Simple source setting - no obfuscation for mobile compatibility
+    // إعداد بسيط للمصدر - بدون تشفير للتوافق مع الأجهزة المحمولة
     videoElement.src = streamUrl;
     
-    // Basic mobile-friendly settings
+    // إعدادات أساسية متوافقة مع الأجهزة المحمولة
     videoElement.playsInline = true;
     videoElement.setAttribute('playsinline', '');
     videoElement.setAttribute('webkit-playsinline', '');
     videoElement.setAttribute('x5-playsinline', '');
-    videoElement.setAttribute('preload', 'auto');
+    videoElement.muted = false;
+    videoElement.volume = 1.0;
+    videoElement.autoplay = false;
+    videoElement.preload = 'auto';
     
-    // Set mobile compatible controls attributes
+    // تعيين سمات عناصر التحكم المتوافقة مع الأجهزة المحمولة
     if (SECURITY_CONFIG.DISABLE_VIDEO_DOWNLOAD) {
       videoElement.controlsList?.add('nodownload');
     }
     
     videoElement.setAttribute('oncontextmenu', 'return false;');
-    videoElement.setAttribute('disablepictureinpicture', '');
     
-    // Mobile-friendly style
+    // نمط متوافق مع الأجهزة المحمولة
     videoElement.style.objectFit = 'contain';
     
     return true;
   } catch (error) {
-    console.error('Error setting up video source:', error);
+    console.error('خطأ في إعداد مصدر الفيديو:', error);
     return false;
   }
 };
 
-// Helper function to detect if the current device is likely a mobile device
+// دالة مساعدة للكشف عما إذا كان الجهاز الحالي محمولًا على الأرجح
 function isMobileDevice(): boolean {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+         (typeof window !== 'undefined' && window.innerWidth < 768);
 }
 
 /**
- * Hook for setting up video player state and references
+ * Hook لإعداد حالة مشغل الفيديو والمراجع
  */
 export function useVideoSetup() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -66,28 +68,43 @@ export function useVideoSetup() {
   const [error, setError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Detect mobile device on mount
+  // الكشف عن الجهاز المحمول عند التركيب
   useEffect(() => {
-    setIsMobile(isMobileDevice());
-    console.log("Is mobile device:", isMobileDevice());
+    const mobile = isMobileDevice();
+    setIsMobile(mobile);
+    console.log("الجهاز المحمول:", mobile);
+    
+    // تعيين سمة meta للتوافق مع الأجهزة المحمولة
+    if (mobile && document.head) {
+      let viewportMeta = document.querySelector('meta[name="viewport"]');
+      if (!viewportMeta) {
+        viewportMeta = document.createElement('meta');
+        viewportMeta.setAttribute('name', 'viewport');
+        document.head.appendChild(viewportMeta);
+      }
+      viewportMeta.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no');
+    }
   }, []);
 
-  // Apply security measures on mount
+  // تطبيق الإجراءات الأمنية عند التركيب
   useEffect(() => {
     if (videoRef.current) {
-      // Apply simple security measures to video element
+      // تطبيق إجراءات أمنية بسيطة على عنصر الفيديو
       if (SECURITY_CONFIG.DISABLE_VIDEO_DOWNLOAD) {
         videoRef.current.controlsList?.add('nodownload');
         videoRef.current.setAttribute('oncontextmenu', 'return false;');
       }
       
-      // Mobile specific settings
+      // إعدادات محددة للأجهزة المحمولة
       if (isMobile) {
         videoRef.current.style.objectFit = 'contain';
         videoRef.current.setAttribute('playsinline', '');
         videoRef.current.setAttribute('webkit-playsinline', '');
         videoRef.current.setAttribute('x5-playsinline', '');
-        console.log("Applied mobile-specific video settings");
+        videoRef.current.setAttribute('muted', 'false');
+        videoRef.current.muted = false;
+        videoRef.current.volume = 1.0;
+        console.log("تم تطبيق إعدادات الفيديو المخصصة للأجهزة المحمولة");
       }
     }
   }, [isMobile]);

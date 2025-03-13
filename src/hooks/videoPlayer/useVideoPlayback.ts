@@ -11,7 +11,7 @@ interface UseVideoPlaybackProps {
 }
 
 export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
-  // Set up core video state and refs
+  // إعداد حالة الفيديو الأساسية والمراجع
   const {
     videoRef,
     isLoading,
@@ -21,10 +21,10 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     isMobile
   } = useVideoSetup();
 
-  // Create a ref to track current channel
+  // إنشاء مرجع لتتبع القناة الحالية
   const currentChannelRef = useRef(channel);
   
-  // Set up video playback controls
+  // إعداد عناصر التحكم في تشغيل الفيديو
   const {
     isPlaying,
     setIsPlaying,
@@ -36,7 +36,7 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     setError
   });
 
-  // Set up retry logic - simpler for mobile
+  // إعداد منطق إعادة المحاولة - أبسط للأجهزة المحمولة
   const {
     retryCount,
     retryPlayback,
@@ -49,12 +49,16 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     setIsPlaying
   });
 
-  // Update current channel ref when channel changes
+  // تحديث مرجع القناة الحالية عند تغيير القناة
   useEffect(() => {
+    // تسجيل معلومات القناة الجديدة
+    if (currentChannelRef.current.id !== channel.id) {
+      console.log("تغيير القناة من", currentChannelRef.current.name, "إلى", channel.name);
+    }
     currentChannelRef.current = channel;
   }, [channel]);
 
-  // Set up video event listeners
+  // إعداد مستمعي أحداث الفيديو
   useVideoEvents({
     videoRef,
     channel,
@@ -66,15 +70,15 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     handlePlaybackError
   });
   
-  // Simple debug logging
+  // تسجيل معلومات تصحيح الأخطاء البسيطة
   useEffect(() => {
-    console.log("Channel info:", {
+    console.log("معلومات القناة:", {
       name: channel.name,
-      streamUrl: channel.streamUrl ? "Present" : "Missing",
+      streamUrl: channel.streamUrl ? "موجود" : "مفقود",
       isMobile,
       isPlaying,
       isLoading,
-      error: error || "None"
+      error: error || "لا يوجد خطأ"
     });
   }, [channel, isMobile, isPlaying, isLoading, error]);
 

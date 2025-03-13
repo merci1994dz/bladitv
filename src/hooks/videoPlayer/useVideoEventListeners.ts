@@ -15,46 +15,57 @@ export function useVideoEventListeners({
   setError: (error: string | null) => void;
   handlePlaybackError: () => boolean;
 }) {
-  // Setup event listeners for video element
+  // إعداد مستمعي الأحداث لعنصر الفيديو
   useEffect(() => {
     if (!videoRef.current) return;
     
     const video = videoRef.current;
     
-    // Simplified event handlers
+    // معالجات الأحداث المبسطة
     const handleCanPlay = () => {
-      console.log('Video can play');
+      console.log('يمكن تشغيل الفيديو');
       setIsLoading(false);
     };
     
     const handlePlaying = () => {
-      console.log('Video is playing');
+      console.log('الفيديو قيد التشغيل');
       setIsPlaying(true);
       setIsLoading(false);
       setError(null);
     };
     
-    const handleError = () => {
-      console.error('Video error occurred');
-      handlePlaybackError();
+    const handleError = (e: Event) => {
+      // الحصول على مزيد من المعلومات عن الخطأ إن أمكن
+      let errorDetails = "خطأ غير معروف";
+      if (video.error) {
+        errorDetails = `رمز: ${video.error.code}, رسالة: ${video.error.message}`;
+      }
+      console.error('حدث خطأ في الفيديو:', errorDetails);
+      
+      // إذا كان الفيديو ما زال "فارغًا" (لم يتم تحميله)، فقد يكون خطأ في العثور على المصدر
+      if (video.networkState === HTMLMediaElement.NETWORK_NO_SOURCE) {
+        setError('لا يمكن الوصول إلى مصدر البث');
+      } else {
+        handlePlaybackError();
+      }
     };
     
     const handleStalled = () => {
-      console.log('Video stalled');
+      console.log('الفيديو متوقف مؤقتًا');
       setIsLoading(true);
     };
     
     const handleWaiting = () => {
-      console.log('Video waiting');
+      console.log('الفيديو في وضع الانتظار');
       setIsLoading(true);
     };
     
     const handleEnded = () => {
-      console.log('Video ended');
+      console.log('انتهى الفيديو');
       setIsPlaying(false);
     };
 
-    // Add listeners
+    // إضافة المستمعين
     video.addEventListener('canplay', handleCanPlay);
     video.addEventListener('playing', handlePlaying);
     video.addEventListener('error', handleError);
@@ -62,24 +73,15 @@ export function useVideoEventListeners({
     video.addEventListener('waiting', handleWaiting);
     video.addEventListener('ended', handleEnded);
     
-    // Cleanup function
+    // وظيفة التنظيف
     return () => {
-      // Remove listeners
+      // إزالة المستمعين
       video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('playing', handlePlaying);
       video.removeEventListener('error', handleError);
       video.removeEventListener('stalled', handleStalled);
       video.removeEventListener('waiting', handleWaiting);
       video.removeEventListener('ended', handleEnded);
-      
-      // Basic video cleanup
-      try {
-        video.pause();
-        video.removeAttribute('src');
-        video.load();
-      } catch (e) {
-        console.error('Cleanup error:', e);
-      }
     };
   }, [videoRef, setIsPlaying, setIsLoading, setError, handlePlaybackError]);
 }
