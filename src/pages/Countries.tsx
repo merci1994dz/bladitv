@@ -1,168 +1,101 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getCountries, getChannelsByCountry, toggleFavoriteChannel } from '@/services/api';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import ChannelCard from '@/components/ChannelCard';
-import VideoPlayer from '@/components/VideoPlayer';
-import { Channel } from '@/types';
-import { useToast } from "@/hooks/use-toast";
-import { Globe, Flag, Tv } from 'lucide-react';
+import { getCountries } from '@/services/api';
+import { useNavigate } from 'react-router-dom';
+import LoadingSpinner from '@/components/ui/loading-spinner';
+import ErrorMessage from '@/components/ui/error-message';
+import CountryCard from '@/components/country/CountryCard';
+import { Menu, Search, Tv, RefreshCw, Crown } from 'lucide-react';
 
 const Countries: React.FC = () => {
-  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
-  const [activeCountry, setActiveCountry] = useState<string | null>(null);
-  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<string>('channels');
 
   const { 
     data: countries,
     isLoading: isLoadingCountries,
+    error: countriesError
   } = useQuery({
     queryKey: ['countries'],
     queryFn: getCountries,
   });
 
-  const { 
-    data: countryChannels,
-    isLoading: isLoadingChannels,
-    refetch: refetchChannels
-  } = useQuery({
-    queryKey: ['channelsByCountry', activeCountry],
-    queryFn: () => activeCountry ? getChannelsByCountry(activeCountry) : Promise.resolve([]),
-    enabled: !!activeCountry,
-  });
-
-  useEffect(() => {
-    if (countries && countries.length > 0 && !activeCountry) {
-      setActiveCountry(countries[0].id);
-    }
-  }, [countries, activeCountry]);
-
-  const handleTabChange = (countryId: string) => {
-    setActiveCountry(countryId);
-    refetchChannels();
+  const handleCountryClick = (countryId: string) => {
+    navigate(`/country/${countryId}`);
   };
 
-  const handlePlayChannel = (channel: Channel) => {
-    setSelectedChannel(channel);
-  };
-
-  const handleToggleFavorite = async (channelId: string) => {
-    try {
-      const updatedChannel = await toggleFavoriteChannel(channelId);
-      toast({
-        title: updatedChannel.isFavorite ? "تمت الإضافة للمفضلة" : "تمت الإزالة من المفضلة",
-        description: `${updatedChannel.name} ${updatedChannel.isFavorite ? 'تمت إضافتها للمفضلة' : 'تمت إزالتها من المفضلة'}`,
-        duration: 2000,
-      });
-      refetchChannels();
-    } catch (error) {
-      toast({
-        title: "حدث خطأ",
-        description: "تعذر تحديث المفضلة",
-        variant: "destructive",
-        duration: 2000,
-      });
-    }
-  };
+  const tabs = [
+    { id: 'channels', name: 'القنوات' },
+    { id: 'movies', name: 'الأفلام' },
+    { id: 'series', name: 'المسلسلات' },
+    { id: 'sports', name: 'المباريات' }
+  ];
 
   if (isLoadingCountries) {
     return (
-      <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950">
-        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-500 animate-pulse">جاري تحميل البلدان...</p>
+      <div className="flex items-center justify-center min-h-screen bg-[#232323]">
+        <LoadingSpinner />
       </div>
     );
   }
 
-  const activeCountryData = activeCountry && countries ? 
-    countries.find(country => country.id === activeCountry) : 
-    (countries && countries.length > 0 ? countries[0] : null);
+  if (countriesError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#232323]">
+        <ErrorMessage />
+      </div>
+    );
+  }
 
   return (
-    <div className="pb-20 pt-4">
-      <header className="px-4 py-2 mb-6">
-        <h1 className="text-2xl font-bold text-center">البلدان</h1>
-        <p className="text-center text-muted-foreground text-sm mt-1">اختر البلد لمشاهدة القنوات المتاحة</p>
-      </header>
-
-      {selectedChannel && (
-        <VideoPlayer 
-          channel={selectedChannel} 
-          onClose={() => setSelectedChannel(null)} 
-        />
-      )}
-
-      {countries && countries.length > 0 && (
-        <Tabs 
-          value={activeCountry || countries[0].id} 
-          onValueChange={handleTabChange}
-          dir="rtl" 
-          className="w-full"
-        >
-          <div className="relative">
-            <TabsList className="w-full overflow-x-auto flex justify-start mb-4 px-4 bg-transparent shadow-sm rounded-lg">
-              {countries.map(country => (
-                <TabsTrigger 
-                  key={country.id} 
-                  value={country.id}
-                  className="px-6 py-3 flex items-center gap-3 transition-all duration-200 hover:bg-primary/10 data-[state=active]:border-b-2 data-[state=active]:border-primary"
-                >
-                  <span className="text-2xl">{country.flag}</span>
-                  <span className="font-medium">{country.name}</span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-background to-transparent pointer-events-none"></div>
-            <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none"></div>
+    <div className="min-h-screen bg-[#232323]">
+      {/* رأس الصفحة مع الشعار */}
+      <header className="bg-[#232323] text-white p-4 flex items-center justify-between">
+        <div className="flex items-center">
+          <Menu className="w-6 h-6 mr-2" />
+          <div className="flex items-center space-x-2">
+            <div className="rounded-full bg-white p-1.5">
+              <Tv className="w-5 h-5 text-[#232323]" />
+            </div>
+            <Crown className="w-5 h-5 text-yellow-400" />
           </div>
-          
-          {countries.map(country => (
-            <TabsContent key={country.id} value={country.id} className="px-4 animate-in fade-in-50 duration-300">
-              {isLoadingChannels ? (
-                <div className="py-10 flex flex-col justify-center items-center">
-                  <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-2"></div>
-                  <p className="text-sm text-gray-500">جاري تحميل قنوات {country.name}...</p>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center mb-6 gap-2 border-b pb-2">
-                    <div className="p-2 rounded-full bg-primary/10">
-                      <Tv className="h-5 w-5 text-primary" />
-                    </div>
-                    <h2 className="text-xl font-semibold">قنوات {country.name} <span className="text-xl mr-1">{country.flag}</span></h2>
-                    <span className="text-muted-foreground text-sm mr-auto">
-                      {countryChannels?.length || 0} قناة متاحة
-                    </span>
-                  </div>
-                
-                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {countryChannels && countryChannels.length > 0 ? (
-                      countryChannels.map(channel => (
-                        <ChannelCard 
-                          key={channel.id} 
-                          channel={channel} 
-                          onPlay={handlePlayChannel}
-                          onToggleFavorite={handleToggleFavorite}
-                        />
-                      ))
-                    ) : (
-                      <div className="col-span-full py-10 text-center">
-                        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 max-w-md mx-auto shadow-sm border border-gray-100 dark:border-gray-700">
-                          <div className="flex justify-center mb-4">
-                            <Globe className="h-10 w-10 text-gray-400" />
-                          </div>
-                          <p className="text-gray-500 mb-2 font-medium">لا توجد قنوات من {country.name} {country.flag}</p>
-                          <p className="text-sm text-gray-400">سيتم إضافة قنوات جديدة قريبًا، يمكنك تصفح قنوات من بلدان أخرى</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </TabsContent>
+        </div>
+        <h1 className="text-xl font-bold">General TV</h1>
+        <div className="flex items-center space-x-4">
+          <RefreshCw className="w-5 h-5" />
+          <Search className="w-5 h-5" />
+        </div>
+      </header>
+      
+      {/* التبويبات في الأعلى */}
+      <div className="flex border-b border-gray-100/10 overflow-x-auto hide-scrollbar">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            className={`flex-1 text-center py-3 px-2 ${activeTab === tab.id 
+              ? 'text-white font-bold border-b-2 border-white' 
+              : 'text-white/70 font-medium'}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.name}
+          </button>
+        ))}
+      </div>
+      
+      {/* محتوى الصفحة */}
+      <div className="container mx-auto p-4">
+        <div className="grid grid-cols-3 gap-4">
+          {countries?.map(country => (
+            <CountryCard 
+              key={country.id} 
+              country={country} 
+              onClick={handleCountryClick} 
+              isActive={false}
+            />
           ))}
-        </Tabs>
-      )}
+        </div>
+      </div>
     </div>
   );
 };

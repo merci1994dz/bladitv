@@ -26,23 +26,26 @@ const CountriesList: React.FC<CountriesListProps> = ({
   };
 
   return (
-    <section className="px-4 mb-10 relative">
-      <div className="container mx-auto">
-        {/* Decorative elements */}
-        <div className="absolute -left-20 top-1/4 w-40 h-40 bg-blue-500/5 rounded-full blur-3xl"></div>
-        <div className="absolute -right-20 top-3/4 w-60 h-60 bg-purple-500/5 rounded-full blur-3xl"></div>
-        
-        {/* Animated heading */}
-        <div className="mb-6 text-center">
-          <h2 className="inline-block text-2xl font-bold relative after:content-[''] after:absolute after:bottom-[-8px] after:left-0 after:right-0 after:mx-auto after:w-24 after:h-1 after:bg-primary after:rounded-full">
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-700">
-              الدول المتاحة
-            </span>
-          </h2>
+    <section className="px-0 mb-0 relative pb-16">
+      <div className="container mx-auto px-2">
+        {/* التبويبات في الأعلى (القنوات، الأفلام، المسلسلات، المباريات) */}
+        <div className="flex mb-4 border-b border-gray-100/10 overflow-x-auto hide-scrollbar">
+          <div className="flex-1 text-center py-3 px-2 text-white font-bold border-b-2 border-white">
+            القنوات
+          </div>
+          <div className="flex-1 text-center py-3 px-2 text-white/70 font-medium">
+            الأفلام
+          </div>
+          <div className="flex-1 text-center py-3 px-2 text-white/70 font-medium">
+            المسلسلات
+          </div>
+          <div className="flex-1 text-center py-3 px-2 text-white/70 font-medium">
+            المباريات
+          </div>
         </div>
         
-        {/* Countries grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5">
+        {/* شبكة البلدان */}
+        <div className="grid grid-cols-3 gap-4">
           {countries?.map(country => (
             <CountryCard 
               key={country.id} 
