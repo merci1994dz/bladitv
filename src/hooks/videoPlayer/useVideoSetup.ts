@@ -18,74 +18,33 @@ export const setupVideoSource = (videoElement: HTMLVideoElement, streamUrl: stri
   }
 
   try {
-    // Apply security measures for video playback
+    // Reset video element state
+    videoElement.pause();
+    videoElement.currentTime = 0;
+    videoElement.src = '';
+    videoElement.load();
+    
+    // Simple source setting - no obfuscation for mobile compatibility
+    videoElement.src = streamUrl;
+    
+    // Basic mobile-friendly settings
+    videoElement.playsInline = true;
+    videoElement.setAttribute('playsinline', '');
+    videoElement.setAttribute('webkit-playsinline', '');
+    videoElement.setAttribute('x5-playsinline', '');
+    videoElement.setAttribute('preload', 'auto');
+    
+    // Set mobile compatible controls attributes
     if (SECURITY_CONFIG.DISABLE_VIDEO_DOWNLOAD) {
       videoElement.controlsList?.add('nodownload');
     }
-
-    // Prevent saving video
+    
     videoElement.setAttribute('oncontextmenu', 'return false;');
+    videoElement.setAttribute('disablepictureinpicture', '');
     
-    // Apply advanced security measures
-    if (VIDEO_PLAYER.DISABLE_INSPECT) {
-      // Make it harder to inspect the video element
-      let srcValue = streamUrl; // Use a variable instead of trying to modify the constant
-      
-      Object.defineProperty(videoElement, 'src', {
-        get: function() {
-          return VIDEO_PLAYER.HIDE_STREAM_URLS ? 'protected://stream' : srcValue;
-        },
-        set: function(newValue) {
-          srcValue = newValue; // Update the variable instead of trying to modify the constant
-          this.setAttribute('src', newValue);
-        },
-        configurable: false
-      });
-    }
-
-    // Set the source using a more secure approach
-    const shouldObfuscate = VIDEO_PLAYER.OBFUSCATE_SOURCE;
+    // Mobile-friendly style
+    videoElement.style.objectFit = 'contain';
     
-    if (shouldObfuscate) {
-      // Create a blob URL to make it harder to extract the original URL
-      // This is a simple obfuscation technique that adds a layer of protection
-      if (streamUrl.startsWith('http')) {
-        videoElement.src = streamUrl;
-        
-        // Hide source in debugger
-        setTimeout(() => {
-          const commentNode = document.createComment(' Protected Video Source ');
-          if (videoElement.parentNode) {
-            videoElement.parentNode.insertBefore(commentNode, videoElement);
-          }
-        }, 100);
-      } else {
-        // If it's already an obfuscated URL, use it directly
-        videoElement.src = streamUrl;
-      }
-    } else {
-      // Normal source setting
-      videoElement.src = streamUrl;
-    }
-
-    // Set referrer policy if enabled
-    if (VIDEO_PLAYER.REFERRER_PROTECTION) {
-      videoElement.setAttribute('referrerpolicy', 'no-referrer');
-    }
-    
-    // Optimize for TV playback
-    videoElement.playsInline = true;
-    videoElement.autoplay = true; // Most TV users expect auto-play
-    
-    // Enhanced video playback settings for TV
-    if (isTVDevice()) {
-      videoElement.style.objectFit = 'contain';
-      // Ensure good quality on large screens
-      if (videoElement.getAttribute('playsinline') !== null) {
-        videoElement.removeAttribute('playsinline');
-      }
-    }
-
     return true;
   } catch (error) {
     console.error('Error setting up video source:', error);
@@ -93,16 +52,9 @@ export const setupVideoSource = (videoElement: HTMLVideoElement, streamUrl: stri
   }
 };
 
-// Helper function to detect if the current device is likely a TV
-function isTVDevice(): boolean {
-  const userAgent = navigator.userAgent.toLowerCase();
-  return (
-    userAgent.includes('tv') || 
-    userAgent.includes('android tv') || 
-    userAgent.includes('smart-tv') ||
-    // Common TV viewport size check (large landscape screen)
-    (window.innerWidth > 1280 && window.innerHeight < window.innerWidth)
-  );
+// Helper function to detect if the current device is likely a mobile device
+function isMobileDevice(): boolean {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
 /**
@@ -112,43 +64,33 @@ export function useVideoSetup() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isTV, setIsTV] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Detect TV device on mount
+  // Detect mobile device on mount
   useEffect(() => {
-    setIsTV(isTVDevice());
+    setIsMobile(isMobileDevice());
+    console.log("Is mobile device:", isMobileDevice());
   }, []);
 
   // Apply security measures on mount
   useEffect(() => {
     if (videoRef.current) {
-      // Apply security measures to video element
+      // Apply simple security measures to video element
       if (SECURITY_CONFIG.DISABLE_VIDEO_DOWNLOAD) {
         videoRef.current.controlsList?.add('nodownload');
         videoRef.current.setAttribute('oncontextmenu', 'return false;');
       }
       
-      // Apply global document-level protections
-      if (SECURITY_CONFIG.ALLOW_RIGHT_CLICK === false) {
-        const disableRightClick = (e: MouseEvent) => {
-          e.preventDefault();
-          return false;
-        };
-        
-        document.addEventListener('contextmenu', disableRightClick);
-        
-        return () => {
-          document.removeEventListener('contextmenu', disableRightClick);
-        };
-      }
-      
-      // TV-specific video element settings
-      if (isTV) {
+      // Mobile specific settings
+      if (isMobile) {
         videoRef.current.style.objectFit = 'contain';
-        videoRef.current.focus(); // Ensure video element can receive remote control input
+        videoRef.current.setAttribute('playsinline', '');
+        videoRef.current.setAttribute('webkit-playsinline', '');
+        videoRef.current.setAttribute('x5-playsinline', '');
+        console.log("Applied mobile-specific video settings");
       }
     }
-  }, [isTV]);
+  }, [isMobile]);
 
   return {
     videoRef,
@@ -156,6 +98,6 @@ export function useVideoSetup() {
     setIsLoading,
     error,
     setError,
-    isTV
+    isMobile
   };
 }

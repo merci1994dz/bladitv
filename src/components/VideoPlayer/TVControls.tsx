@@ -1,5 +1,6 @@
 
 import React, { useEffect } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface TVControlsProps {
   isTV: boolean;
@@ -24,9 +25,11 @@ const TVControls: React.FC<TVControlsProps> = ({
   toggleFullscreen,
   playerContainerRef
 }) => {
-  // TV-specific keyboard event handling
+  const isMobile = useIsMobile();
+  
+  // Only set up event listeners if we're on a TV device
   useEffect(() => {
-    if (!isTV) return;
+    if (!isTV || isMobile) return;
     
     const handleKeyDown = (e: KeyboardEvent) => {
       // Common TV remote control buttons
@@ -61,10 +64,10 @@ const TVControls: React.FC<TVControlsProps> = ({
     
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isTV, togglePlayPause, seekVideo, onClose, toggleMute, toggleFullscreen, playerContainerRef]);
+  }, [isTV, isMobile, togglePlayPause, seekVideo, onClose, toggleMute, toggleFullscreen, playerContainerRef]);
 
-  // TV-specific helper message (only shows briefly on channel change)
-  if (!isTV || !isInitialized) return null;
+  // Don't show TV controls on mobile devices
+  if (!isTV || isMobile || !isInitialized) return null;
 
   return (
     <div className={`absolute top-20 left-0 right-0 flex justify-center transition-opacity duration-1000 ${isLoading ? 'opacity-100' : 'opacity-0'}`}>

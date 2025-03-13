@@ -35,7 +35,7 @@ export function useVideoEvents({
     handlePlaybackError
   });
 
-  // Simplified setup effect
+  // Setup effect - simplified for better mobile compatibility
   useEffect(() => {
     console.log("Setting up video for channel:", channel.name, "attempt:", retryCount);
     
@@ -43,10 +43,27 @@ export function useVideoEvents({
     setError(null);
     setIsLoading(true);
     
-    // Initialize video playback with short delay to allow cleanup
-    setTimeout(() => {
-      initializeVideoPlayback(videoRef, channel, setIsLoading, setError);
-    }, 300);
+    // Initialize video playback with longer delay to allow cleanup
+    const timeoutId = setTimeout(() => {
+      if (videoRef.current) {
+        console.log("Initializing video playback after delay");
+        initializeVideoPlayback(videoRef, channel, setIsLoading, setError);
+      }
+    }, 500);
     
+    // Cleanup function
+    return () => {
+      clearTimeout(timeoutId);
+      if (videoRef.current) {
+        console.log("Cleaning up video element");
+        try {
+          videoRef.current.pause();
+          videoRef.current.removeAttribute('src');
+          videoRef.current.load();
+        } catch (e) {
+          console.error("Error during video cleanup:", e);
+        }
+      }
+    };
   }, [channel.streamUrl, retryCount]);
 }

@@ -5,8 +5,6 @@ import { useVideoRetry } from './useVideoRetry';
 import { useVideoControl } from './useVideoControl';
 import { useVideoEvents } from './useVideoEvents';
 import { useEffect, useRef } from 'react';
-import { VIDEO_PLAYER } from '@/services/config';
-import { toast } from "@/hooks/use-toast";
 
 interface UseVideoPlaybackProps {
   channel: Channel;
@@ -19,11 +17,12 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     isLoading,
     setIsLoading,
     error,
-    setError
+    setError,
+    isMobile
   } = useVideoSetup();
 
   // Create a ref to track current channel
-  const currentChannelIdRef = useRef(channel.id);
+  const currentChannelRef = useRef(channel);
   
   // Set up video playback controls
   const {
@@ -37,7 +36,7 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     setError
   });
 
-  // Set up retry logic
+  // Set up retry logic - simpler for mobile
   const {
     retryCount,
     retryPlayback,
@@ -49,6 +48,11 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     setError,
     setIsPlaying
   });
+
+  // Update current channel ref when channel changes
+  useEffect(() => {
+    currentChannelRef.current = channel;
+  }, [channel]);
 
   // Set up video event listeners
   useVideoEvents({
@@ -62,26 +66,17 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     handlePlaybackError
   });
   
-  // إعادة تهيئة المشغل عند تغيير القناة - مبسطة
+  // Simple debug logging
   useEffect(() => {
-    console.log("Channel changed: ", channel.name);
-    
-    // تهيئة أساسية
-    setIsLoading(true);
-    setError(null);
-    
-    // التحقق من وجود رابط بث
-    if (!channel.streamUrl) {
-      console.error("Missing stream URL for channel:", channel.name);
-      setError("لا يوجد رابط بث متاح لهذه القناة");
-      setIsLoading(false);
-      return;
-    }
-    
-    // تحديث معرف القناة المطلوبة
-    currentChannelIdRef.current = channel.id;
-    
-  }, [channel.id, channel.streamUrl, channel.name]);
+    console.log("Channel info:", {
+      name: channel.name,
+      streamUrl: channel.streamUrl ? "Present" : "Missing",
+      isMobile,
+      isPlaying,
+      isLoading,
+      error: error || "None"
+    });
+  }, [channel, isMobile, isPlaying, isLoading, error]);
 
   return {
     videoRef,
