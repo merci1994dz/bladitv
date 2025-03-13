@@ -35,7 +35,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
         id="video-rewind-button"
         variant="ghost" 
         size="icon"
-        className={`rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex backdrop-blur-sm ${focusedButton === 'rewind' && isTV ? 'ring-2 ring-primary' : ''}`}
+        className={`rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex backdrop-blur-sm transform transition-all duration-300 hover:scale-110 ${focusedButton === 'rewind' && isTV ? 'ring-2 ring-primary' : ''}`}
         onClick={onSeek(-10)}
       >
         <Rewind className="w-4 h-4" />
@@ -45,17 +45,20 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
         id="video-play-button"
         variant="ghost" 
         size="icon"
-        className={`rounded-full text-white hover:bg-white/20 h-14 w-14 border border-white/30 backdrop-blur-sm shadow-md ${focusedButton === 'play' && isTV ? 'ring-2 ring-primary' : ''}`}
+        className={`rounded-full text-white hover:bg-white/20 h-14 w-14 border border-white/30 backdrop-blur-sm shadow-md transform transition-all duration-300 hover:scale-105 ${focusedButton === 'play' && isTV ? 'ring-2 ring-primary' : ''}`}
         onClick={onPlayPause}
       >
-        {isPlaying ? <Pause className="w-7 h-7" /> : <Play className="w-7 h-7" />}
+        {isPlaying ? 
+          <Pause className="w-7 h-7 animate-fade-in" /> : 
+          <Play className="w-7 h-7 animate-fade-in" />
+        }
       </Button>
       
       <Button 
         id="video-forward-button"
         variant="ghost" 
         size="icon"
-        className={`rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex backdrop-blur-sm ${focusedButton === 'forward' && isTV ? 'ring-2 ring-primary' : ''}`}
+        className={`rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex backdrop-blur-sm transform transition-all duration-300 hover:scale-110 ${focusedButton === 'forward' && isTV ? 'ring-2 ring-primary' : ''}`}
         onClick={onSeek(10)}
       >
         <FastForward className="w-4 h-4" />
@@ -70,10 +73,10 @@ const CenterPlayButton: React.FC<CenterPlayButtonProps> = ({
   isFocused 
 }) => {
   return (
-    <div className={`bg-black/50 backdrop-blur-md rounded-full p-7 shadow-2xl transform transition-transform hover:scale-105 border ${isFocused ? 'border-primary border-2' : 'border-white/10'}`}>
+    <div className={`bg-black/50 backdrop-blur-md rounded-full p-7 shadow-2xl transform transition-all duration-300 hover:scale-105 ${isFocused ? 'border-primary border-2 animate-pulse-slow' : 'border-white/10 border'}`}>
       {isPlaying ? 
-        <Pause className="w-16 h-16 text-white" /> : 
-        <Play className="w-16 h-16 text-white" />
+        <Pause className="w-16 h-16 text-white animate-fade-in" /> : 
+        <Play className="w-16 h-16 text-white animate-fade-in" />
       }
     </div>
   );
