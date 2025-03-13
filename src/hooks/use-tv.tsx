@@ -2,44 +2,68 @@
 import * as React from "react";
 import { useIsMobile } from "./use-mobile";
 
+// قائمة بوكلاء المستخدم المعروفين لأجهزة التلفزيون
+const TV_USER_AGENTS = [
+  'tv', 'android tv', 'smart-tv', 'hbbtv', 'netcast', 'viera', 'webos', 
+  'tizen', 'vidaa', 'roku', 'toshiba', 'philips', 'panasonic', 'lg tv',
+  'samsung', 'sony', 'mibox', 'firetv', 'appletv', 'googletv'
+];
+
 export function useIsTV() {
   const [isTV, setIsTV] = React.useState<boolean | undefined>(undefined);
   const isMobile = useIsMobile();
 
   React.useEffect(() => {
-    // TV detection methods:
-    // 1. Check for common TV user agent strings
-    // 2. Check for typical TV viewport dimensions (large, fixed landscape)
-    // 3. Check if running on Android TV platform
-    
+    if (isMobile) {
+      setIsTV(false);
+      return;
+    }
+
+    // 1. كشف أجهزة التلفزيون بناءً على وكيل المستخدم
     const userAgent = navigator.userAgent.toLowerCase();
-    const isTVUserAgent = 
-      userAgent.includes('tv') || 
-      userAgent.includes('android tv') || 
-      userAgent.includes('smart-tv') || 
-      userAgent.includes('hbbtv') ||
-      userAgent.includes('netcast') ||
-      userAgent.includes('viera') ||
-      userAgent.includes('webos');
     
-    // Most TVs have a landscape orientation with large dimensions
+    // فحص كل وكلاء المستخدمين المعروفين لأجهزة التلفزيون
+    const isTVUserAgent = TV_USER_AGENTS.some(agent => userAgent.includes(agent));
+    
+    // 2. كشف بناءً على الأبعاد النموذجية للتلفزيون (شاشة كبيرة، منظر أفقي ثابت)
     const isLargeLandscapeScreen = 
       window.innerWidth > 1280 && 
-      window.innerHeight < window.innerWidth;
+      window.innerHeight < window.innerWidth * 0.8;
     
-    // Additional check for Android TV
-    const isAndroidTV = 
-      userAgent.includes('android') && 
-      !userAgent.includes('mobile') && 
-      (isLargeLandscapeScreen || isTVUserAgent);
+    // 3. فحص إضافي للأجهزة التي قد لا تعلن عن نفسها كتلفزيون
+    const isSpecialTVDevice = detectSpecialTVPlatforms();
     
-    setIsTV(isAndroidTV || isTVUserAgent);
+    // تعيين العلامة بناءً على النتائج المجمعة
+    setIsTV(isTVUserAgent || (isLargeLandscapeScreen && !isMobile) || isSpecialTVDevice);
   }, [isMobile]);
 
   return !!isTV;
 }
 
-// This hook combines mobile and TV detection to help with responsive designs
+// كشف المنصات الخاصة
+function detectSpecialTVPlatforms(): boolean {
+  // كشف تلفزيونات Tizen (سامسونج)
+  const hasTizen = (window as any).tizen !== undefined;
+  
+  // كشف منصة WebOS (LG)
+  const hasWebOS = (window as any).webOS !== undefined;
+  
+  // كشف أجهزة FireTV
+  const isFireTV = navigator.userAgent.toLowerCase().includes('aftn');
+  
+  // كشف Chromecast/GoogleTV
+  const isChromecast = navigator.userAgent.toLowerCase().includes('crkey');
+  
+  // تحقق من وضع العرض العريض المستمر
+  const isAlwaysLandscape = window.screen && 
+    window.screen.orientation && 
+    window.screen.orientation.type === 'landscape-primary' && 
+    window.screen.orientation.locked;
+  
+  return hasTizen || hasWebOS || isFireTV || isChromecast || isAlwaysLandscape;
+}
+
+// هذا المكون يجمع بين كشف الأجهزة المحمولة وأجهزة التلفزيون للمساعدة في التصميمات المتجاوبة
 export function useDeviceType() {
   const isMobile = useIsMobile();
   const isTV = useIsTV();

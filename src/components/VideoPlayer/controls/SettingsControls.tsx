@@ -2,6 +2,8 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Settings, Maximize, Minimize, RefreshCw } from 'lucide-react';
+import ExternalStreamingButton from './ExternalStreamingButton';
+import { Channel } from '@/types';
 
 interface SettingsControlsProps {
   isFullscreen: boolean;
@@ -9,6 +11,7 @@ interface SettingsControlsProps {
   onReload?: (e: React.MouseEvent) => void;
   isTV?: boolean;
   focusedButton: string | null;
+  channel?: Channel; // إضافة القناة لدعم خدمات البث الخارجية
 }
 
 const SettingsControls: React.FC<SettingsControlsProps> = ({
@@ -16,7 +19,8 @@ const SettingsControls: React.FC<SettingsControlsProps> = ({
   onFullscreenToggle,
   onReload,
   isTV = false,
-  focusedButton
+  focusedButton,
+  channel
 }) => {
   return (
     <div className="flex items-center space-x-2 rtl:space-x-reverse">
@@ -30,6 +34,14 @@ const SettingsControls: React.FC<SettingsControlsProps> = ({
         >
           <RefreshCw className="w-4 h-4" />
         </Button>
+      )}
+      
+      {channel && channel.externalLinks && channel.externalLinks.length > 0 && (
+        <ExternalStreamingButton 
+          channel={channel}
+          isTV={isTV}
+          isFocused={focusedButton === 'external'}
+        />
       )}
       
       <Button 

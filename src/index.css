@@ -4,3 +4,51 @@
 @import './styles/components.css';
 @import './styles/animations.css';
 @import './styles/utilities.css';
+
+/* أنماط مخصصة لأجهزة التلفزيون */
+@media screen and (min-width: 1280px) {
+  /* تحسينات لأجهزة التلفزيون */
+  .tv-focus-item:focus {
+    outline: 3px solid #ffffff;
+    outline-offset: 3px;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+    transform: scale(1.05);
+    transition: all 0.2s ease;
+  }
+
+  /* تكبير العناصر على أجهزة التلفزيون للقراءة بسهولة من بعيد */
+  .tv-text {
+    font-size: 1.2rem;
+  }
+  
+  .tv-button {
+    padding: 0.75rem 1.5rem;
+    font-size: 1.2rem;
+  }
+}
+
+/* رسوم متحركة لواجهة المستخدم على التلفزيون */
+@keyframes tv-focus-pulse {
+  0% {
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+  }
+}
+
+.tv-focus-animation {
+  animation: tv-focus-pulse 2s infinite;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}

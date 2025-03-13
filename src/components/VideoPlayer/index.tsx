@@ -63,13 +63,32 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     retryPlayback
   });
 
-  // معالجة تركيز TV
+  // تحسينات واجهة المستخدم لأجهزة التلفزيون
   useEffect(() => {
     if (isTV && playerContainerRef.current) {
+      // تعيين التركيز للحاوية
       playerContainerRef.current.setAttribute('tabindex', '0');
       playerContainerRef.current.focus();
+      
+      // إظهار عناصر التحكم عند بدء التشغيل
       handleMouseMove();
+      
+      // تعديل حجم المشغل للتلفزيون
+      document.body.classList.add('tv-mode');
+      
+      // تعطيل التمرير في الصفحة عند تشغيل الفيديو
+      document.body.style.overflow = 'hidden';
+      
+      // زيادة حجم مشغل الفيديو لتلفزيونات Smart TV
+      if (playerContainerRef.current) {
+        playerContainerRef.current.style.fontSize = '1.2rem';
+      }
     }
+    
+    return () => {
+      document.body.classList.remove('tv-mode');
+      document.body.style.overflow = '';
+    };
   }, [isTV, handleMouseMove]);
 
   // تسجيل المشاهدة
@@ -80,18 +99,19 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
       
       toast({
         title: `جاري تشغيل ${channel.name}`,
-        description: "يرجى الانتظار قليلاً...",
+        description: isTV ? "استخدم أزرار التنقل للتحكم" : "يرجى الانتظار قليلاً...",
         duration: 3000,
       });
     }
-  }, [isInitialized, channel]);
+  }, [isInitialized, channel, isTV]);
 
   return (
     <div 
-      className="fixed inset-0 bg-black z-50 flex flex-col" 
+      className={`fixed inset-0 bg-black z-50 flex flex-col ${isTV ? 'tv-player' : ''}`} 
       ref={playerContainerRef}
       onMouseMove={handleMouseMove}
       onClick={togglePlayPause}
+      tabIndex={0}
     >
       <InspectProtection />
       
@@ -133,6 +153,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
           onClick={eventHandlers.handleBackdropClick}
           onReload={eventHandlers.handleReload}
           isTV={isTV}
+          channel={channel} // تمرير القناة لدعم الخدمات الخارجية
         />
       </div>
       

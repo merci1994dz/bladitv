@@ -4,6 +4,7 @@ import VolumeControls from './controls/VolumeControls';
 import PlaybackControls from './controls/PlaybackControls';
 import SettingsControls from './controls/SettingsControls';
 import TVRemoteHelp from './controls/TVRemoteHelp';
+import { Channel } from '@/types';
 
 interface VideoControlsProps {
   show: boolean;
@@ -19,6 +20,7 @@ interface VideoControlsProps {
   onClick: (e: React.MouseEvent) => void;
   onReload?: (e: React.MouseEvent) => void;
   isTV?: boolean;
+  channel?: Channel; // إضافة القناة لدعم الخدمات الخارجية
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -34,7 +36,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onSeek,
   onClick,
   onReload,
-  isTV = false
+  isTV = false,
+  channel
 }) => {
   const [focusedButton, setFocusedButton] = useState<string | null>(null);
   const [progressValue, setProgressValue] = useState<number>(0);
@@ -92,21 +95,34 @@ const VideoControls: React.FC<VideoControlsProps> = ({
               view: window
             });
             document.getElementById('video-rewind-button')?.dispatchEvent(event);
+          } else if (focusedButton === 'external') {
+            const event = new MouseEvent('click', {
+              bubbles: true,
+              cancelable: true,
+              view: window
+            });
+            document.getElementById('external-streaming-button')?.dispatchEvent(event);
           }
           break;
         
         // التنقل الاتجاهي
         case 'ArrowRight':
           if (focusedButton === null || focusedButton === 'mute') {
+            setFocusedButton('rewind');
+          } else if (focusedButton === 'rewind') {
             setFocusedButton('play');
           } else if (focusedButton === 'play') {
             setFocusedButton('forward');
+          } else if (focusedButton === 'forward') {
+            setFocusedButton('external');
           }
           e.preventDefault();
           break;
           
         case 'ArrowLeft':
-          if (focusedButton === null || focusedButton === 'forward') {
+          if (focusedButton === null || focusedButton === 'external') {
+            setFocusedButton('forward');
+          } else if (focusedButton === 'forward') {
             setFocusedButton('play');
           } else if (focusedButton === 'play') {
             setFocusedButton('rewind');
@@ -188,6 +204,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             onReload={onReload}
             isTV={isTV}
             focusedButton={focusedButton}
+            channel={channel}
           />
         </div>
       </div>
