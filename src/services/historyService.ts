@@ -1,35 +1,47 @@
 
-import { Channel } from '@/types';
-import { channels } from './dataStore';
+import { STORAGE_KEYS } from './config';
 
-// الحصول على سجل المشاهدة مع بيانات القنوات
-export const getWatchHistoryWithChannels = async (): Promise<Channel[]> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  
-  // بما أن وظيفة المشاهدة تم حذفها، نعيد مصفوفة فارغة
-  return [];
-};
-
-// إضافة قناة إلى سجل المشاهدة
+// دالة لإضافة قناة إلى سجل المشاهدة
 export const addChannelToHistory = async (channelId: string): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  console.log(`Added channel ${channelId} to watch history`);
-  // تم حذف وظائف سجل المشاهدة، لذا هذه الدالة لن تفعل شيئًا
+  try {
+    // الحصول على سجل المشاهدة الحالي
+    const historyJson = localStorage.getItem(STORAGE_KEYS.RECENTLY_WATCHED) || '[]';
+    let history: string[] = JSON.parse(historyJson);
+    
+    // إزالة القناة من السجل إذا كانت موجودة مسبقًا
+    history = history.filter(id => id !== channelId);
+    
+    // إضافة القناة في بداية السجل
+    history.unshift(channelId);
+    
+    // الاحتفاظ بأحدث 20 قناة فقط
+    if (history.length > 20) {
+      history = history.slice(0, 20);
+    }
+    
+    // حفظ السجل المحدث
+    localStorage.setItem(STORAGE_KEYS.RECENTLY_WATCHED, JSON.stringify(history));
+  } catch (error) {
+    console.error('Error adding channel to history:', error);
+  }
 };
 
-// مسح سجل المشاهدة بالكامل
+// دالة للحصول على سجل المشاهدة
+export const getWatchHistory = async (): Promise<string[]> => {
+  try {
+    const historyJson = localStorage.getItem(STORAGE_KEYS.RECENTLY_WATCHED) || '[]';
+    return JSON.parse(historyJson);
+  } catch (error) {
+    console.error('Error getting watch history:', error);
+    return [];
+  }
+};
+
+// دالة لمسح سجل المشاهدة
 export const clearWatchHistory = async (): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  console.log('Watch history cleared');
-  // تم حذف وظائف سجل المشاهدة، لذا هذه الدالة لن تفعل شيئًا
-};
-
-// إزالة قناة واحدة من سجل المشاهدة
-export const removeFromWatchHistory = async (channelId: string): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  console.log(`Removed channel ${channelId} from watch history`);
-  // تم حذف وظائف سجل المشاهدة، لذا هذه الدالة لن تفعل شيئًا
+  try {
+    localStorage.removeItem(STORAGE_KEYS.RECENTLY_WATCHED);
+  } catch (error) {
+    console.error('Error clearing watch history:', error);
+  }
 };

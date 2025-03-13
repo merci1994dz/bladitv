@@ -1,3 +1,4 @@
+
 // هذا الملف يعمل كنقطة تصدير رئيسية لجميع خدمات API
 
 // إعادة تصدير كل شيء من وحدات الخدمة
@@ -6,6 +7,7 @@ export * from './categoryService';
 export * from './countryService';
 export * from './adminService';
 export * from './sync';  // تم التحديث لاستخدام وحدة المزامنة الجديدة
+export * from './historyService';
 
 export const getRecentlyWatchedChannels = async () => {
   try {
@@ -19,6 +21,7 @@ export const getRecentlyWatchedChannels = async () => {
       const recentlyWatched = JSON.parse(recentlyWatchedJson);
       
       // الحصول على كل القنوات
+      const { getChannels } = await import('./channelService');
       const allChannels = await getChannels();
       
       // تصفية القنوات حسب القائمة المشاهدة مؤخرا

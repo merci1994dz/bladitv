@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getCountries } from '@/services/api';
+import { getCountries, getRecentlyWatchedChannels } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import ErrorMessage from '@/components/ui/error-message';
@@ -38,15 +38,15 @@ const Home: React.FC = () => {
     });
     
     // يمكننا الانتقال إلى صفحة البلد التي تنتمي إليها القناة
-    if (channel.countryId) {
-      navigate(`/country/${channel.countryId}`, { state: { selectedChannelId: channel.id } });
+    if (channel.country) {
+      navigate(`/country/${channel.country}`, { state: { selectedChannelId: channel.id } });
     }
   };
 
   if (isLoadingCountries) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" />
+        <LoadingSpinner />
       </div>
     );
   }
