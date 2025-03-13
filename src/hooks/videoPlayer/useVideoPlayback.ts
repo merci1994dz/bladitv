@@ -1,4 +1,3 @@
-
 import { Channel } from '@/types';
 import { useVideoSetup } from './useVideoSetup';
 import { useVideoRetry } from './useVideoRetry';
@@ -70,35 +69,39 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
   
   // إعادة تهيئة المشغل عند تغيير القناة
   useEffect(() => {
-    console.log("Channel changed in useVideoPlayback:", channel.name, channel.streamUrl);
+    console.log("Channel changed in useVideoPlayback:", channel.name);
     
-    // فقط إعادة الضبط إذا تغير معرف القناة
+    // تهيئة مشغل الفيديو أو إعادة تعيينه
+    setIsLoading(true);
+    setError(null);
+    
+    // التحقق من وجود رابط بث
+    if (!channel.streamUrl) {
+      console.error("Missing stream URL for channel:", channel.name);
+      setError("لا يوجد رابط بث متاح لهذه القناة");
+      setIsLoading(false);
+      
+      toast({
+        title: "تعذر تشغيل القناة",
+        description: "لا يوجد رابط بث متاح لهذه القناة",
+        variant: "destructive",
+        duration: 4000,
+      });
+      
+      return;
+    }
+    
     if (currentChannelIdRef.current !== channel.id) {
       console.log("Resetting player for new channel:", channel.name);
       currentChannelIdRef.current = channel.id;
-      setIsLoading(true);
-      setError(null);
-      setIsPlaying(false);
       
-      // التحقق من وجود رابط بث
-      if (!channel.streamUrl) {
-        setError("لا يوجد رابط بث متاح لهذه القناة");
-        setIsLoading(false);
-        
-        toast({
-          title: "تعذر تشغيل القناة",
-          description: "لا يوجد رابط بث متاح لهذه القناة",
-          variant: "destructive",
-          duration: 4000,
-        });
-        
-        return;
-      }
-      
-      // محاولة تشغيل القناة الجديدة بعد فترة قصيرة
-      const timer = setTimeout(() => {
+      // محاولة تشغيل القناة الجديدة بعد فترة أطول للسماح بالتهيئة
+      setTimeout(() => {
         if (videoRef.current) {
           try {
+            console.log("Attempting to load and play new channel");
+            videoRef.current.load();
+            
             const playPromise = videoRef.current.play();
             if (playPromise !== undefined) {
               playPromise.catch(err => {
@@ -110,11 +113,9 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
             console.error('Error during initial play attempt:', err);
           }
         }
-      }, 800); // زيادة التأخير للسماح للمتصفح بتهيئة مشغل الفيديو
-      
-      return () => clearTimeout(timer);
+      }, 1500); // زيادة التأخير للسماح للمتصفح بتهيئة مشغل الفيديو
     }
-  }, [channel.id, channel.name, channel.streamUrl, setIsLoading, setError, setIsPlaying, videoRef]);
+  }, [channel.id, channel.streamUrl]);
 
   return {
     videoRef,

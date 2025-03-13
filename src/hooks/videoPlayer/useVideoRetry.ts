@@ -18,7 +18,7 @@ export function useVideoRetry({
   setIsPlaying: (playing: boolean) => void;
 }) {
   const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 3; // زيادة عدد المحاولات
+  const maxRetries = 5; // زيادة عدد المحاولات
 
   // إعادة المحاولة بعد حدوث خطأ
   const retryPlayback = () => {
@@ -46,35 +46,39 @@ export function useVideoRetry({
             if (setupVideoSource(videoRef.current, channel.streamUrl)) {
               videoRef.current.load();
               
-              // محاولة التشغيل
-              const playPromise = videoRef.current.play();
-              
-              if (playPromise !== undefined) {
-                playPromise
-                  .then(() => {
-                    console.log("Manual retry successful");
-                    setIsPlaying(true);
-                    setIsLoading(false);
-                    
-                    toast({
-                      title: "تم التشغيل بنجاح",
-                      description: `يتم الآن تشغيل ${channel.name}`,
-                      duration: 3000,
-                    });
-                  })
-                  .catch(err => {
-                    console.error('Error playing video on retry:', err);
-                    setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى لاحقًا.');
-                    setIsLoading(false);
-                    
-                    toast({
-                      title: "فشل في التشغيل",
-                      description: "تعذر تشغيل البث بعد المحاولة اليدوية",
-                      variant: "destructive",
-                      duration: 4000,
-                    });
-                  });
-              }
+              // محاولة التشغيل بعد فترة انتظار أطول
+              setTimeout(() => {
+                if (videoRef.current) {
+                  const playPromise = videoRef.current.play();
+                  
+                  if (playPromise !== undefined) {
+                    playPromise
+                      .then(() => {
+                        console.log("Manual retry successful");
+                        setIsPlaying(true);
+                        setIsLoading(false);
+                        
+                        toast({
+                          title: "تم التشغيل بنجاح",
+                          description: `يتم الآن تشغيل ${channel.name}`,
+                          duration: 3000,
+                        });
+                      })
+                      .catch(err => {
+                        console.error('Error playing video on retry:', err);
+                        setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى لاحقًا.');
+                        setIsLoading(false);
+                        
+                        toast({
+                          title: "فشل في التشغيل",
+                          description: "تعذر تشغيل البث بعد المحاولة اليدوية",
+                          variant: "destructive",
+                          duration: 4000,
+                        });
+                      });
+                  }
+                }
+              }, 1500);
             }
           } catch (error) {
             console.error('Error during manual retry:', error);
@@ -92,6 +96,15 @@ export function useVideoRetry({
     if (retryCount < maxRetries) {
       console.log(`Auto-retrying (${retryCount + 1}/${maxRetries})...`);
       setRetryCount(prev => prev + 1);
+      
+      // عرض رسالة للمستخدم في المحاولة الثانية
+      if (retryCount === 1) {
+        toast({
+          title: "جاري إعادة المحاولة تلقائياً",
+          description: "نواجه صعوبة في تشغيل البث، جاري المحاولة مرة أخرى...",
+          duration: 3000,
+        });
+      }
       
       return true; // يجب إعادة المحاولة تلقائيًا
     } else {

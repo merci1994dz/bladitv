@@ -45,47 +45,57 @@ export function useVideoLoadHandler() {
       // أولاً، تنظيف الوسائط الموجودة
       const video = videoRef.current;
       video.pause();
+      
+      // إزالة كل مصادر الفيديو الحالية
+      while (video.firstChild) {
+        video.removeChild(video.firstChild);
+      }
+      
       video.removeAttribute('src');
       video.load();
       
       if (setupVideoSource(video, channel.streamUrl)) {
-        video.load();
-        
-        // إضافة تأخير صغير للسماح للمتصفح بتحميل الفيديو
+        // إضافة تأخير مناسب للتحميل
         setTimeout(() => {
           if (videoRef.current) {
-            console.log('Attempting to play video');
+            videoRef.current.load();
+            console.log('Video source loaded, attempting to play');
             
-            try {
-              const playPromise = videoRef.current.play();
-              
-              if (playPromise !== undefined) {
-                playPromise
-                  .then(() => {
-                    console.log('Initial play successful');
-                  })
-                  .catch(err => {
-                    // سجلات خطأ آمنة
-                    if (VIDEO_PLAYER.HIDE_STREAM_URLS) {
-                      console.error('Error on initial play:', err instanceof Error ? err.message.replace(/(https?:\/\/[^\s]+)/g, '[محمي]') : 'Unknown error');
-                    } else {
-                      console.error('Error on initial play:', err);
-                    }
-                    
-                    // إذا تم حظر التشغيل التلقائي، عرض عناصر التحكم فقط
-                    if (err.name === "NotAllowedError") {
-                      console.log('Autoplay blocked - needs user interaction');
-                      toast({
-                        title: "التشغيل التلقائي محجوب",
-                        description: "يرجى النقر على الفيديو لبدء التشغيل",
-                        duration: 5000,
+            // إضافة تأخير قبل محاولة التشغيل
+            setTimeout(() => {
+              if (videoRef.current) {
+                try {
+                  const playPromise = videoRef.current.play();
+                  
+                  if (playPromise !== undefined) {
+                    playPromise
+                      .then(() => {
+                        console.log('Initial play successful');
+                      })
+                      .catch(err => {
+                        // سجلات خطأ آمنة
+                        if (VIDEO_PLAYER.HIDE_STREAM_URLS) {
+                          console.error('Error on initial play:', err instanceof Error ? err.message.replace(/(https?:\/\/[^\s]+)/g, '[محمي]') : 'Unknown error');
+                        } else {
+                          console.error('Error on initial play:', err);
+                        }
+                        
+                        // إذا تم حظر التشغيل التلقائي، عرض عناصر التحكم فقط
+                        if (err.name === "NotAllowedError") {
+                          console.log('Autoplay blocked - needs user interaction');
+                          toast({
+                            title: "التشغيل التلقائي محجوب",
+                            description: "يرجى النقر على الفيديو لبدء التشغيل",
+                            duration: 5000,
+                          });
+                        }
                       });
-                    }
-                  });
+                  }
+                } catch (playError) {
+                  console.error('Error during play attempt:', playError);
+                }
               }
-            } catch (playError) {
-              console.error('Error during play attempt:', playError);
-            }
+            }, 1000);
           }
         }, 1000);
       }

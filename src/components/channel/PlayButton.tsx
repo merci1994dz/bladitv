@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { Play, Loader2 } from 'lucide-react';
 import { Channel } from '@/types';
 import { toast } from "@/hooks/use-toast";
-import { playChannel } from '@/services/channelService';
 import { Button } from "@/components/ui/button";
 
 interface PlayButtonProps {
@@ -23,10 +22,7 @@ const PlayButton: React.FC<PlayButtonProps> = ({ channel, onPlay }) => {
     setIsLoading(true);
     
     try {
-      // تسجيل القناة في تاريخ المشاهدة
-      await playChannel(channel.id);
-      
-      // استدعاء دالة التشغيل
+      // استدعاء دالة التشغيل مباشرة
       onPlay(channel);
       
       toast({
@@ -43,7 +39,10 @@ const PlayButton: React.FC<PlayButtonProps> = ({ channel, onPlay }) => {
         duration: 3000,
       });
     } finally {
-      setIsLoading(false);
+      // تأخير تعيين الحالة ليتمكن المستخدم من رؤية التحميل
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 1000);
     }
   };
 
