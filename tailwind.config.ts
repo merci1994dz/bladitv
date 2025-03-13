@@ -62,11 +62,7 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				},
-				// إضافة ألوان مخصصة للتطبيق
-				'app-purple': '#8E44AD',
-				'app-dark': '#232323',
-				'app-light': '#FFFFFF'
+				}
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
