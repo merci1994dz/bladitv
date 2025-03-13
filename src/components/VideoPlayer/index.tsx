@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import { Channel } from '@/types';
 import { useVideoPlayer } from '@/hooks/videoPlayer';
@@ -5,6 +6,8 @@ import VideoHeader from './VideoHeader';
 import VideoControls from './VideoControls';
 import VideoError from './VideoError';
 import VideoLoading from './VideoLoading';
+import TVControls from './TVControls';
+import InspectProtection from './InspectProtection';
 import { toast } from "@/hooks/use-toast";
 import { VIDEO_PLAYER } from '@/services/config';
 import { useDeviceType } from '@/hooks/use-tv';
@@ -19,6 +22,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const { isTV } = useDeviceType();
   
+  // Secure channel data for display
   const secureChannel = React.useMemo(() => {
     return {
       ...channel,
@@ -26,6 +30,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     };
   }, [channel]);
   
+  // Initialize video player
   const {
     videoRef,
     isFullscreen,
@@ -45,6 +50,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     seekVideo
   } = useVideoPlayer({ channel: secureChannel });
 
+  // Handle TV focus
   useEffect(() => {
     if (isTV && playerContainerRef.current) {
       playerContainerRef.current.setAttribute('tabindex', '0');
@@ -54,6 +60,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     }
   }, [isTV, handleMouseMove]);
 
+  // Log player state & show toast on initialization
   useEffect(() => {
     if (VIDEO_PLAYER.HIDE_STREAM_URLS) {
       console.log("VideoPlayer state:", { 
@@ -84,61 +91,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     }
   }, [isLoading, error, retryCount, channel, isInitialized]);
 
-  useEffect(() => {
-    if (VIDEO_PLAYER.DISABLE_INSPECT) {
-      const disableDevTools = () => {
-        document.addEventListener('keydown', (e) => {
-          if (
-            e.key === 'F12' || 
-            (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j')) || 
-            (e.ctrlKey && (e.key === 'U' || e.key === 'u'))
-          ) {
-            e.preventDefault();
-          }
-        });
-      };
-      
-      disableDevTools();
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!isTV) return;
-    
-    const handleKeyDown = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case ' ':
-        case 'Enter':
-          togglePlayPause();
-          e.preventDefault();
-          break;
-        case 'ArrowLeft':
-          seekVideo(-10);
-          e.preventDefault();
-          break;
-        case 'ArrowRight':
-          seekVideo(10);
-          e.preventDefault();
-          break;
-        case 'Escape':
-          onClose();
-          e.preventDefault();
-          break;
-        case 'm':
-          toggleMute();
-          e.preventDefault();
-          break;
-        case 'f':
-          toggleFullscreen(playerContainerRef);
-          e.preventDefault();
-          break;
-      }
-    };
-    
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isTV, togglePlayPause, seekVideo, onClose, toggleMute, toggleFullscreen]);
-
+  // Event handlers for UI components
   const handleClose = (e: React.MouseEvent) => {
     e.stopPropagation();
     onClose();
@@ -194,6 +147,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     });
   };
 
+  // Secure error display function
   const secureErrorDisplay = React.useCallback((errorMsg: string | null) => {
     if (!errorMsg) return null;
     
@@ -207,6 +161,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
       onMouseMove={handleMouseMove}
       onClick={togglePlayPause}
     >
+      {/* Security feature to disable browser inspect */}
+      <InspectProtection />
+      
+      {/* Channel info header */}
       <VideoHeader 
         channel={secureChannel} 
         onClose={handleClose} 
@@ -248,13 +206,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
         />
       </div>
       
-      {isTV && isInitialized && (
-        <div className={`absolute top-20 left-0 right-0 flex justify-center transition-opacity duration-1000 ${isLoading ? 'opacity-100' : 'opacity-0'}`}>
-          <div className="bg-black/70 backdrop-blur-sm rounded-lg p-3 text-white">
-            <p>استخدم مفاتيح التنقل في جهاز التحكم للتحكم في المشغل</p>
-          </div>
-        </div>
-      )}
+      {/* TV-specific controls and hints */}
+      <TVControls 
+        isTV={isTV}
+        isInitialized={isInitialized}
+        isLoading={isLoading}
+        onClose={onClose}
+        togglePlayPause={togglePlayPause}
+        seekVideo={seekVideo}
+        toggleMute={toggleMute}
+        toggleFullscreen={toggleFullscreen}
+        playerContainerRef={playerContainerRef}
+      />
     </div>
   );
 };
