@@ -3,12 +3,13 @@ import { STORAGE_KEYS, REMOTE_CONFIG } from '../config';
 
 // Helper function to get/set last sync time
 export const getLastSyncTime = (): string | null => {
-  return localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
+  return localStorage.getItem(STORAGE_KEYS.LAST_SYNC_TIME) || localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
 };
 
 export const updateLastSyncTime = (): string => {
   const lastSyncTime = new Date().toISOString();
-  localStorage.setItem(STORAGE_KEYS.LAST_SYNC, lastSyncTime);
+  localStorage.setItem(STORAGE_KEYS.LAST_SYNC_TIME, lastSyncTime);
+  localStorage.setItem(STORAGE_KEYS.LAST_SYNC, lastSyncTime); // For backward compatibility
   return lastSyncTime;
 };
 
@@ -19,7 +20,7 @@ export const isSyncNeeded = (): boolean => {
   const hasCountries = !!localStorage.getItem(STORAGE_KEYS.COUNTRIES);
   
   // Also check if last sync was more than a day ago
-  const lastSyncStr = localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
+  const lastSyncStr = localStorage.getItem(STORAGE_KEYS.LAST_SYNC_TIME) || localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
   if (lastSyncStr) {
     const lastSync = new Date(lastSyncStr);
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);

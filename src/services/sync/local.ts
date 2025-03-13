@@ -60,7 +60,7 @@ export const syncWithLocalData = async (): Promise<boolean> => {
 
 // Helper function to get last sync time - added to fix export error
 export const getLastSyncTime = (): string | null => {
-  return localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
+  return localStorage.getItem(STORAGE_KEYS.LAST_SYNC_TIME) || localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
 };
 
 // Helper function to check if sync is needed - added to fix export error
@@ -70,7 +70,7 @@ export const isSyncNeeded = (): boolean => {
   const hasCountries = !!localStorage.getItem(STORAGE_KEYS.COUNTRIES);
   
   // Also check if last sync was more than a day ago
-  const lastSyncStr = localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
+  const lastSyncStr = localStorage.getItem(STORAGE_KEYS.LAST_SYNC_TIME) || localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
   if (lastSyncStr) {
     const lastSync = new Date(lastSyncStr);
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);

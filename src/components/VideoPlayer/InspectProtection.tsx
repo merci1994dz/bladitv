@@ -1,10 +1,10 @@
 
 import React, { useEffect } from 'react';
-import { VIDEO_PLAYER } from '@/services/config';
+import { VIDEO_PLAYER, SECURITY_CONFIG } from '@/services/config';
 
 const InspectProtection: React.FC = () => {
   useEffect(() => {
-    if (VIDEO_PLAYER.DISABLE_INSPECT) {
+    if (SECURITY_CONFIG.DISABLE_INSPECT) {
       const disableDevTools = () => {
         document.addEventListener('keydown', (e) => {
           if (

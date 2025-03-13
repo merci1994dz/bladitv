@@ -29,7 +29,7 @@ const History: React.FC = () => {
   
   // مرشح القنوات بناءً على البحث
   const filteredChannels = searchQuery
-    ? historyChannels.filter(channel => 
+    ? historyChannels.filter((channel: Channel) => 
         channel.name.toLowerCase().includes(searchQuery.toLowerCase()))
     : historyChannels;
     
