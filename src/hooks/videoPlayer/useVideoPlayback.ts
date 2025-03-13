@@ -9,7 +9,7 @@ interface UseVideoPlaybackProps {
 
 export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false); // بداية بحالة إيقاف
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -43,101 +43,65 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
       console.error('Stream URL is empty or invalid');
       setError('رابط البث غير صالح. الرجاء المحاولة لاحقًا.');
       setIsLoading(false);
-      return;
+      return false;
     }
 
     console.log('Setting up video with source:', src);
     
-    // If browser has native HLS support
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      console.log('Native HLS support detected');
-      video.src = src;
-      return;
-    }
-    
-    // For browsers without native HLS support
-    console.log('No HLS support, trying direct playback');
-    
     try {
+      // Set source directly
       video.src = src;
-      video.onerror = (e) => {
-        console.error('Video error during setup:', e);
-      };
+      return true;
     } catch (e) {
       console.error('Error setting video source:', e);
       setError('حدث خطأ أثناء تحميل الفيديو. الرجاء المحاولة لاحقًا.');
       setIsLoading(false);
-    }
-  };
-
-  // Method to try alternative formats
-  const tryAlternativeFormats = async () => {
-    if (!videoRef.current || !channel.streamUrl) return;
-    
-    console.log('Trying alternative format for:', channel.streamUrl);
-    
-    // Reset video state
-    const video = videoRef.current;
-    video.pause();
-    video.removeAttribute('src');
-    video.load();
-    
-    // Try with the original source
-    try {
-      setupHlsIfNeeded(video, channel.streamUrl);
-      
-      await video.play().catch(e => {
-        console.error('Error playing video with original source:', e);
-        setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى لاحقًا.');
-        setIsLoading(false);
-      });
-    } catch (err) {
-      console.error('Complete failure in tryAlternativeFormats:', err);
-      setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى لاحقًا.');
-      setIsLoading(false);
+      return false;
     }
   };
 
   // Retry playback after error
   const retryPlayback = () => {
+    console.log("Retrying playback manually");
     setError(null);
     setIsLoading(true);
     setRetryCount(0);
     
     if (videoRef.current) {
       // Reset completely
+      videoRef.current.pause();
       videoRef.current.removeAttribute('src');
       videoRef.current.load();
       
-      // Set new source
-      setupHlsIfNeeded(videoRef.current, channel.streamUrl);
-      videoRef.current.load();
-      
-      // Try to play
-      const playPromise = videoRef.current.play();
-      
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            setIsPlaying(true);
-            setIsLoading(false);
-          })
-          .catch(err => {
-            console.error('Error playing video on retry:', err);
+      // Set new source with a slight delay
+      setTimeout(() => {
+        if (videoRef.current) {
+          if (setupHlsIfNeeded(videoRef.current, channel.streamUrl)) {
+            videoRef.current.load();
             
-            // If video format error persists, try alternative formats
-            if (err.name === "NotSupportedError") {
-              tryAlternativeFormats();
-            } else {
-              setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى.');
-              setIsLoading(false);
+            // Try to play
+            const playPromise = videoRef.current.play();
+            
+            if (playPromise !== undefined) {
+              playPromise
+                .then(() => {
+                  console.log("Manual retry successful");
+                  setIsPlaying(true);
+                  setIsLoading(false);
+                })
+                .catch(err => {
+                  console.error('Error playing video on retry:', err);
+                  setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى.');
+                  setIsLoading(false);
+                });
             }
-          });
-      }
+          }
+        }
+      }, 500);
     }
   };
   
-  // Seek video (for live streams this might not work)
+  // Seek video function
   const seekVideo = (seconds: number) => {
     if (videoRef.current) {
       try {
@@ -170,12 +134,10 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     setError(null);
     setIsLoading(true);
     setRetryCount(0);
+    setIsPlaying(false);
     
     // Setup video element
     const video = videoRef.current;
-    
-    // Log events for diagnostics
-    console.log('Setting up video event listeners');
     
     // Register event listeners
     const handleCanPlay = () => {
@@ -193,31 +155,24 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     const handleError = (e: Event) => {
       const videoElement = e.target as HTMLVideoElement;
       console.error('Video error detected:', videoElement.error);
-      console.error('Error code:', videoElement.error?.code);
-      console.error('Error message:', videoElement.error?.message);
       
-      // Only increment retry count if there's a real error (not abort)
+      // Only increment retry count if there's a real error
       if (retryCount < maxRetries) {
         console.log(`Auto-retrying (${retryCount + 1}/${maxRetries})...`);
         setRetryCount(prev => prev + 1);
         
         setTimeout(() => {
-          // Use a slightly different approach for retrying
           try {
+            video.pause();
             video.removeAttribute('src');
             video.load();
-            setupHlsIfNeeded(video, channel.streamUrl);
-            video.load();
             
-            const playPromise = video.play().catch(e => {
-              console.error('Retry play failed:', e);
-              
-              // Check if it's a format error - this is often not recoverable
-              if (e.name === "NotSupportedError") {
-                setError('فشل في تشغيل البث. تنسيق الفيديو غير مدعوم في متصفحك.');
-                setIsLoading(false);
-              }
-            });
+            if (setupHlsIfNeeded(video, channel.streamUrl)) {
+              video.load();
+              video.play().catch(e => {
+                console.error('Retry play failed:', e);
+              });
+            }
           } catch (err) {
             console.error('Error during retry attempt:', err);
           }
@@ -261,42 +216,42 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     // Set source and play with error handling
     try {
       console.log('Setting up video source for:', channel.streamUrl);
-      setupHlsIfNeeded(video, channel.streamUrl);
       
-      // Try playing after a small delay
-      setTimeout(() => {
-        if (videoRef.current) {
-          console.log('Attempting to play video');
-          videoRef.current.load();
-          const playPromise = videoRef.current.play();
-          
-          if (playPromise !== undefined) {
-            playPromise
-              .then(() => {
-                console.log('Initial play successful');
-              })
-              .catch(err => {
-                console.error('Error on initial play:', err);
-                console.error('Error name:', err.name);
-                console.error('Error message:', err.message);
-                
-                // Check if it's a user interaction error
-                if (err.name === "NotAllowedError") {
-                  console.log('Autoplay blocked by browser - needs user interaction');
-                  setIsPlaying(false);
-                  setIsLoading(false);
-                }
-                // For format errors, set the appropriate error
-                else if (err.name === "NotSupportedError") {
-                  setError('تنسيق الفيديو غير مدعوم في متصفحك.');
-                  setIsLoading(false);
-                  // Try playing with alternative format
-                  tryAlternativeFormats();
-                }
-              });
+      // First, clean up
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+      
+      // Then set source
+      if (setupHlsIfNeeded(video, channel.streamUrl)) {
+        video.load();
+        
+        // Try playing after a small delay
+        setTimeout(() => {
+          if (videoRef.current) {
+            console.log('Attempting to play video');
+            
+            const playPromise = videoRef.current.play();
+            
+            if (playPromise !== undefined) {
+              playPromise
+                .then(() => {
+                  console.log('Initial play successful');
+                })
+                .catch(err => {
+                  console.error('Error on initial play:', err);
+                  
+                  // If autoplay is blocked, just show controls
+                  if (err.name === "NotAllowedError") {
+                    console.log('Autoplay blocked - needs user interaction');
+                    setIsPlaying(false);
+                    setIsLoading(false);
+                  }
+                });
+            }
           }
-        }
-      }, 500);
+        }, 800); // زيادة التأخير قليلاً
+      }
     } catch (err) {
       console.error('Unexpected error during video initialization:', err);
       setError('حدث خطأ غير متوقع أثناء تحميل الفيديو.');
@@ -307,7 +262,7 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     return () => {
       console.log('Cleaning up video player');
       
-      // First remove all event listeners to prevent errors during cleanup
+      // Remove all event listeners
       video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('playing', handlePlaying);
       video.removeEventListener('error', handleError);
@@ -315,7 +270,7 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
       video.removeEventListener('waiting', handleWaiting);
       video.removeEventListener('ended', handleEnded);
       
-      // Then handle the video properly
+      // Cleanup video
       try {
         video.pause();
         video.removeAttribute('src');
@@ -324,7 +279,7 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
         console.error('Error during video cleanup:', e);
       }
     };
-  }, [channel.streamUrl, channel.name, retryCount]);
+  }, [channel.streamUrl, channel.name]);
 
   return {
     videoRef,
