@@ -37,15 +37,33 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   isTV = false
 }) => {
   const [focusedButton, setFocusedButton] = useState<string | null>(null);
+  const [progressValue, setProgressValue] = useState<number>(0);
   
-  // TV remote control keyboard navigation
+  // زيادة قيمة شريط التقدم التجريبي لإظهار التقدم
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isPlaying) {
+      interval = setInterval(() => {
+        setProgressValue(prev => {
+          const newValue = prev + 0.1;
+          return newValue > 100 ? 0 : newValue;
+        });
+      }, 100);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isPlaying]);
+  
+  // تحكم جهاز التلفزيون عن بعد بلوحة المفاتيح
   useEffect(() => {
     if (!isTV) return;
     
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
         case 'Enter':
-          // Trigger action on focused button
+          // تنفيذ إجراء على الزر المحدد
           if (focusedButton === 'play') {
             const event = new MouseEvent('click', {
               bubbles: true,
@@ -60,29 +78,45 @@ const VideoControls: React.FC<VideoControlsProps> = ({
               view: window
             });
             document.getElementById('video-mute-button')?.dispatchEvent(event);
+          } else if (focusedButton === 'forward') {
+            const event = new MouseEvent('click', {
+              bubbles: true,
+              cancelable: true,
+              view: window
+            });
+            document.getElementById('video-forward-button')?.dispatchEvent(event);
+          } else if (focusedButton === 'rewind') {
+            const event = new MouseEvent('click', {
+              bubbles: true,
+              cancelable: true,
+              view: window
+            });
+            document.getElementById('video-rewind-button')?.dispatchEvent(event);
           }
           break;
         
-        // Handle directional navigation
+        // التنقل الاتجاهي
         case 'ArrowRight':
-          if (focusedButton === 'play') {
-            setFocusedButton('forward');
-          } else if (focusedButton === 'mute') {
+          if (focusedButton === null || focusedButton === 'mute') {
             setFocusedButton('play');
+          } else if (focusedButton === 'play') {
+            setFocusedButton('forward');
           }
           e.preventDefault();
           break;
           
         case 'ArrowLeft':
-          if (focusedButton === 'play') {
-            setFocusedButton('mute');
-          } else if (focusedButton === 'forward') {
+          if (focusedButton === null || focusedButton === 'forward') {
             setFocusedButton('play');
+          } else if (focusedButton === 'play') {
+            setFocusedButton('rewind');
+          } else if (focusedButton === 'rewind') {
+            setFocusedButton('mute');
           }
           e.preventDefault();
           break;
           
-        // Space is often used as play/pause on TVs
+        // المسافة غالبًا ما تستخدم كتشغيل/إيقاف مؤقت على أجهزة التلفزيون
         case ' ':
           onPlayPause(new MouseEvent('click') as any);
           e.preventDefault();
@@ -92,7 +126,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     
     window.addEventListener('keydown', handleKeyDown);
     
-    // Set initial focus (usually on play/pause)
+    // تعيين التركيز الأولي (عادة على تشغيل/إيقاف مؤقت)
     setFocusedButton('play');
     
     return () => {
@@ -102,9 +136,9 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
   return (
     <>
-      {/* Center play/pause button (visible on tap or hover) */}
+      {/* زر تشغيل/إيقاف مؤقت في الوسط (مرئي عند النقر أو التحويم) */}
       <div 
-        className={`absolute inset-0 flex items-center justify-center z-10 cursor-pointer pointer-events-none transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute inset-0 flex items-center justify-center z-10 cursor-pointer pointer-events-none transition-opacity duration-500 ${show ? 'opacity-100' : 'opacity-0'}`}
       >
         <PlaybackControls.CenterPlayButton 
           isPlaying={isPlaying} 
@@ -112,20 +146,23 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         />
       </div>
       
-      {/* Footer controls */}
+      {/* عناصر التحكم في التذييل */}
       <div 
-        className={`p-5 flex flex-col justify-end items-stretch bg-gradient-to-t from-black/90 via-black/70 to-transparent absolute bottom-0 left-0 right-0 z-10 transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
+        className={`p-5 flex flex-col justify-end items-stretch bg-gradient-to-t from-black/90 via-black/70 to-transparent absolute bottom-0 left-0 right-0 z-10 transition-all duration-500 ${show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
       >
-        {/* Progress bar (non-functional but adds to the UI) */}
+        {/* شريط التقدم (غير وظيفي لكنه يضيف إلى واجهة المستخدم) */}
         <div className="w-full h-1.5 bg-white/20 rounded-full mb-4 overflow-hidden hover:h-2.5 transition-all cursor-pointer group">
-          <div className="w-[30%] h-full bg-primary rounded-full relative group-hover:shadow-lg">
+          <div 
+            className="h-full bg-primary rounded-full relative group-hover:shadow-lg transition-all duration-300"
+            style={{ width: `${progressValue}%` }}
+          >
             <div className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full border-2 border-primary shadow-md scale-0 group-hover:scale-100 transition-transform"></div>
           </div>
         </div>
         
-        {/* Control buttons */}
+        {/* أزرار التحكم */}
         <div className="flex justify-between items-center">
-          {/* Left controls: volume */}
+          {/* عناصر التحكم اليسرى: مستوى الصوت */}
           <VolumeControls 
             isMuted={isMuted}
             currentVolume={currentVolume}
@@ -135,7 +172,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             isFocused={focusedButton === 'mute'}
           />
           
-          {/* Center controls: rewind, play, fast-forward */}
+          {/* عناصر التحكم في المنتصف: رجوع، تشغيل، تقديم سريع */}
           <PlaybackControls 
             isPlaying={isPlaying}
             onPlayPause={onPlayPause}
@@ -144,7 +181,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             focusedButton={focusedButton}
           />
           
-          {/* Right controls: reload, settings, fullscreen */}
+          {/* عناصر التحكم اليمنى: إعادة تحميل، إعدادات، ملء الشاشة */}
           <SettingsControls 
             isFullscreen={isFullscreen}
             onFullscreenToggle={onFullscreenToggle}
@@ -155,13 +192,13 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         </div>
       </div>
       
-      {/* Backdrop for mobile controls - to ensure they don't disappear when touching */}
+      {/* خلفية لعناصر التحكم المحمولة - للتأكد من أنها لا تختفي عند اللمس */}
       <div 
         className={`fixed inset-0 bg-transparent z-0 ${show ? 'pointer-events-auto' : 'pointer-events-none'}`}
         onClick={onClick}
       />
       
-      {/* TV Remote Helper UI (only shown on TV devices) */}
+      {/* واجهة مساعدة جهاز التحكم عن بعد للتلفزيون (تظهر فقط على أجهزة التلفزيون) */}
       {isTV && show && <TVRemoteHelp />}
     </>
   );

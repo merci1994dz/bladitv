@@ -6,13 +6,18 @@ export function useVideoControls(isPlaying: boolean) {
   const [showControls, setShowControls] = useState(true);
   const userActivityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isUserActive, setIsUserActive] = useState(true);
+  const lastInteractionRef = useRef<number>(Date.now());
 
-  // Handle mouse movement to show/hide controls
+  // تحسين معالجة حركة الماوس لعرض/إخفاء عناصر التحكم
   const handleMouseMove = () => {
+    const now = Date.now();
+    lastInteractionRef.current = now;
+    
+    // عرض عناصر التحكم ووضع المستخدم كنشط دائمًا عند تحريك الماوس
     setShowControls(true);
     setIsUserActive(true);
     
-    // Clear existing timeouts
+    // مسح المؤقتات الحالية
     if (controlsTimeoutRef.current) {
       clearTimeout(controlsTimeoutRef.current);
     }
@@ -21,66 +26,80 @@ export function useVideoControls(isPlaying: boolean) {
       clearTimeout(userActivityTimeoutRef.current);
     }
     
-    // Set user inactivity timeout
+    // تعيين مؤقت لعدم نشاط المستخدم (2.5 ثانية)
     userActivityTimeoutRef.current = setTimeout(() => {
-      setIsUserActive(false);
+      // تحقق من آخر تفاعل للتأكد من عدم وجود تفاعلات جديدة
+      if (now === lastInteractionRef.current) {
+        setIsUserActive(false);
+      }
     }, 2500);
     
-    // Set new timeout to hide controls after 3 seconds if video is playing
+    // تعيين مؤقت جديد لإخفاء عناصر التحكم بعد 3 ثوانٍ إذا كان الفيديو قيد التشغيل
     if (isPlaying) {
       controlsTimeoutRef.current = setTimeout(() => {
-        if (!isUserActive) {
+        // تحقق مرة أخرى من آخر تفاعل
+        if (now === lastInteractionRef.current && !isUserActive) {
           setShowControls(false);
         }
       }, 3000);
     }
   };
 
-  // Show controls when video pauses
+  // عرض عناصر التحكم عند توقف الفيديو
   useEffect(() => {
     if (!isPlaying) {
       setShowControls(true);
-      // Clear any existing timeout
+      // مسح أي مؤقت موجود
       if (controlsTimeoutRef.current) {
         clearTimeout(controlsTimeoutRef.current);
       }
-    } else if (isPlaying && !showControls) {
-      // Briefly show controls when playback starts
+    } else if (isPlaying && showControls) {
+      // عرض عناصر التحكم لفترة وجيزة عند بدء التشغيل
       setShowControls(true);
+      
       if (controlsTimeoutRef.current) {
         clearTimeout(controlsTimeoutRef.current);
       }
+      
+      // إخفاء بعد تأخير قصير (2 ثانية)
       controlsTimeoutRef.current = setTimeout(() => {
-        setShowControls(false);
+        if (!isUserActive) {
+          setShowControls(false);
+        }
       }, 2000);
     }
-  }, [isPlaying]);
+  }, [isPlaying, isUserActive]);
 
-  // Handle fullscreen change event
+  // معالجة تغيير وضع ملء الشاشة
   useEffect(() => {
     const handleFullscreenChange = () => {
-      // Always show controls when entering or exiting fullscreen
+      // عرض عناصر التحكم دائمًا عند الدخول إلى وضع ملء الشاشة أو الخروج منه
       setShowControls(true);
+      lastInteractionRef.current = Date.now();
       
       if (controlsTimeoutRef.current) {
         clearTimeout(controlsTimeoutRef.current);
       }
       
-      // Hide controls after delay if video is playing
+      // إخفاء عناصر التحكم بعد تأخير إذا كان الفيديو قيد التشغيل
       if (isPlaying && document.fullscreenElement) {
         controlsTimeoutRef.current = setTimeout(() => {
-          setShowControls(false);
+          // فقط إذا لم يكن هناك تفاعل جديد في الفترة الفاصلة
+          if (Date.now() - lastInteractionRef.current >= 3000) {
+            setShowControls(false);
+          }
         }, 3000);
       }
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     
-    // Handle keyboard events
+    // معالجة أحداث لوحة المفاتيح
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Show controls on any key press
+      // عرض عناصر التحكم عند الضغط على أي مفتاح
       setShowControls(true);
       setIsUserActive(true);
+      lastInteractionRef.current = Date.now();
       
       if (controlsTimeoutRef.current) {
         clearTimeout(controlsTimeoutRef.current);
@@ -88,7 +107,10 @@ export function useVideoControls(isPlaying: boolean) {
       
       if (isPlaying) {
         controlsTimeoutRef.current = setTimeout(() => {
-          setShowControls(false);
+          // فقط إذا لم يكن هناك تفاعل جديد في الفترة الفاصلة
+          if (Date.now() - lastInteractionRef.current >= 3000) {
+            setShowControls(false);
+          }
         }, 3000);
       }
     };
@@ -98,7 +120,7 @@ export function useVideoControls(isPlaying: boolean) {
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('keydown', handleKeyDown);
-      // Clear any timeouts
+      // مسح أي مؤقتات
       if (controlsTimeoutRef.current) {
         clearTimeout(controlsTimeoutRef.current);
       }
