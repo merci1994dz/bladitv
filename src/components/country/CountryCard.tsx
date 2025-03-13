@@ -8,13 +8,26 @@ interface CountryCardProps {
   isActive?: boolean;
   isTV?: boolean;
   isFocused?: boolean;
+  tabIndex?: number;
+  "data-country-card"?: boolean;
+  "data-country-id"?: string;
 }
 
-const CountryCard: React.FC<CountryCardProps> = ({ country, onClick, isActive, isTV, isFocused }) => {
+const CountryCard: React.FC<CountryCardProps> = ({ 
+  country, 
+  onClick, 
+  isActive, 
+  isTV, 
+  isFocused,
+  tabIndex,
+  ...rest
+}) => {
   return (
     <button 
       onClick={() => onClick(country.id)}
       className={`relative overflow-hidden h-36 sm:h-40 group rounded-xl shadow-lg hover:shadow-xl transition-all duration-500 transform hover:-translate-y-1 ${isActive ? 'ring-4 ring-primary/60' : 'hover:ring-2 hover:ring-primary/30'} ${isFocused ? 'tv-focus-item' : ''} w-full`}
+      tabIndex={tabIndex}
+      {...rest}
     >
       {/* Overlay gradient */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent transition-opacity duration-300 group-hover:opacity-90 z-10"></div>
