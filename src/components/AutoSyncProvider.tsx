@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { syncAllData } from '@/services/syncService';
+import { syncAllData } from '@/services/sync';
 import { REMOTE_CONFIG } from '@/services/config';
 
 interface AutoSyncProviderProps {

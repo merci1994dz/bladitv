@@ -6,4 +6,5 @@ export * from './channelService';
 export * from './categoryService';
 export * from './countryService';
 export * from './adminService';
-export * from './syncService';
+export * from './sync';  // Updated to use the new sync module
+

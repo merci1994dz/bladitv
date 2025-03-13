@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCw, Save, Globe, AlertTriangle } from 'lucide-react';
-import { getRemoteConfig, setRemoteConfig, syncWithRemoteSource } from '@/services/syncService';
+import { getRemoteConfig, setRemoteConfig, syncWithRemoteSource } from '@/services/sync';
 import { REMOTE_CONFIG } from '@/services/config';
 import AdminLogin from '@/components/AdminLogin';
 
