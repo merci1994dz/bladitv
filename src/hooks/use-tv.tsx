@@ -58,10 +58,10 @@ function detectSpecialTVPlatforms(): boolean {
   const isAlwaysLandscape = window.screen && 
     window.screen.orientation && 
     window.screen.orientation.type === 'landscape-primary' && 
-    // Fix: safely check if window.screen.orientation has a 'locked' property before accessing it
+    // Fix: safely check if window.screen.orientation has a 'locked' property and ensure it's a boolean
     (typeof window.screen.orientation === 'object' && 
     'locked' in window.screen.orientation ? 
-      window.screen.orientation.locked : false);
+      !!window.screen.orientation.locked : false);
   
   return hasTizen || hasWebOS || isFireTV || isChromecast || isAlwaysLandscape;
 }
