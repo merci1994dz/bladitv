@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getCountries, getChannelsByCountry, toggleFavoriteChannel } from '@/services/api';
@@ -126,8 +127,6 @@ const Countries: React.FC = () => {
                   (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1589519160732-57fc498494f8?q=80&w=500&auto=format&fit=crop';
                 }}
               />
-              
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-black/30 backdrop-blur-sm"></div>
               
               <div className="absolute bottom-0 right-0 p-4 flex items-center gap-3 z-10">
                 <span className="text-5xl shadow-lg">{activeCountryData.flag}</span>
