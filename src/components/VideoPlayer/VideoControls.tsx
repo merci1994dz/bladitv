@@ -48,22 +48,22 @@ const VideoControls: React.FC<VideoControlsProps> = ({
       <div 
         className={`absolute inset-0 flex items-center justify-center z-10 cursor-pointer pointer-events-none transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
       >
-        <div className="bg-black/30 backdrop-blur-sm rounded-full p-5 shadow-2xl">
+        <div className="bg-black/40 backdrop-blur-md rounded-full p-6 shadow-2xl transform transition-transform hover:scale-105">
           {isPlaying ? 
-            <Pause className="w-14 h-14 text-white" /> : 
-            <Play className="w-14 h-14 text-white" />
+            <Pause className="w-16 h-16 text-white" /> : 
+            <Play className="w-16 h-16 text-white" />
           }
         </div>
       </div>
       
       {/* Footer controls */}
       <div 
-        className={`p-4 flex flex-col justify-end items-stretch bg-gradient-to-t from-black/90 via-black/60 to-transparent absolute bottom-0 left-0 right-0 z-10 transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
+        className={`p-4 flex flex-col justify-end items-stretch bg-gradient-to-t from-black/90 via-black/70 to-transparent absolute bottom-0 left-0 right-0 z-10 transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
       >
         {/* Progress bar (non-functional but adds to the UI) */}
-        <div className="w-full h-1 bg-white/20 rounded-full mb-4 overflow-hidden">
+        <div className="w-full h-1.5 bg-white/20 rounded-full mb-4 overflow-hidden hover:h-2 transition-all">
           <div className="w-[30%] h-full bg-primary rounded-full relative">
-            <div className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full border-2 border-white"></div>
+            <div className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-primary rounded-full border-2 border-white shadow-md"></div>
           </div>
         </div>
         
@@ -74,7 +74,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             <Button 
               variant="ghost" 
               size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-10 w-10" 
+              className="rounded-full text-white hover:bg-white/20 h-10 w-10 backdrop-blur-sm" 
               onClick={onMuteToggle}
             >
               {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
@@ -82,7 +82,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             
             {/* Volume slider */}
             <div 
-              className="w-20 hidden md:block" 
+              className="w-24 hidden md:block" 
               onClick={(e) => e.stopPropagation()}
             >
               <input
@@ -98,11 +98,11 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           </div>
           
           {/* Center controls: rewind, play, fast-forward */}
-          <div className="flex items-center space-x-3 rtl:space-x-reverse">
+          <div className="flex items-center space-x-4 rtl:space-x-reverse">
             <Button 
               variant="ghost" 
               size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex" 
+              className="rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex backdrop-blur-sm" 
               onClick={onSeek(-10)}
             >
               <Rewind className="w-4 h-4" />
@@ -111,16 +111,16 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             <Button 
               variant="ghost" 
               size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-12 w-12 border border-white/20" 
+              className="rounded-full text-white hover:bg-white/20 h-14 w-14 border border-white/30 backdrop-blur-sm shadow-md" 
               onClick={onPlayPause}
             >
-              {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+              {isPlaying ? <Pause className="w-7 h-7" /> : <Play className="w-7 h-7" />}
             </Button>
             
             <Button 
               variant="ghost" 
               size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex" 
+              className="rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex backdrop-blur-sm" 
               onClick={onSeek(10)}
             >
               <FastForward className="w-4 h-4" />
@@ -132,7 +132,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             <Button 
               variant="ghost" 
               size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex" 
+              className="rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex backdrop-blur-sm" 
               onClick={(e) => e.stopPropagation()}
             >
               <Settings className="w-4 h-4" />
@@ -141,7 +141,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             <Button 
               variant="ghost" 
               size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-10 w-10" 
+              className="rounded-full text-white hover:bg-white/20 h-10 w-10 backdrop-blur-sm" 
               onClick={onFullscreenToggle}
             >
               {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}

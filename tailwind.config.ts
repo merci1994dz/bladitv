@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -84,11 +85,26 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'float': {
+					'0%, 100%': { transform: 'translateY(0)' },
+					'50%': { transform: 'translateY(-10px)' }
+				},
+				'spotlight': {
+					'0%': { opacity: '0', transform: 'translate(-72%, -62%) scale(0.5)' },
+					'100%': { opacity: '1', transform: 'translate(-50%,-40%) scale(1)' }
+				},
+				'shimmer': {
+					from: { backgroundPosition: '0 0' },
+					to: { backgroundPosition: '-200% 0' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'float': 'float 6s ease-in-out infinite',
+				'spotlight': 'spotlight 2s ease forwards',
+				'shimmer': 'shimmer 2s infinite'
 			}
 		}
 	},
