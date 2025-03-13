@@ -1,5 +1,4 @@
 
-import { useState } from 'react';
 import { Channel, Country, Category } from '@/types';
 import { API_BASE_URL, STORAGE_KEYS } from './config';
 import { channels, countries, categories, isSyncing, setIsSyncing } from './dataStore';
@@ -46,18 +45,6 @@ export const syncWithRemoteAPI = async (): Promise<boolean> => {
   }
 };
 
-// Try to sync with remote API on application start
-syncWithRemoteAPI().catch(error => {
-  console.error('Initial sync failed:', error);
-});
-
-// Periodic sync (every 1 hour)
-setInterval(() => {
-  syncWithRemoteAPI().catch(error => {
-    console.error('Periodic sync failed:', error);
-  });
-}, 60 * 60 * 1000);
-
 // Function to manually trigger sync with remote
 export const forceSync = async (): Promise<boolean> => {
   return await syncWithRemoteAPI();
@@ -102,3 +89,17 @@ export const isSyncNeeded = (): boolean => {
 export const isSyncInProgress = (): boolean => {
   return isSyncing;
 };
+
+// Initialize sync on application startup (only if needed)
+if (isSyncNeeded()) {
+  syncWithRemoteAPI().catch(error => {
+    console.error('Initial sync failed:', error);
+  });
+}
+
+// Periodic sync (every 1 hour)
+setInterval(() => {
+  syncWithRemoteAPI().catch(error => {
+    console.error('Periodic sync failed:', error);
+  });
+}, 60 * 60 * 1000);
