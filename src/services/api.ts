@@ -1,10 +1,10 @@
 
-// This file serves as the main export point for all API services
+// هذا الملف يعمل كنقطة تصدير رئيسية لجميع خدمات API
 
-// Re-export everything from the service modules
+// إعادة تصدير كل شيء من وحدات الخدمة
 export * from './channelService';
 export * from './categoryService';
 export * from './countryService';
 export * from './adminService';
-export * from './sync';  // Updated to use the new sync module
-
+export * from './sync';  // تم التحديث لاستخدام وحدة المزامنة الجديدة
+export * from './historyService'; // تحسين: إضافة تصدير خدمة سجل المشاهدة

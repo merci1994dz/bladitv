@@ -10,6 +10,7 @@ import Categories from "./pages/Categories";
 import Countries from "./pages/Countries";
 import Search from "./pages/Search";
 import Favorites from "./pages/Favorites";
+import History from "./pages/History"; // تحسين: إضافة صفحة سجل المشاهدة
 import Admin from "./pages/Admin";
 import Navigation from "./components/Navigation";
 import NotFound from "./pages/NotFound";
@@ -55,14 +56,20 @@ const App = () => (
                 <Navigation />
               </>
             } />
-            {/* Admin route is still present but hidden from navigation */}
+            <Route path="/history" element={
+              <>
+                <History />
+                <Navigation />
+              </>
+            } />
+            {/* مسار المشرف لا يزال موجودًا ولكنه مخفي من التنقل */}
             <Route path="/admin" element={
               <>
                 <Admin />
                 <Navigation />
               </>
             } />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            {/* أضف جميع المسارات المخصصة فوق مسار الالتقاط "*" */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

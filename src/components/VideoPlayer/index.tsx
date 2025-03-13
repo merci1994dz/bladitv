@@ -12,6 +12,7 @@ import { usePlayerEventHandlers } from './PlayerEventHandlers';
 import { toast } from "@/hooks/use-toast";
 import { VIDEO_PLAYER } from '@/services/config';
 import { useDeviceType } from '@/hooks/use-tv';
+import { playChannel } from '@/services/channelService';
 
 interface VideoPlayerProps {
   channel: Channel;
@@ -23,7 +24,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const { isTV } = useDeviceType();
   
-  // Secure channel data for display
+  // بيانات القناة الآمنة للعرض
   const secureChannel = React.useMemo(() => {
     return {
       ...channel,
@@ -31,7 +32,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     };
   }, [channel]);
   
-  // Initialize video player
+  // تهيئة مشغل الفيديو
   const {
     videoRef,
     isFullscreen,
@@ -51,7 +52,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     seekVideo
   } = useVideoPlayer({ channel: secureChannel });
 
-  // Now using the hook instead of the component's returned object
+  // استخدام الهوك بدلاً من المكون المُرجع
   const eventHandlers = usePlayerEventHandlers({
     onClose,
     togglePlayPause,
@@ -62,7 +63,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     retryPlayback
   });
 
-  // Handle TV focus
+  // معالجة تركيز TV
   useEffect(() => {
     if (isTV && playerContainerRef.current) {
       playerContainerRef.current.setAttribute('tabindex', '0');
@@ -72,8 +73,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     }
   }, [isTV, handleMouseMove]);
 
-  // Log player state & show toast on initialization
+  // تسجيل حالة المشغل وعرض إشعار عند التهيئة
   useEffect(() => {
+    // تسجيل حالة المشغل الحالية للتصحيح
     if (VIDEO_PLAYER.HIDE_STREAM_URLS) {
       console.log("VideoPlayer state:", { 
         isLoading, 
@@ -92,8 +94,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
       });
     }
     
+    // إضافة القناة إلى سجل المشاهدة عند بدء التشغيل
     if (!isInitialized && channel.streamUrl) {
       setIsInitialized(true);
+      
+      // إضافة إلى سجل المشاهدة
+      playChannel(channel.id).catch(console.error);
       
       toast({
         title: `جاري تشغيل ${channel.name}`,
@@ -110,10 +116,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
       onMouseMove={handleMouseMove}
       onClick={togglePlayPause}
     >
-      {/* Security feature to disable browser inspect */}
+      {/* ميزة أمان لتعطيل فحص المتصفح */}
       <InspectProtection />
       
-      {/* Channel info header */}
+      {/* رأس معلومات القناة */}
       <VideoHeader 
         channel={secureChannel} 
         onClose={eventHandlers.handleClose} 
@@ -155,7 +161,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
         />
       </div>
       
-      {/* TV-specific controls and hints */}
+      {/* عناصر تحكم وتلميحات خاصة بالتلفزيون */}
       <TVControls 
         isTV={isTV}
         isInitialized={isInitialized}
@@ -170,7 +176,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     </div>
   );
 
-  // Secure error display function
+  // دالة عرض الخطأ الآمنة
   function secureErrorDisplay(errorMsg: string | null) {
     if (!errorMsg) return null;
     

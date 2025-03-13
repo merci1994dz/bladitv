@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface PlayerEventHandlersProps {
@@ -11,7 +12,7 @@ interface PlayerEventHandlersProps {
   children: React.ReactNode;
 }
 
-// Instead of a React component, we'll create a custom hook to return event handlers
+// تحسين: تحويل هذا إلى hook لإدارة أفضل للأحداث
 export function usePlayerEventHandlers({ 
   onClose,
   togglePlayPause,
@@ -21,7 +22,7 @@ export function usePlayerEventHandlers({
   seekVideo,
   retryPlayback
 }: Omit<PlayerEventHandlersProps, 'children'>) {
-  // Handler functions wrapped to prevent event propagation
+  // تغليف دوال المعالجة لمنع انتشار الأحداث
   const handleClose = (e: React.MouseEvent) => {
     e.stopPropagation();
     onClose();
@@ -33,11 +34,13 @@ export function usePlayerEventHandlers({
 
   const handleFullscreenToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    toggleFullscreen(null); // Will be overridden in the parent component
+    toggleFullscreen(null); // سيتم تجاوزه في المكون الأب
   };
 
   const handleRetry = (e: React.MouseEvent) => {
     e.stopPropagation();
+    // تحسين: إضافة سجل للمحاولات الفاشلة
+    console.log('Retrying playback after failure');
     retryPlayback();
   };
 
@@ -62,6 +65,7 @@ export function usePlayerEventHandlers({
 
   const handleReload = (e: React.MouseEvent) => {
     e.stopPropagation();
+    console.log('Manual reload requested by user');
     retryPlayback();
   };
 
@@ -78,9 +82,9 @@ export function usePlayerEventHandlers({
   };
 }
 
-// We're converting the original component to a hook, but we'll keep a wrapper component for backward compatibility
+// الاحتفاظ بمكون التغليف للتوافق الخلفي
 const PlayerEventHandlers: React.FC<PlayerEventHandlersProps> = (props) => {
-  // Just render children - the actual handlers will be used via the hook
+  // فقط عرض العناصر الابن - سيتم استخدام المعالجات الفعلية عبر الهوك
   return <>{props.children}</>;
 };
 
