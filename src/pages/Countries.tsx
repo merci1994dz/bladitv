@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getCountries, getChannelsByCountry, toggleFavoriteChannel } from '@/services/api';
@@ -116,24 +115,6 @@ const Countries: React.FC = () => {
             <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-background to-transparent pointer-events-none"></div>
             <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none"></div>
           </div>
-
-          {activeCountryData && (
-            <div className="relative h-40 md:h-56 lg:h-64 mb-6 overflow-hidden rounded-lg mx-4 group transition-all duration-300">
-              <img 
-                src={activeCountryData.image} 
-                alt={activeCountryData.name}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1589519160732-57fc498494f8?q=80&w=500&auto=format&fit=crop';
-                }}
-              />
-              
-              <div className="absolute bottom-0 right-0 p-4 flex items-center gap-3 z-10">
-                <span className="text-5xl shadow-lg">{activeCountryData.flag}</span>
-                <h2 className="text-white text-2xl font-bold drop-shadow-md">{activeCountryData.name}</h2>
-              </div>
-            </div>
-          )}
           
           {countries.map(country => (
             <TabsContent key={country.id} value={country.id} className="px-4 animate-in fade-in-50 duration-300">
