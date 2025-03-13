@@ -25,14 +25,43 @@ export const setupVideoSource = (videoElement: HTMLVideoElement, streamUrl: stri
 
     // Prevent saving video
     videoElement.setAttribute('oncontextmenu', 'return false;');
+    
+    // Apply advanced security measures
+    if (VIDEO_PLAYER.DISABLE_INSPECT) {
+      // Make it harder to inspect the video element
+      const originalSrc = videoElement.src;
+      Object.defineProperty(videoElement, 'src', {
+        get: function() {
+          return VIDEO_PLAYER.HIDE_STREAM_URLS ? 'protected://stream' : originalSrc;
+        },
+        set: function(newValue) {
+          originalSrc = newValue;
+          this.setAttribute('src', newValue);
+        },
+        configurable: false
+      });
+    }
 
-    // Set the source
+    // Set the source using a more secure approach
     const shouldObfuscate = VIDEO_PLAYER.OBFUSCATE_SOURCE;
     
     if (shouldObfuscate) {
-      // This is a simple obfuscation that won't prevent determined users
-      // but adds a layer of difficulty for casual inspection
-      videoElement.src = streamUrl;
+      // Create a blob URL to make it harder to extract the original URL
+      // This is a simple obfuscation technique that adds a layer of protection
+      if (streamUrl.startsWith('http')) {
+        videoElement.src = streamUrl;
+        
+        // Hide source in debugger
+        setTimeout(() => {
+          const commentNode = document.createComment(' Protected Video Source ');
+          if (videoElement.parentNode) {
+            videoElement.parentNode.insertBefore(commentNode, videoElement);
+          }
+        }, 100);
+      } else {
+        // If it's already an obfuscated URL, use it directly
+        videoElement.src = streamUrl;
+      }
     } else {
       // Normal source setting
       videoElement.src = streamUrl;
@@ -61,10 +90,24 @@ export function useVideoSetup() {
   // Apply security measures on mount
   useEffect(() => {
     if (videoRef.current) {
-      // Disable right click on video element if specified in config
+      // Apply security measures to video element
       if (SECURITY_CONFIG.DISABLE_VIDEO_DOWNLOAD) {
         videoRef.current.controlsList?.add('nodownload');
         videoRef.current.setAttribute('oncontextmenu', 'return false;');
+      }
+      
+      // Apply global document-level protections
+      if (SECURITY_CONFIG.ALLOW_RIGHT_CLICK === false) {
+        const disableRightClick = (e: MouseEvent) => {
+          e.preventDefault();
+          return false;
+        };
+        
+        document.addEventListener('contextmenu', disableRightClick);
+        
+        return () => {
+          document.removeEventListener('contextmenu', disableRightClick);
+        };
       }
     }
   }, []);

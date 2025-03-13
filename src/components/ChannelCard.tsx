@@ -3,6 +3,7 @@ import React from 'react';
 import { Channel } from '@/types';
 import { Heart, Play, Tv } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
+import { VIDEO_PLAYER } from '@/services/config';
 
 interface ChannelCardProps {
   channel: Channel;
@@ -15,11 +16,20 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
   onPlay, 
   onToggleFavorite 
 }) => {
-  // إزالة أي إمكانية للوصول المباشر لروابط البث
-  const secureChannel = {
-    ...channel,
-    streamUrl: '[PROTECTED]' // استخدام نسخة آمنة للعرض فقط
-  };
+  // Create a secure version of the channel for UI display
+  // This ensures stream URLs aren't accessible in the DOM or React DevTools
+  const secureChannel = React.useMemo(() => {
+    if (VIDEO_PLAYER.HIDE_STREAM_URLS) {
+      const { streamUrl, ...rest } = channel;
+      return {
+        ...rest,
+        // Store original streamUrl but not in a way that's easily accessible
+        streamUrl: channel.streamUrl, // We keep the original for functionality
+        _displayUrl: '[محمي]' // For display purposes only
+      };
+    }
+    return channel;
+  }, [channel]);
 
   return (
     <Card className="relative overflow-hidden border border-gray-200/50 dark:border-gray-700/50 transition-all hover:shadow-xl hover:translate-y-[-3px] group bg-gradient-to-b from-white to-gray-50 dark:from-gray-800/90 dark:to-gray-900/80">

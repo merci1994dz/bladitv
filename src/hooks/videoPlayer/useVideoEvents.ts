@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { VideoRef, setupVideoSource } from './useVideoSetup';
 import { Channel } from '@/types';
+import { VIDEO_PLAYER } from '@/services/config';
 
 export function useVideoEvents({
   videoRef,
@@ -24,8 +25,14 @@ export function useVideoEvents({
 }) {
   // Setup video event listeners and initialize playback
   useEffect(() => {
-    console.log('Initializing video player for channel:', channel.name);
-    console.log('Stream URL:', channel.streamUrl);
+    // Secure logging - hide actual URLs in console
+    if (VIDEO_PLAYER.HIDE_STREAM_URLS) {
+      console.log('Initializing video player for channel:', channel.name);
+      console.log('Stream URL:', '[محمي]');
+    } else {
+      console.log('Initializing video player for channel:', channel.name);
+      console.log('Stream URL:', channel.streamUrl);
+    }
     
     if (!videoRef.current) {
       console.error('Video ref is not available');
@@ -62,7 +69,17 @@ export function useVideoEvents({
     
     const handleError = (e: Event) => {
       const videoElement = e.target as HTMLVideoElement;
-      console.error('Video error detected:', videoElement.error);
+      
+      // Secure error logging - hide actual URLs
+      if (VIDEO_PLAYER.HIDE_STREAM_URLS) {
+        console.error('Video error detected:', 
+          videoElement.error ? 
+          { code: videoElement.error.code, message: videoElement.error.message.replace(/(https?:\/\/[^\s]+)/g, '[محمي]') } : 
+          'Unknown error'
+        );
+      } else {
+        console.error('Video error detected:', videoElement.error);
+      }
       
       // Always retry at least once automatically
       const shouldRetry = handlePlaybackError();
@@ -82,12 +99,22 @@ export function useVideoEvents({
               const playPromise = videoRef.current.play();
               if (playPromise) {
                 playPromise.catch(e => {
-                  console.error('Retry play failed:', e);
+                  // Secure error logging
+                  if (VIDEO_PLAYER.HIDE_STREAM_URLS) {
+                    console.error('Retry play failed:', e instanceof Error ? e.message.replace(/(https?:\/\/[^\s]+)/g, '[محمي]') : 'Unknown error');
+                  } else {
+                    console.error('Retry play failed:', e);
+                  }
                 });
               }
             }
           } catch (err) {
-            console.error('Error during retry attempt:', err);
+            // Secure error logging
+            if (VIDEO_PLAYER.HIDE_STREAM_URLS) {
+              console.error('Error during retry attempt:', err instanceof Error ? err.message.replace(/(https?:\/\/[^\s]+)/g, '[محمي]') : 'Unknown error');
+            } else {
+              console.error('Error during retry attempt:', err);
+            }
           }
         }, 1500);
       }
@@ -123,7 +150,7 @@ export function useVideoEvents({
       video.removeAttribute('src');
       video.load();
       
-      // Set up new source and attempt playback
+      // Set up new source and attempt playback with enhanced security
       if (setupVideoSource(video, channel.streamUrl)) {
         video.load();
         
@@ -140,7 +167,12 @@ export function useVideoEvents({
                   console.log('Initial play successful');
                 })
                 .catch(err => {
-                  console.error('Error on initial play:', err);
+                  // Secure error logging
+                  if (VIDEO_PLAYER.HIDE_STREAM_URLS) {
+                    console.error('Error on initial play:', err instanceof Error ? err.message.replace(/(https?:\/\/[^\s]+)/g, '[محمي]') : 'Unknown error');
+                  } else {
+                    console.error('Error on initial play:', err);
+                  }
                   
                   // If autoplay is blocked, just show controls
                   if (err.name === "NotAllowedError") {
@@ -154,7 +186,13 @@ export function useVideoEvents({
         }, 800);
       }
     } catch (err) {
-      console.error('Unexpected error during video initialization:', err);
+      // Secure error logging
+      if (VIDEO_PLAYER.HIDE_STREAM_URLS) {
+        console.error('Unexpected error during video initialization:', err instanceof Error ? err.message.replace(/(https?:\/\/[^\s]+)/g, '[محمي]') : 'Unknown error');
+      } else {
+        console.error('Unexpected error during video initialization:', err);
+      }
+      
       setError('حدث خطأ غير متوقع أثناء تحميل الفيديو.');
       setIsLoading(false);
     }

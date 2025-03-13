@@ -1,16 +1,34 @@
 
-import { STORAGE_KEYS, SECURITY_CONFIG } from '../config';
+import { STORAGE_KEYS, SECURITY_CONFIG, VIDEO_PLAYER } from '../config';
 import { channels, countries, categories, setIsSyncing } from '../dataStore';
 import { updateLastSyncTime } from './config';
 
 // Data obfuscation function for security
 export function obfuscateStreamUrls(data: any[]): any[] {
-  if (!SECURITY_CONFIG.LOG_ACCESS_ATTEMPTS) return data;
+  if (!VIDEO_PLAYER.OBFUSCATE_SOURCE) return data;
   
   return data.map(item => {
     if (item.streamUrl) {
-      // نحتفظ بالرابط الأصلي ولكن في الوقت نفسه نسجل محاولة الوصول
-      console.log('تم الوصول لقائمة الروابط - إجراء أمني');
+      // Create a deep copy to avoid modifying the original object
+      const secureItem = {...item};
+      
+      // Store original URL in memory but create a protected reference for display
+      const originalUrl = secureItem.streamUrl;
+      
+      // Replace with a protected placeholder for display purposes
+      Object.defineProperty(secureItem, '_secureStreamUrl', {
+        value: originalUrl,
+        enumerable: false,
+        writable: false,
+        configurable: false
+      });
+      
+      // Replace the publicly visible URL with a secure proxy or placeholder
+      secureItem.streamUrl = VIDEO_PLAYER.USE_PROXY 
+        ? `proxy://${btoa(originalUrl).substring(0, 10)}...`
+        : `protected://${btoa(originalUrl.split('/')[2] || 'stream').substring(0, 8)}`;
+      
+      return secureItem;
     }
     return item;
   });

@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import { Channel } from '@/types';
 import { useVideoPlayer } from '@/hooks/videoPlayer';
@@ -7,6 +6,7 @@ import VideoControls from './VideoControls';
 import VideoError from './VideoError';
 import VideoLoading from './VideoLoading';
 import { toast } from "@/hooks/use-toast";
+import { VIDEO_PLAYER } from '@/services/config';
 
 interface VideoPlayerProps {
   channel: Channel;
@@ -16,6 +16,13 @@ interface VideoPlayerProps {
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  
+  const secureChannel = React.useMemo(() => {
+    return {
+      ...channel,
+      _displayUrl: VIDEO_PLAYER.HIDE_STREAM_URLS ? '[محمي]' : channel.streamUrl
+    };
+  }, [channel]);
   
   const {
     videoRef,
@@ -34,22 +41,30 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     handleVolumeChange,
     retryPlayback,
     seekVideo
-  } = useVideoPlayer({ channel });
+  } = useVideoPlayer({ channel: secureChannel });
 
-  // Log state values for debugging
   useEffect(() => {
-    console.log("VideoPlayer state:", { 
-      isLoading, 
-      error, 
-      retryCount, 
-      channelName: channel.name,
-      streamUrl: channel.streamUrl
-    });
+    if (VIDEO_PLAYER.HIDE_STREAM_URLS) {
+      console.log("VideoPlayer state:", { 
+        isLoading, 
+        error, 
+        retryCount, 
+        channelName: channel.name,
+        streamUrl: '[محمي]'
+      });
+    } else {
+      console.log("VideoPlayer state:", { 
+        isLoading, 
+        error, 
+        retryCount, 
+        channelName: channel.name,
+        streamUrl: channel.streamUrl
+      });
+    }
     
     if (!isInitialized && channel.streamUrl) {
       setIsInitialized(true);
       
-      // Notify user that channel is loading
       toast({
         title: `جاري تشغيل ${channel.name}`,
         description: "يرجى الانتظار قليلاً...",
@@ -57,6 +72,24 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
       });
     }
   }, [isLoading, error, retryCount, channel, isInitialized]);
+
+  useEffect(() => {
+    if (VIDEO_PLAYER.DISABLE_INSPECT) {
+      const disableDevTools = () => {
+        document.addEventListener('keydown', (e) => {
+          if (
+            e.key === 'F12' || 
+            (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j')) || 
+            (e.ctrlKey && (e.key === 'U' || e.key === 'u'))
+          ) {
+            e.preventDefault();
+          }
+        });
+      };
+      
+      disableDevTools();
+    }
+  }, []);
 
   const handleClose = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -113,6 +146,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     });
   };
 
+  const secureErrorDisplay = React.useCallback((errorMsg: string | null) => {
+    if (!errorMsg) return null;
+    
+    return errorMsg.replace(/(https?:\/\/[^\s]+)/g, '[محمي]');
+  }, []);
+
   return (
     <div 
       className="fixed inset-0 bg-black z-50 flex flex-col" 
@@ -121,7 +160,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
       onClick={togglePlayPause}
     >
       <VideoHeader 
-        channel={channel} 
+        channel={secureChannel} 
         onClose={handleClose} 
         show={showControls} 
       />
@@ -131,9 +170,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
         
         {error && (
           <VideoError 
-            error={error} 
+            error={secureErrorDisplay(error)} 
             onRetry={handleRetry} 
-            streamUrl={channel.streamUrl}
+            streamUrl={VIDEO_PLAYER.HIDE_STREAM_URLS ? '[محمي]' : channel.streamUrl}
           />
         )}
         
