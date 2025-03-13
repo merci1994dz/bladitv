@@ -25,11 +25,19 @@ const Home: React.FC = () => {
   };
 
   if (isLoadingCountries) {
-    return <LoadingSpinner />;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
   }
 
   if (countriesError) {
-    return <ErrorMessage />;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <ErrorMessage />
+      </div>
+    );
   }
 
   return (
