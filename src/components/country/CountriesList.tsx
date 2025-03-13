@@ -1,12 +1,13 @@
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Country } from '@/types';
 import CountryCard from './CountryCard';
 
 interface CountriesListProps {
   countries: Country[];
   activeCountry: string | null;
-  onCountryClick: (countryId: string) => void;
+  onCountryClick?: (countryId: string) => void;
 }
 
 const CountriesList: React.FC<CountriesListProps> = ({ 
@@ -14,6 +15,16 @@ const CountriesList: React.FC<CountriesListProps> = ({
   activeCountry, 
   onCountryClick 
 }) => {
+  const navigate = useNavigate();
+
+  const handleCountryClick = (countryId: string) => {
+    if (onCountryClick) {
+      onCountryClick(countryId);
+    } else {
+      navigate(`/country/${countryId}`);
+    }
+  };
+
   return (
     <section className="px-4 mb-10">
       <div className="container mx-auto">
@@ -22,7 +33,7 @@ const CountriesList: React.FC<CountriesListProps> = ({
             <CountryCard 
               key={country.id} 
               country={country} 
-              onClick={onCountryClick}
+              onClick={handleCountryClick}
               isActive={activeCountry === country.id}
             />
           ))}

@@ -8,6 +8,7 @@ import SplashScreen from "./pages/SplashScreen";
 import Home from "./pages/Home";
 import Categories from "./pages/Categories";
 import Countries from "./pages/Countries";
+import CountryChannels from "./pages/CountryChannels";
 import Search from "./pages/Search";
 import Favorites from "./pages/Favorites";
 import Admin from "./pages/Admin";
@@ -40,6 +41,12 @@ const App = () => (
             <Route path="/countries" element={
               <>
                 <Countries />
+                <Navigation />
+              </>
+            } />
+            <Route path="/country/:countryId" element={
+              <>
+                <CountryChannels />
                 <Navigation />
               </>
             } />
