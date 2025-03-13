@@ -10,6 +10,7 @@ import Categories from "./pages/Categories";
 import Countries from "./pages/Countries";
 import Search from "./pages/Search";
 import Favorites from "./pages/Favorites";
+import Admin from "./pages/Admin";
 import Navigation from "./components/Navigation";
 import NotFound from "./pages/NotFound";
 
@@ -51,6 +52,12 @@ const App = () => (
             <Route path="/favorites" element={
               <>
                 <Favorites />
+                <Navigation />
+              </>
+            } />
+            <Route path="/admin" element={
+              <>
+                <Admin />
                 <Navigation />
               </>
             } />

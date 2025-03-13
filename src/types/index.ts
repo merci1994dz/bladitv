@@ -19,5 +19,14 @@ export interface Country {
   id: string;
   name: string;
   flag: string;
-  image: string; // Added country image field
+  image: string;
+}
+
+// New types for admin functionality
+export interface AdminChannel extends Channel {
+  isEditing?: boolean;
+}
+
+export interface AdminCountry extends Country {
+  isEditing?: boolean;
 }

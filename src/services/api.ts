@@ -135,6 +135,43 @@ const channels: Channel[] = [
   },
 ];
 
+// Helper to save data to localStorage
+const saveToLocalStorage = () => {
+  localStorage.setItem('tv_channels', JSON.stringify(channels));
+  localStorage.setItem('tv_countries', JSON.stringify(countries));
+  localStorage.setItem('tv_categories', JSON.stringify(categories));
+};
+
+// Helper to load data from localStorage
+const loadFromLocalStorage = () => {
+  const storedChannels = localStorage.getItem('tv_channels');
+  const storedCountries = localStorage.getItem('tv_countries');
+  const storedCategories = localStorage.getItem('tv_categories');
+
+  if (storedChannels) {
+    channels.length = 0;
+    channels.push(...JSON.parse(storedChannels));
+  }
+
+  if (storedCountries) {
+    countries.length = 0;
+    countries.push(...JSON.parse(storedCountries));
+  }
+
+  if (storedCategories) {
+    categories.length = 0;
+    categories.push(...JSON.parse(storedCategories));
+  }
+};
+
+// Load data from localStorage on initialization
+try {
+  loadFromLocalStorage();
+} catch (error) {
+  console.error('Error loading data from localStorage:', error);
+  // If there's an error, we'll use the default data
+}
+
 // استرجاع جميع القنوات
 export const getChannels = async (): Promise<Channel[]> => {
   // محاكاة تأخير لشبكة الاتصال
@@ -187,7 +224,90 @@ export const toggleFavoriteChannel = async (channelId: string): Promise<Channel>
   const channelIndex = channels.findIndex(c => c.id === channelId);
   if (channelIndex >= 0) {
     channels[channelIndex].isFavorite = !channels[channelIndex].isFavorite;
+    saveToLocalStorage();
     return channels[channelIndex];
   }
   throw new Error('Channel not found');
+};
+
+// Admin functions for channels
+
+// Add a new channel
+export const addChannel = async (channel: Omit<Channel, 'id'>): Promise<Channel> => {
+  await new Promise(resolve => setTimeout(resolve, 300));
+  const newChannel: Channel = {
+    ...channel,
+    id: Date.now().toString(),
+    isFavorite: false
+  };
+  channels.push(newChannel);
+  saveToLocalStorage();
+  return newChannel;
+};
+
+// Update a channel
+export const updateChannel = async (channel: Channel): Promise<Channel> => {
+  await new Promise(resolve => setTimeout(resolve, 300));
+  const channelIndex = channels.findIndex(c => c.id === channel.id);
+  if (channelIndex >= 0) {
+    channels[channelIndex] = channel;
+    saveToLocalStorage();
+    return channel;
+  }
+  throw new Error('Channel not found');
+};
+
+// Delete a channel
+export const deleteChannel = async (channelId: string): Promise<void> => {
+  await new Promise(resolve => setTimeout(resolve, 300));
+  const channelIndex = channels.findIndex(c => c.id === channelId);
+  if (channelIndex >= 0) {
+    channels.splice(channelIndex, 1);
+    saveToLocalStorage();
+    return;
+  }
+  throw new Error('Channel not found');
+};
+
+// Admin functions for countries
+
+// Add a new country
+export const addCountry = async (country: Omit<Country, 'id'>): Promise<Country> => {
+  await new Promise(resolve => setTimeout(resolve, 300));
+  const newCountry: Country = {
+    ...country,
+    id: Date.now().toString()
+  };
+  countries.push(newCountry);
+  saveToLocalStorage();
+  return newCountry;
+};
+
+// Update a country
+export const updateCountry = async (country: Country): Promise<Country> => {
+  await new Promise(resolve => setTimeout(resolve, 300));
+  const countryIndex = countries.findIndex(c => c.id === country.id);
+  if (countryIndex >= 0) {
+    countries[countryIndex] = country;
+    saveToLocalStorage();
+    return country;
+  }
+  throw new Error('Country not found');
+};
+
+// Delete a country
+export const deleteCountry = async (countryId: string): Promise<void> => {
+  await new Promise(resolve => setTimeout(resolve, 300));
+  const countryIndex = countries.findIndex(c => c.id === countryId);
+  if (countryIndex >= 0) {
+    // Check if there are channels associated with this country
+    const hasChannels = channels.some(channel => channel.country === countryId);
+    if (hasChannels) {
+      throw new Error('Cannot delete country with associated channels');
+    }
+    countries.splice(countryIndex, 1);
+    saveToLocalStorage();
+    return;
+  }
+  throw new Error('Country not found');
 };
