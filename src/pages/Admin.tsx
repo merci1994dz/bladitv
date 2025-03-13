@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   useQuery, 
   useMutation, 
@@ -92,10 +91,7 @@ const Admin: React.FC = () => {
     isLoading: isLoadingChannels
   } = useQuery({
     queryKey: ['channels'],
-    queryFn: getChannels,
-    onSuccess: (data) => {
-      setEditableChannels(data.map(channel => ({ ...channel, isEditing: false })));
-    }
+    queryFn: getChannels
   });
   
   const { 
@@ -103,10 +99,7 @@ const Admin: React.FC = () => {
     isLoading: isLoadingCountries
   } = useQuery({
     queryKey: ['countries'],
-    queryFn: getCountries,
-    onSuccess: (data) => {
-      setEditableCountries(data.map(country => ({ ...country, isEditing: false })));
-    }
+    queryFn: getCountries
   });
   
   const { 
@@ -116,6 +109,19 @@ const Admin: React.FC = () => {
     queryKey: ['categories'],
     queryFn: getCategories
   });
+
+  // Use useEffect instead of onSuccess callback for handling the data
+  useEffect(() => {
+    if (channels) {
+      setEditableChannels(channels.map(channel => ({ ...channel, isEditing: false })));
+    }
+  }, [channels]);
+
+  useEffect(() => {
+    if (countries) {
+      setEditableCountries(countries.map(country => ({ ...country, isEditing: false })));
+    }
+  }, [countries]);
   
   // Mutations
   const addChannelMutation = useMutation({
@@ -308,7 +314,7 @@ const Admin: React.FC = () => {
     updateCountryMutation.mutate(countryData as Country);
     toggleEditCountry(country.id);
   };
-  
+
   if (isLoadingChannels || isLoadingCountries || isLoadingCategories) {
     return (
       <div className="min-h-screen flex flex-col justify-center items-center">
