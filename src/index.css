@@ -115,3 +115,31 @@
 .rtl {
   direction: rtl;
 }
+
+/* Shadow text for better visibility on video backgrounds */
+.shadow-text {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+/* Custom slider styles */
+.slider-thumb {
+  @apply transition-all duration-200;
+}
+
+.slider-thumb::-webkit-slider-thumb {
+  @apply hover:scale-150 transition-transform;
+}
+
+.slider-thumb::-moz-range-thumb {
+  @apply hover:scale-150 transition-transform;
+}
+
+/* Video player animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.video-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
