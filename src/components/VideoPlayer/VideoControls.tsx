@@ -20,7 +20,9 @@ interface VideoControlsProps {
   onClick: (e: React.MouseEvent) => void;
   onReload?: (e: React.MouseEvent) => void;
   isTV?: boolean;
-  channel?: Channel; // إضافة القناة لدعم الخدمات الخارجية
+  channel?: Channel;
+  onShowStreamSources?: () => void;
+  onShowProgramGuide?: () => void;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({

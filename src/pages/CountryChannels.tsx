@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
-  getCountry, 
+  getCountries, 
   getChannelsByCountry, 
   toggleFavoriteChannel, 
   playChannel 
@@ -11,7 +11,7 @@ import {
 import ChannelsList from '@/components/channel/ChannelsList';
 import CountryDetails from '@/components/country/CountryDetails';
 import VideoPlayer from '@/components/VideoPlayer';
-import { Channel } from '@/types';
+import { Channel, Country } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import ErrorMessage from '@/components/ui/error-message';
@@ -38,7 +38,19 @@ const CountryChannels: React.FC = () => {
     error: countryError
   } = useQuery({
     queryKey: ['country', countryId],
-    queryFn: () => countryId ? getCountry(countryId) : Promise.reject('No country ID'),
+    queryFn: async () => {
+      if (!countryId) return Promise.reject('No country ID');
+      
+      // Get all countries and find the one with matching ID
+      const countries = await getCountries();
+      const foundCountry = countries.find(c => c.id === countryId);
+      
+      if (!foundCountry) {
+        throw new Error('Country not found');
+      }
+      
+      return foundCountry;
+    },
     enabled: !!countryId,
   });
   

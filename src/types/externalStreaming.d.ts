@@ -1,6 +1,6 @@
 
 // أنواع خدمات البث الخارجية
-export type ExternalStreamingService = 
+export type ExternalStreamingServiceType = 
   | 'youtube' 
   | 'netflix' 
   | 'shahid' 
@@ -12,7 +12,7 @@ export type ExternalStreamingService =
 export interface ExternalStreamingProvider {
   id: string;
   name: string;
-  type: ExternalStreamingService;
+  type: ExternalStreamingServiceType;
   logoUrl: string;
   baseUrl: string;
   isEnabled: boolean;

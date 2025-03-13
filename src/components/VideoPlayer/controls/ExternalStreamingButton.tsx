@@ -11,6 +11,7 @@ import {
 import { Channel } from '@/types';
 import { getEnabledProviders, buildExternalStreamingUrl } from '@/services/externalStreamingConfig';
 import { useToast } from '@/hooks/use-toast';
+import { StreamingLink } from '@/types/externalStreaming';
 
 interface ExternalStreamingButtonProps {
   channel: Channel;
@@ -31,8 +32,8 @@ const ExternalStreamingButton: React.FC<ExternalStreamingButtonProps> = ({
   
   if (!hasExternalLinks) return null;
   
-  const handleExternalStreamingClick = (providerId: string, channelId: string) => {
-    const url = buildExternalStreamingUrl(providerId, channelId);
+  const handleExternalStreamingClick = (serviceId: string, channelId: string) => {
+    const url = buildExternalStreamingUrl(serviceId, channelId);
     
     if (!url) {
       toast({

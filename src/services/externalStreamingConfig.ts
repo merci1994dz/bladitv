@@ -1,5 +1,5 @@
 
-import { ExternalStreamingProvider } from '@/types/externalStreaming';
+import { ExternalStreamingProvider, ExternalStreamingServiceType } from '@/types/externalStreaming';
 
 // تكوين مزودي خدمات البث الخارجية
 export const EXTERNAL_STREAMING_PROVIDERS: ExternalStreamingProvider[] = [
