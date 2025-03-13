@@ -1,7 +1,4 @@
 
-// API Base URL - Change this to your website API endpoint
-export const API_BASE_URL = 'https://elhiwar.us/iptv/api';
-
 // Local storage keys
 export const STORAGE_KEYS = {
   CHANNELS: 'tv_channels',

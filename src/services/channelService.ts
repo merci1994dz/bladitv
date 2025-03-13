@@ -6,26 +6,26 @@ import { syncWithRemoteAPI } from './syncService';
 
 // Channel-related API functions
 export const getChannels = async (): Promise<Channel[]> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise(resolve => setTimeout(resolve, 300));
   
-  // Try to sync with remote API first (but don't wait for it)
+  // Try to sync with local storage (but don't wait for it)
   syncWithRemoteAPI().catch(console.error);
   
   return [...channels];
 };
 
 export const getChannelsByCategory = async (categoryId: string): Promise<Channel[]> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
+  await new Promise(resolve => setTimeout(resolve, 200));
   return channels.filter(channel => channel.category === categoryId);
 };
 
 export const getChannelsByCountry = async (countryId: string): Promise<Channel[]> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
+  await new Promise(resolve => setTimeout(resolve, 200));
   return channels.filter(channel => channel.country === countryId);
 };
 
 export const searchChannels = async (query: string): Promise<Channel[]> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
+  await new Promise(resolve => setTimeout(resolve, 200));
   const searchQuery = query.toLowerCase();
   return channels.filter(channel => 
     channel.name.toLowerCase().includes(searchQuery)
@@ -33,12 +33,12 @@ export const searchChannels = async (query: string): Promise<Channel[]> => {
 };
 
 export const getFavoriteChannels = async (): Promise<Channel[]> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
+  await new Promise(resolve => setTimeout(resolve, 200));
   return channels.filter(channel => channel.isFavorite);
 };
 
 export const toggleFavoriteChannel = async (channelId: string): Promise<Channel> => {
-  await new Promise(resolve => setTimeout(resolve, 200));
+  await new Promise(resolve => setTimeout(resolve, 100));
   const channelIndex = channels.findIndex(c => c.id === channelId);
   if (channelIndex >= 0) {
     channels[channelIndex].isFavorite = !channels[channelIndex].isFavorite;
@@ -49,7 +49,7 @@ export const toggleFavoriteChannel = async (channelId: string): Promise<Channel>
 };
 
 export const addChannel = async (channel: Omit<Channel, 'id'>): Promise<Channel> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
+  await new Promise(resolve => setTimeout(resolve, 200));
   
   const newChannel: Channel = {
     ...channel,
@@ -63,7 +63,7 @@ export const addChannel = async (channel: Omit<Channel, 'id'>): Promise<Channel>
 };
 
 export const updateChannel = async (channel: Channel): Promise<Channel> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
+  await new Promise(resolve => setTimeout(resolve, 200));
   
   const index = channels.findIndex(c => c.id === channel.id);
   if (index === -1) throw new Error('Channel not found');
@@ -75,7 +75,7 @@ export const updateChannel = async (channel: Channel): Promise<Channel> => {
 };
 
 export const deleteChannel = async (channelId: string): Promise<void> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
+  await new Promise(resolve => setTimeout(resolve, 200));
   
   const index = channels.findIndex(c => c.id === channelId);
   if (index === -1) throw new Error('Channel not found');

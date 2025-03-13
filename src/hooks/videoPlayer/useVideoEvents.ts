@@ -64,20 +64,27 @@ export function useVideoEvents({
       const videoElement = e.target as HTMLVideoElement;
       console.error('Video error detected:', videoElement.error);
       
+      // Always retry at least once automatically
       const shouldRetry = handlePlaybackError();
       
       if (shouldRetry) {
+        // Add a small delay before retrying
         setTimeout(() => {
           try {
-            video.pause();
-            video.removeAttribute('src');
-            video.load();
+            if (!videoRef.current) return;
             
-            if (setupVideoSource(video, channel.streamUrl)) {
-              video.load();
-              video.play().catch(e => {
-                console.error('Retry play failed:', e);
-              });
+            videoRef.current.pause();
+            videoRef.current.removeAttribute('src');
+            videoRef.current.load();
+            
+            if (setupVideoSource(videoRef.current, channel.streamUrl)) {
+              videoRef.current.load();
+              const playPromise = videoRef.current.play();
+              if (playPromise) {
+                playPromise.catch(e => {
+                  console.error('Retry play failed:', e);
+                });
+              }
             }
           } catch (err) {
             console.error('Error during retry attempt:', err);
@@ -111,18 +118,16 @@ export function useVideoEvents({
     
     // Set source and play with error handling
     try {
-      console.log('Setting up video source for:', channel.streamUrl);
-      
-      // First, clean up
+      // First, clean up existing media
       video.pause();
       video.removeAttribute('src');
       video.load();
       
-      // Then set source
+      // Set up new source and attempt playback
       if (setupVideoSource(video, channel.streamUrl)) {
         video.load();
         
-        // Try playing after a small delay
+        // Add a small delay to allow the browser to load the video
         setTimeout(() => {
           if (videoRef.current) {
             console.log('Attempting to play video');
@@ -146,7 +151,7 @@ export function useVideoEvents({
                 });
             }
           }
-        }, 800); 
+        }, 800);
       }
     } catch (err) {
       console.error('Unexpected error during video initialization:', err);
@@ -166,7 +171,7 @@ export function useVideoEvents({
       video.removeEventListener('waiting', handleWaiting);
       video.removeEventListener('ended', handleEnded);
       
-      // Cleanup video
+      // Clean up video element
       try {
         video.pause();
         video.removeAttribute('src');
@@ -175,5 +180,5 @@ export function useVideoEvents({
         console.error('Error during video cleanup:', e);
       }
     };
-  }, [channel.streamUrl, channel.name]);
+  }, [channel.streamUrl, channel.name, retryCount]);  // Added retryCount as dependency
 }

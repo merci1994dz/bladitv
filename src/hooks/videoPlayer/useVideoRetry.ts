@@ -18,7 +18,7 @@ export function useVideoRetry({
   setIsPlaying: (playing: boolean) => void;
 }) {
   const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 3;
+  const maxRetries = 2; // Reduced max retries to make the experience smoother
 
   // Retry playback after error
   const retryPlayback = () => {
@@ -70,14 +70,15 @@ export function useVideoRetry({
       
       return true; // Should auto-retry
     } else {
-      setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى لاحقًا.');
+      setError('تعذر تشغيل البث. تأكد من صلاحية الرابط أو جرب قناة أخرى.');
       setIsLoading(false);
       setIsPlaying(false);
       
       toast({
         title: "تنبيه",
-        description: `فشل في تشغيل القناة ${channel.name}. يرجى التحقق من اتصالك بالإنترنت.`,
+        description: `فشل في تشغيل القناة ${channel.name}. تأكد من صلاحية عنوان البث.`,
         variant: "destructive",
+        duration: 5000,
       });
       
       return false; // Should not auto-retry

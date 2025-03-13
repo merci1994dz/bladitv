@@ -1,32 +1,14 @@
 
-import { Channel, Country, Category } from '@/types';
-import { API_BASE_URL, STORAGE_KEYS } from './config';
-import { channels, countries, categories, isSyncing, setIsSyncing } from './dataStore';
-import * as channelService from './channelService';
-import * as categoryService from './categoryService';
-import * as countryService from './countryService';
+import { STORAGE_KEYS } from './config';
+import { channels, countries, categories, setIsSyncing } from './dataStore';
 
-// Function to fetch data from the remote API
+// Function that simulates syncing but actually just uses local data
 export const syncWithRemoteAPI = async (): Promise<boolean> => {
-  if (isSyncing) return false;
-  
   try {
     setIsSyncing(true);
-    console.log('Syncing with remote API...');
+    console.log('Using local data only (no remote sync)');
     
-    // Fetch channels, countries, and categories from your website API
-    const [channelsRes, countriesRes, categoriesRes] = await Promise.all([
-      fetch(`${API_BASE_URL}/channels`).then(res => res.json()),
-      fetch(`${API_BASE_URL}/countries`).then(res => res.json()),
-      fetch(`${API_BASE_URL}/categories`).then(res => res.json())
-    ]);
-    
-    // Update local data
-    Object.assign(channels, channelsRes);
-    Object.assign(countries, countriesRes);
-    Object.assign(categories, categoriesRes);
-    
-    // Save to localStorage
+    // Simply save current data to localStorage
     localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
     localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(countries));
     localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
@@ -35,22 +17,22 @@ export const syncWithRemoteAPI = async (): Promise<boolean> => {
     const lastSyncTime = new Date().toISOString();
     localStorage.setItem(STORAGE_KEYS.LAST_SYNC, lastSyncTime);
     
-    console.log('Sync completed successfully');
+    console.log('Local data saved successfully');
     return true;
   } catch (error) {
-    console.error('Error syncing with remote API:', error);
+    console.error('Error saving local data:', error);
     return false;
   } finally {
     setIsSyncing(false);
   }
 };
 
-// Function to manually trigger sync with remote
+// Function to manually trigger sync with local data
 export const forceSync = async (): Promise<boolean> => {
   return await syncWithRemoteAPI();
 };
 
-// Sync all data from the API
+// Sync all data locally
 export const syncAllData = async (): Promise<boolean> => {
   return await syncWithRemoteAPI();
 };
@@ -60,34 +42,21 @@ export const getLastSyncTime = (): string | null => {
   return localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
 };
 
-// Check if sync is needed (no data or older than 24 hours)
+// Check if sync is needed (no data in localStorage)
 export const isSyncNeeded = (): boolean => {
-  const lastSync = getLastSyncTime();
-  
-  if (!lastSync) {
-    return true;
-  }
-  
-  // Check if channels exist
   const hasChannels = !!localStorage.getItem(STORAGE_KEYS.CHANNELS);
   const hasCategories = !!localStorage.getItem(STORAGE_KEYS.CATEGORIES);
   const hasCountries = !!localStorage.getItem(STORAGE_KEYS.COUNTRIES);
   
-  if (!hasChannels || !hasCategories || !hasCountries) {
-    return true;
-  }
-  
-  // Check if last sync was more than 24 hours ago
-  const lastSyncTime = new Date(lastSync).getTime();
-  const currentTime = new Date().getTime();
-  const hoursSinceSync = (currentTime - lastSyncTime) / (1000 * 60 * 60);
-  
-  return hoursSinceSync > 24;
+  return !hasChannels || !hasCategories || !hasCountries;
 };
+
+// This variable tracks if sync is currently in progress
+let syncInProgress = false;
 
 // Check if sync is currently in progress
 export const isSyncInProgress = (): boolean => {
-  return isSyncing;
+  return syncInProgress;
 };
 
 // Initialize sync on application startup (only if needed)
@@ -96,10 +65,3 @@ if (isSyncNeeded()) {
     console.error('Initial sync failed:', error);
   });
 }
-
-// Periodic sync (every 1 hour)
-setInterval(() => {
-  syncWithRemoteAPI().catch(error => {
-    console.error('Periodic sync failed:', error);
-  });
-}, 60 * 60 * 1000);

@@ -13,6 +13,8 @@ interface UseVideoPlayerProps {
 export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
   // Reference to track if the volume was initialized
   const volumeInitializedRef = useRef(false);
+  // Reference to track the current channel ID
+  const currentChannelIdRef = useRef(channel.id);
   
   // Get video playback functionality
   const {
@@ -55,12 +57,19 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
     }
   }, [videoRef, initializeVolume]);
   
-  // Re-initialize volume when channel changes
+  // Re-initialize volume and track channel changes
   useEffect(() => {
     if (videoRef.current) {
+      // Check if the channel has changed
+      if (currentChannelIdRef.current !== channel.id) {
+        currentChannelIdRef.current = channel.id;
+        console.log(`Channel changed to: ${channel.name} (${channel.id})`);
+      }
+      
+      // Initialize volume for the current channel
       initializeVolume(videoRef);
     }
-  }, [channel.id, initializeVolume, videoRef]);
+  }, [channel.id, initializeVolume, videoRef, channel.name]);
   
   // Wrap the volume methods to simplify their usage
   const toggleMute = () => toggleMuteBase(videoRef);
