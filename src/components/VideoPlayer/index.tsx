@@ -24,6 +24,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     showControls,
     currentVolume,
     error,
+    retryCount,
     handleMouseMove,
     togglePlayPause,
     toggleFullscreen,
@@ -85,10 +86,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
       />
       
       <div className="flex-1 flex items-center justify-center relative">
-        {isLoading && <VideoLoading />}
+        {isLoading && <VideoLoading retryCount={retryCount} />}
         
         {error && (
-          <VideoError error={error} onRetry={handleRetry} />
+          <VideoError 
+            error={error} 
+            onRetry={handleRetry} 
+            streamUrl={channel.streamUrl}
+          />
         )}
         
         <video

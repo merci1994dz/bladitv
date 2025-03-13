@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { Channel } from '@/types';
 import { toast } from "@/hooks/use-toast";
@@ -37,6 +38,42 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
     }, 3000);
   };
 
+  // التعامل مع ملفات M3U8 بطريقة HLS للدعم الأفضل
+  const setupHlsIfNeeded = (video: HTMLVideoElement, src: string) => {
+    // إذا كان المتصفح يدعم HLS بشكل مدمج
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      console.log('Native HLS support');
+      video.src = src;
+      return;
+    }
+    
+    // للمتصفحات التي لا تدعم HLS بشكل مدمج، نستخدم الملفات المدعومة فقط
+    console.log('No HLS support, trying direct playback');
+    video.src = src;
+  };
+
+  // طريقة جديدة لتحسين التعامل مع الأخطاء وتجربة أنواع مختلفة من صيغ الفيديو
+  const tryAlternativeFormats = async () => {
+    if (!videoRef.current || !channel.streamUrl) return;
+    
+    // إعادة تعيين حالة الفيديو
+    const video = videoRef.current;
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    
+    // محاولة مع المصدر الأصلي
+    setupHlsIfNeeded(video, channel.streamUrl);
+    
+    try {
+      await video.play();
+    } catch (e) {
+      console.error('Error playing video with original source:', e);
+      setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى لاحقًا.');
+      setIsLoading(false);
+    }
+  };
+
   // Initialize video player
   useEffect(() => {
     if (!videoRef.current) return;
@@ -74,9 +111,9 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
         
         setTimeout(() => {
           // Use a slightly different approach for retrying
-          video.src = '';
+          video.removeAttribute('src');
           video.load();
-          video.src = channel.streamUrl;
+          setupHlsIfNeeded(video, channel.streamUrl);
           video.load();
           
           const playPromise = video.play().catch(e => {
@@ -84,13 +121,13 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
             
             // Check if it's a format error - this is often not recoverable
             if (e.name === "NotSupportedError") {
-              setError('فشل في تشغيل البث. تنسيق الفيديو غير مدعوم.');
+              setError('فشل في تشغيل البث. تنسيق الفيديو غير مدعوم في متصفحك.');
               setIsLoading(false);
             }
           });
         }, 1000);
       } else {
-        setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى.');
+        setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى لاحقًا.');
         setIsLoading(false);
         setIsPlaying(false);
         
@@ -126,7 +163,7 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
     video.addEventListener('ended', handleEnded);
     
     // Set source and play
-    video.src = channel.streamUrl;
+    setupHlsIfNeeded(video, channel.streamUrl);
     
     // Try playing after a small delay
     setTimeout(() => {
@@ -151,6 +188,8 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
               else if (err.name === "NotSupportedError") {
                 setError('تنسيق الفيديو غير مدعوم في متصفحك.');
                 setIsLoading(false);
+                // محاولة تشغيل بصيغة بديلة
+                tryAlternativeFormats();
               }
             });
         }
@@ -170,7 +209,7 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
       // Then handle the video properly
       try {
         video.pause();
-        video.src = '';
+        video.removeAttribute('src');
         video.load();
       } catch (e) {
         console.error('Error during video cleanup:', e);
@@ -278,11 +317,11 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
     
     if (videoRef.current) {
       // Reset completely
-      videoRef.current.src = '';
+      videoRef.current.removeAttribute('src');
       videoRef.current.load();
       
       // Set new source
-      videoRef.current.src = channel.streamUrl;
+      setupHlsIfNeeded(videoRef.current, channel.streamUrl);
       videoRef.current.load();
       
       // Try to play
@@ -296,8 +335,14 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
           })
           .catch(err => {
             console.error('Error playing video on retry:', err);
-            setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى.');
-            setIsLoading(false);
+            
+            // إذا استمر الخطأ في تنسيق الفيديو، جرب الصيغ البديلة
+            if (err.name === "NotSupportedError") {
+              tryAlternativeFormats();
+            } else {
+              setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى.');
+              setIsLoading(false);
+            }
           });
       }
     }
@@ -336,6 +381,7 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
     showControls,
     currentVolume,
     error,
+    retryCount,
     handleMouseMove,
     togglePlayPause,
     toggleFullscreen,
