@@ -19,14 +19,14 @@ export const createBackup = (): BackupData => {
   const channelsData = JSON.parse(localStorage.getItem(STORAGE_KEYS.CHANNELS) || '[]');
   const countriesData = JSON.parse(localStorage.getItem(STORAGE_KEYS.COUNTRIES) || '[]');
   const categoriesData = JSON.parse(localStorage.getItem(STORAGE_KEYS.CATEGORIES) || '[]');
-  const lastSyncTime = localStorage.getItem(STORAGE_KEYS.LAST_SYNC_TIME) || new Date().toISOString();
+  const lastSyncTime = getLastSyncTime() || new Date().toISOString();
   
   // إنشاء كائن النسخة الاحتياطية
   const backupData: BackupData = {
     channels: channelsData,
     countries: countriesData,
     categories: categoriesData,
-    lastSyncTime,
+    lastSyncTime: lastSyncTime || new Date().toISOString(),
     version: '1.0',
     createdAt: new Date().toISOString()
   };
