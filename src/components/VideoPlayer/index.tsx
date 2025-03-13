@@ -1,7 +1,7 @@
 
 import React, { useRef } from 'react';
 import { Channel } from '@/types';
-import { useVideoPlayer } from '@/hooks/useVideoPlayer';
+import { useVideoPlayer } from '@/hooks/videoPlayer';
 import VideoHeader from './VideoHeader';
 import VideoControls from './VideoControls';
 import VideoError from './VideoError';
@@ -72,7 +72,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     e.stopPropagation();
   };
 
-  // اطبع قيم الحالة للتصحيح
+  // Log state values for debugging
   console.log("VideoPlayer state:", { 
     isLoading, 
     error, 

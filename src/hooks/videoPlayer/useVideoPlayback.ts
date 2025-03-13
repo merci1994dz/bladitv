@@ -1,43 +1,43 @@
-import { useState, useRef, useEffect } from 'react';
-import { Channel } from '@/types';
-import { toast } from "@/hooks/use-toast";
 
-interface UseVideoPlayerProps {
+import { useState, useRef, useEffect } from 'react';
+import { toast } from "@/hooks/use-toast";
+import { Channel } from '@/types';
+
+interface UseVideoPlaybackProps {
   channel: Channel;
 }
 
-export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
+export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
-  const [showControls, setShowControls] = useState(true);
-  const [currentVolume, setCurrentVolume] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const maxRetries = 3;
 
-  // Handle mouse movement to show/hide controls
-  const handleMouseMove = () => {
-    setShowControls(true);
+  // Toggle play/pause
+  const togglePlayPause = () => {
+    if (!videoRef.current) return;
     
-    // Clear existing timeout
-    if (controlsTimeoutRef.current) {
-      clearTimeout(controlsTimeoutRef.current);
-    }
-    
-    // Set new timeout to hide controls after 3 seconds
-    controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying) {
-        setShowControls(false);
+    if (isPlaying) {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+          })
+          .catch(err => {
+            console.error('Error playing video:', err);
+            setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى.');
+          });
       }
-    }, 3000);
+    }
   };
 
-  // التعامل مع ملفات M3U8 بطريقة HLS للدعم الأفضل
+  // HLS setup for better support
   const setupHlsIfNeeded = (video: HTMLVideoElement, src: string) => {
     if (!src) {
       console.error('Stream URL is empty or invalid');
@@ -48,17 +48,16 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
 
     console.log('Setting up video with source:', src);
     
-    // إذا كان المتصفح يدعم HLS بشكل مدمج
+    // If browser has native HLS support
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
       console.log('Native HLS support detected');
       video.src = src;
       return;
     }
     
-    // للمتصفحات التي لا تدعم HLS بشكل مدمج، نستخدم الملفات المدعومة فقط
+    // For browsers without native HLS support
     console.log('No HLS support, trying direct playback');
     
-    // تجربة بعض الخيارات الإضافية لزيادة التوافق
     try {
       video.src = src;
       video.onerror = (e) => {
@@ -71,20 +70,19 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
     }
   };
 
-  // طريقة جديدة لتحسين التعامل مع الأخطاء وتجربة أنواع مختلفة من صيغ الفيديو
+  // Method to try alternative formats
   const tryAlternativeFormats = async () => {
     if (!videoRef.current || !channel.streamUrl) return;
     
-    // سجل المحاولة
     console.log('Trying alternative format for:', channel.streamUrl);
     
-    // إعادة تعيين حالة الفيديو
+    // Reset video state
     const video = videoRef.current;
     video.pause();
     video.removeAttribute('src');
     video.load();
     
-    // محاولة مع المصدر الأصلي
+    // Try with the original source
     try {
       setupHlsIfNeeded(video, channel.streamUrl);
       
@@ -97,6 +95,57 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
       console.error('Complete failure in tryAlternativeFormats:', err);
       setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى لاحقًا.');
       setIsLoading(false);
+    }
+  };
+
+  // Retry playback after error
+  const retryPlayback = () => {
+    setError(null);
+    setIsLoading(true);
+    setRetryCount(0);
+    
+    if (videoRef.current) {
+      // Reset completely
+      videoRef.current.removeAttribute('src');
+      videoRef.current.load();
+      
+      // Set new source
+      setupHlsIfNeeded(videoRef.current, channel.streamUrl);
+      videoRef.current.load();
+      
+      // Try to play
+      const playPromise = videoRef.current.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+            setIsLoading(false);
+          })
+          .catch(err => {
+            console.error('Error playing video on retry:', err);
+            
+            // If video format error persists, try alternative formats
+            if (err.name === "NotSupportedError") {
+              tryAlternativeFormats();
+            } else {
+              setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى.');
+              setIsLoading(false);
+            }
+          });
+      }
+    }
+  };
+  
+  // Seek video (for live streams this might not work)
+  const seekVideo = (seconds: number) => {
+    if (videoRef.current) {
+      try {
+        videoRef.current.currentTime += seconds;
+      } catch (error) {
+        console.error('Error seeking in video:', error);
+        // Many live streams don't support seeking, so just ignore the error
+      }
     }
   };
 
@@ -124,10 +173,8 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
     
     // Setup video element
     const video = videoRef.current;
-    video.muted = isMuted;
-    video.volume = currentVolume;
     
-    // تسجيل الأحداث للتشخيص
+    // Log events for diagnostics
     console.log('Setting up video event listeners');
     
     // Register event listeners
@@ -243,7 +290,7 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
                 else if (err.name === "NotSupportedError") {
                   setError('تنسيق الفيديو غير مدعوم في متصفحك.');
                   setIsLoading(false);
-                  // محاولة تشغيل بصيغة بديلة
+                  // Try playing with alternative format
                   tryAlternativeFormats();
                 }
               });
@@ -276,179 +323,16 @@ export function useVideoPlayer({ channel }: UseVideoPlayerProps) {
       } catch (e) {
         console.error('Error during video cleanup:', e);
       }
-      
-      // Clear any timeouts
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
-      
-      // Exit fullscreen on unmount if needed
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(e => console.error('Error exiting fullscreen:', e));
-      }
     };
-  }, [channel.streamUrl, channel.name, currentVolume, isMuted, retryCount]);
-
-  // Handle play/pause
-  const togglePlayPause = () => {
-    if (!videoRef.current) return;
-    
-    if (isPlaying) {
-      videoRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      const playPromise = videoRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            setIsPlaying(true);
-          })
-          .catch(err => {
-            console.error('Error playing video:', err);
-            setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى.');
-          });
-      }
-    }
-  };
-
-  // Handle fullscreen toggle
-  const toggleFullscreen = (containerRef: React.RefObject<HTMLDivElement>) => {
-    if (!containerRef.current) return;
-
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().then(() => {
-        setIsFullscreen(true);
-        // Keep controls visible for a bit after entering fullscreen
-        setShowControls(true);
-        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-        controlsTimeoutRef.current = setTimeout(() => {
-          if (isPlaying) setShowControls(false);
-        }, 3000);
-      }).catch(err => {
-        console.error('Error attempting to enable fullscreen:', err);
-        toast({
-          title: "تنبيه",
-          description: "تعذر تفعيل وضع ملء الشاشة.",
-          variant: "destructive",
-        });
-      });
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-      // Always show controls in windowed mode
-      setShowControls(true);
-    }
-  };
-
-  // Toggle mute
-  const toggleMute = () => {
-    if (videoRef.current) {
-      const newMutedState = !isMuted;
-      videoRef.current.muted = newMutedState;
-      setIsMuted(newMutedState);
-      
-      // If unmuting, restore to previous volume
-      if (!newMutedState && videoRef.current.volume === 0) {
-        videoRef.current.volume = currentVolume || 0.5;
-      }
-    }
-  };
-  
-  // Handle volume change
-  const handleVolumeChange = (newVolume: number) => {
-    if (videoRef.current) {
-      videoRef.current.volume = newVolume;
-      setCurrentVolume(newVolume);
-      
-      // If volume is 0, mute; otherwise ensure it's unmuted
-      if (newVolume === 0) {
-        videoRef.current.muted = true;
-        setIsMuted(true);
-      } else if (isMuted) {
-        videoRef.current.muted = false;
-        setIsMuted(false);
-      }
-    }
-  };
-
-  // Retry playing after error
-  const retryPlayback = () => {
-    setError(null);
-    setIsLoading(true);
-    setRetryCount(0);
-    
-    if (videoRef.current) {
-      // Reset completely
-      videoRef.current.removeAttribute('src');
-      videoRef.current.load();
-      
-      // Set new source
-      setupHlsIfNeeded(videoRef.current, channel.streamUrl);
-      videoRef.current.load();
-      
-      // Try to play
-      const playPromise = videoRef.current.play();
-      
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            setIsPlaying(true);
-            setIsLoading(false);
-          })
-          .catch(err => {
-            console.error('Error playing video on retry:', err);
-            
-            // إذا استمر الخطأ في تنسيق الفيديو، جرب الصيغ البديلة
-            if (err.name === "NotSupportedError") {
-              tryAlternativeFormats();
-            } else {
-              setError('فشل في تشغيل البث. يرجى المحاولة مرة أخرى.');
-              setIsLoading(false);
-            }
-          });
-      }
-    }
-  };
-
-  // Rewind and fast forward (if applicable for the stream)
-  const seekVideo = (seconds: number) => {
-    if (videoRef.current) {
-      try {
-        videoRef.current.currentTime += seconds;
-      } catch (error) {
-        console.error('Error seeking in video:', error);
-        // Many live streams don't support seeking, so just ignore the error
-      }
-    }
-  };
-
-  // Handle fullscreen change event
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    };
-  }, []);
+  }, [channel.streamUrl, channel.name, retryCount]);
 
   return {
     videoRef,
-    isFullscreen,
-    isMuted,
     isPlaying,
     isLoading,
-    showControls,
-    currentVolume,
     error,
     retryCount,
-    handleMouseMove,
     togglePlayPause,
-    toggleFullscreen,
-    toggleMute,
-    handleVolumeChange,
     retryPlayback,
     seekVideo
   };
