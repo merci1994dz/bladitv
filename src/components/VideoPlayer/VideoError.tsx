@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, RefreshCw, Link } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface VideoErrorProps {
   error: string;
@@ -28,24 +28,7 @@ const VideoError: React.FC<VideoErrorProps> = ({ error, onRetry, streamUrl }) =>
             <RefreshCw className="h-4 w-4" />
             <span>إعادة المحاولة</span>
           </Button>
-          
-          {streamUrl && (
-            <Button
-              variant="outline"
-              className="border-white/20 text-white hover:bg-white/10 flex-1 flex items-center justify-center gap-2 rounded-lg"
-              onClick={() => window.open(streamUrl, '_blank')}
-            >
-              <Link className="h-4 w-4" />
-              <span>فتح الرابط</span>
-            </Button>
-          )}
         </div>
-        
-        {streamUrl && (
-          <div className="mt-4 bg-gray-900/50 p-2 rounded-md w-full overflow-hidden">
-            <p className="text-gray-400 text-xs text-center break-all">{streamUrl}</p>
-          </div>
-        )}
       </div>
     </div>
   );

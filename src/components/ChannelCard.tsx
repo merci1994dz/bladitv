@@ -15,6 +15,12 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
   onPlay, 
   onToggleFavorite 
 }) => {
+  // إزالة أي إمكانية للوصول المباشر لروابط البث
+  const secureChannel = {
+    ...channel,
+    streamUrl: '[PROTECTED]' // استخدام نسخة آمنة للعرض فقط
+  };
+
   return (
     <Card className="relative overflow-hidden border border-gray-200/50 dark:border-gray-700/50 transition-all hover:shadow-xl hover:translate-y-[-3px] group bg-gradient-to-b from-white to-gray-50 dark:from-gray-800/90 dark:to-gray-900/80">
       <div className="absolute top-2 right-2 z-10">

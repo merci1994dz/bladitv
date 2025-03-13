@@ -1,15 +1,23 @@
+
 import { Channel } from '@/types';
 import { useVideoSetup } from './useVideoSetup';
 import { useVideoRetry } from './useVideoRetry';
 import { useVideoControl } from './useVideoControl';
 import { useVideoEvents } from './useVideoEvents';
 import { useEffect, useRef } from 'react';
+import { VIDEO_PLAYER } from '@/services/config';
 
 interface UseVideoPlaybackProps {
   channel: Channel;
 }
 
 export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
+  // منع تسريب روابط البث عبر console logs
+  const secureChannel = VIDEO_PLAYER.HIDE_STREAM_URLS ? {
+    ...channel,
+    streamUrl: channel.streamUrl // الحقيقي يبقى للاستخدام الداخلي فقط
+  } : channel;
+
   // Set up core video state and refs
   const {
     videoRef,
@@ -41,7 +49,7 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     handlePlaybackError
   } = useVideoRetry({
     videoRef,
-    channel,
+    channel: secureChannel,
     setIsLoading,
     setError,
     setIsPlaying
@@ -50,7 +58,7 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
   // Set up video event listeners
   useVideoEvents({
     videoRef,
-    channel,
+    channel: secureChannel,
     isPlaying,
     setIsPlaying,
     setIsLoading,

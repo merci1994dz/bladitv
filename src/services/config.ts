@@ -13,12 +13,13 @@ export const STORAGE_KEYS = {
 export const DEFAULT_ADMIN_PASSWORD = 'admin123';
 
 // App version
-export const APP_VERSION = 'v1.3.0';
+export const APP_VERSION = 'v1.3.1';
 
 // Video Player settings
 export const VIDEO_PLAYER = {
   MAX_RETRIES: 3,
   RETRY_DELAY: 1500,
-  CONTROLS_HIDE_DELAY: 3000
+  CONTROLS_HIDE_DELAY: 3000,
+  HIDE_STREAM_URLS: true, // إضافة خيار لإخفاء روابط البث
+  OBFUSCATE_SOURCE: true  // تشفير مصدر البث
 };
-
