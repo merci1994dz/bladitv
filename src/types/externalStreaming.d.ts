@@ -1,13 +1,6 @@
 
-// أنواع خدمات البث الخارجية
-export type ExternalStreamingServiceType = 
-  | 'youtube' 
-  | 'netflix' 
-  | 'shahid' 
-  | 'rotana' 
-  | 'watan' 
-  | 'directv' 
-  | 'custom';
+// تصدير أنواع البيانات المتعلقة بالبث الخارجي
+export type ExternalStreamingServiceType = 'youtube' | 'shahid' | 'rotana' | 'watan' | 'netflix' | string;
 
 export interface ExternalStreamingProvider {
   id: string;
@@ -22,12 +15,4 @@ export interface ExternalStreamingProvider {
 export interface StreamingLink {
   serviceId: string;
   channelId: string;
-  url: string;
-}
-
-// توسيع نوع القناة لدعم الخدمات الخارجية
-declare module '@/types' {
-  interface Channel {
-    externalLinks?: StreamingLink[];
-  }
 }

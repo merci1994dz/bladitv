@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useEffect } from 'react';
 import PlaybackControls from './controls/PlaybackControls';
 import VolumeControls from './controls/VolumeControls';
 import SettingsControls from './controls/SettingsControls';
@@ -45,7 +46,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 }) => {
   const [focusedButton, setFocusedButton] = React.useState<string | null>(null);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: KeyboardEvent) => {
     if (!isTV) return;
 
     switch (e.key) {
@@ -88,7 +89,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isTV && show) {
       window.addEventListener('keydown', handleKeyDown);
     } else {
@@ -112,6 +113,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         <PlaybackControls
           isPlaying={isPlaying}
           onPlayPause={onPlayPause}
+          onSeek={onSeek || ((time: number) => {})}
           isTV={isTV}
           focusedButton={focusedButton}
         />
@@ -119,9 +121,9 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           isMuted={isMuted}
           currentVolume={currentVolume}
           onMuteToggle={onMuteToggle}
-          onVolumeChange={onVolumeChange}
+          onVolumeChange={(e: React.ChangeEvent<HTMLInputElement>) => onVolumeChange(parseFloat(e.target.value))}
           isTV={isTV}
-          focusedButton={focusedButton}
+          isFocused={focusedButton === 'volume'}
         />
       </div>
 
