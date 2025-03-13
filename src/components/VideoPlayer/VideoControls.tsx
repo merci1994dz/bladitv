@@ -9,7 +9,10 @@ import {
   Play, 
   Pause, 
   FastForward, 
-  Rewind 
+  Rewind,
+  Settings,
+  SkipBack,
+  SkipForward
 } from 'lucide-react';
 
 interface VideoControlsProps {
@@ -45,7 +48,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
       <div 
         className={`absolute inset-0 flex items-center justify-center z-10 cursor-pointer pointer-events-none transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
       >
-        <div className="bg-black/40 rounded-full p-5 backdrop-blur-sm">
+        <div className="bg-black/30 backdrop-blur-sm rounded-full p-5 shadow-2xl">
           {isPlaying ? 
             <Pause className="w-14 h-14 text-white" /> : 
             <Play className="w-14 h-14 text-white" />
@@ -54,7 +57,16 @@ const VideoControls: React.FC<VideoControlsProps> = ({
       </div>
       
       {/* Footer controls */}
-      <div className={`p-4 flex flex-col justify-end items-stretch bg-gradient-to-t from-black/80 to-transparent absolute bottom-0 left-0 right-0 z-10 transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}>
+      <div 
+        className={`p-4 flex flex-col justify-end items-stretch bg-gradient-to-t from-black/90 via-black/60 to-transparent absolute bottom-0 left-0 right-0 z-10 transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
+      >
+        {/* Progress bar (non-functional but adds to the UI) */}
+        <div className="w-full h-1 bg-white/20 rounded-full mb-4 overflow-hidden">
+          <div className="w-[30%] h-full bg-primary rounded-full relative">
+            <div className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full border-2 border-white"></div>
+          </div>
+        </div>
+        
         {/* Control buttons */}
         <div className="flex justify-between items-center">
           {/* Left controls: volume */}
@@ -86,7 +98,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           </div>
           
           {/* Center controls: rewind, play, fast-forward */}
-          <div className="flex items-center space-x-2 rtl:space-x-reverse">
+          <div className="flex items-center space-x-3 rtl:space-x-reverse">
             <Button 
               variant="ghost" 
               size="icon"
@@ -99,10 +111,10 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             <Button 
               variant="ghost" 
               size="icon"
-              className="rounded-full text-white hover:bg-white/20 h-10 w-10" 
+              className="rounded-full text-white hover:bg-white/20 h-12 w-12 border border-white/20" 
               onClick={onPlayPause}
             >
-              {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+              {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
             </Button>
             
             <Button 
@@ -115,8 +127,17 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             </Button>
           </div>
           
-          {/* Right controls: fullscreen */}
+          {/* Right controls: settings, fullscreen */}
           <div className="flex items-center space-x-2 rtl:space-x-reverse">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="rounded-full text-white hover:bg-white/20 h-9 w-9 hidden md:flex" 
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Settings className="w-4 h-4" />
+            </Button>
+            
             <Button 
               variant="ghost" 
               size="icon"
