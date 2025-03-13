@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Heart, Flag, Grid3X3, Search, Clock } from 'lucide-react';
+import { Home, Heart, Flag, Grid3X3, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const Navigation: React.FC = () => {
@@ -26,12 +25,6 @@ const Navigation: React.FC = () => {
             icon={<Heart className="h-6 w-6" />} 
             label="المفضلة" 
             isActive={isActive('/favorites')} 
-          />
-          <NavItem 
-            to="/history" 
-            icon={<Clock className="h-6 w-6" />} 
-            label="سجل المشاهدة" 
-            isActive={isActive('/history')} 
           />
           <NavItem 
             to="/categories" 

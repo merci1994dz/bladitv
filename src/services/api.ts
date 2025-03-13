@@ -7,4 +7,3 @@ export * from './categoryService';
 export * from './countryService';
 export * from './adminService';
 export * from './sync';  // تم التحديث لاستخدام وحدة المزامنة الجديدة
-export * from './historyService'; // تحسين: إضافة تصدير خدمة سجل المشاهدة
