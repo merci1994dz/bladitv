@@ -11,6 +11,17 @@ interface PlaybackControlsProps {
   focusedButton: string | null;
 }
 
+// Define the props type for CenterPlayButton
+interface CenterPlayButtonProps {
+  isPlaying: boolean;
+  isFocused: boolean;
+}
+
+// Define the combined interface for PlaybackControls with static property
+interface PlaybackControlsComponent extends React.FC<PlaybackControlsProps> {
+  CenterPlayButton: React.FC<CenterPlayButtonProps>;
+}
+
 const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   isPlaying,
   onPlayPause,
@@ -54,7 +65,7 @@ const PlaybackControls: React.FC<PlaybackControlsProps> = ({
 };
 
 // زر التشغيل المركزي الكبير
-const CenterPlayButton: React.FC<{ isPlaying: boolean; isFocused: boolean }> = ({ 
+const CenterPlayButton: React.FC<CenterPlayButtonProps> = ({ 
   isPlaying,
   isFocused 
 }) => {
@@ -68,7 +79,11 @@ const CenterPlayButton: React.FC<{ isPlaying: boolean; isFocused: boolean }> = (
   );
 };
 
-// تصدير المكونات معًا
-PlaybackControls.CenterPlayButton = CenterPlayButton;
+// Cast PlaybackControls to the interface with the static property
+const PlaybackControlsWithComponent = PlaybackControls as PlaybackControlsComponent;
 
-export default PlaybackControls;
+// Attach CenterPlayButton as a static property
+PlaybackControlsWithComponent.CenterPlayButton = CenterPlayButton;
+
+// Export the component with the static property
+export default PlaybackControlsWithComponent;
