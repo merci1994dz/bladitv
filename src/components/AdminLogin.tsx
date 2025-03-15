@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +22,6 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
   const [loginError, setLoginError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // التحقق من وجود قفل على تسجيل الدخول
   useEffect(() => {
     const lockUntil = localStorage.getItem('admin_lock_until');
     if (lockUntil && Number(lockUntil) > Date.now()) {
@@ -49,10 +47,9 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
     
     setIsLoading(true);
     
-    // إضافة تأخير بسيط لمحاكاة المصادقة
     setTimeout(() => {
       try {
-        const isPasswordValid = verifyAdminPassword(password);
+        const isPasswordValid = verifyPassword(password);
         
         if (isPasswordValid) {
           toast({
@@ -68,7 +65,6 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
           });
         }
       } catch (error) {
-        // التقاط أخطاء الأمان مثل قفل الحساب
         if (error instanceof Error) {
           setLoginError(error.message);
           toast({
@@ -115,9 +111,8 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
 
     setIsLoading(true);
 
-    // التحقق من كلمة المرور الحالية
     try {
-      const isCurrentPasswordValid = verifyAdminPassword(currentPassword);
+      const isCurrentPasswordValid = verifyPassword(currentPassword);
       
       if (!isCurrentPasswordValid) {
         toast({
@@ -129,7 +124,6 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
         return;
       }
 
-      // تغيير كلمة المرور
       try {
         updateAdminPassword(newPassword);
         setPasswordChanged(true);
@@ -138,12 +132,10 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
           description: "تم تغيير كلمة المرور بنجاح",
         });
         
-        // مسح جميع الحقول
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
         
-        // العودة إلى شاشة تسجيل الدخول بعد ثانيتين
         setTimeout(() => {
           setShowChangePassword(false);
           setPasswordChanged(false);
@@ -157,7 +149,6 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
         });
       }
     } catch (error) {
-      // معالجة خطأ قفل الحساب
       if (error instanceof Error) {
         setLoginError(error.message);
         toast({
