@@ -18,7 +18,7 @@ export const useVideo = (channel: Channel) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const { isMobile } = useIsMobile();
+  const isMobile = useIsMobile(); // Correctly use the hook which returns a boolean
 
   // Video controls visibility
   const [showControls, setShowControls] = useState(true);
@@ -96,7 +96,9 @@ export const useVideo = (channel: Channel) => {
     currentVolume,
     toggleMute,
     handleVolumeChange,
-    initializeVolume
+    initializeVolume,
+    increaseVolume,
+    decreaseVolume
   } = useVideoVolume();
   
   // Volume change wrapper
@@ -174,7 +176,9 @@ export const useVideo = (channel: Channel) => {
     retryPlayback,
     seekVideo,
     resetControlsTimer,
-    cleanup
+    cleanup,
+    increaseVolume,
+    decreaseVolume
   };
 };
 
