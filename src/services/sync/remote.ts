@@ -48,6 +48,8 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
         ? `${remoteUrl}&_=${Date.now()}&nocache=${Math.random()}`
         : `${remoteUrl}?_=${Date.now()}&nocache=${Math.random()}`;
       
+      console.log('إرسال طلب إلى:', urlWithCacheBuster);
+      
       const response = await fetch(urlWithCacheBuster, { 
         signal: controller.signal,
         cache: 'no-store', 
@@ -65,7 +67,18 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
         throw new Error(`فشل الاتصال بالمصدر الخارجي: ${response.status}`);
       }
       
-      const remoteData = await response.json();
+      const responseText = await response.text();
+      console.log('النص المستلم:', responseText.substring(0, 150) + '...');
+      
+      let remoteData;
+      try {
+        remoteData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('خطأ في تحليل JSON:', parseError);
+        console.log('النص المستلم غير صالح:', responseText.substring(0, 500));
+        throw new Error('البيانات المستلمة ليست بتنسيق JSON صالح');
+      }
+      
       console.log('تم استلام البيانات:', {
         channels: remoteData.channels?.length || 0,
         countries: remoteData.countries?.length || 0,
@@ -74,8 +87,17 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
       
       // Data validation
       if (!remoteData || !remoteData.channels || !remoteData.countries || !remoteData.categories) {
+        console.error('تنسيق البيانات غير صالح:', remoteData);
         throw new Error('تنسيق البيانات من المصدر الخارجي غير صالح');
       }
+      
+      // Ensure each channel has an ID
+      remoteData.channels = remoteData.channels.map((channel: any) => {
+        if (!channel.id) {
+          channel.id = 'ch_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        }
+        return channel;
+      });
       
       // For forced refresh, we completely replace the data
       localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(remoteData.channels));
@@ -99,11 +121,17 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
       
       console.log('تم تحديث البيانات بنجاح من المصدر الخارجي');
       
+      // إضافة علامة زمنية مميزة لإجبار جميع المستخدمين على رؤية البيانات الجديدة
+      localStorage.setItem('force_data_refresh', Date.now().toString());
+      
       // Force page reload in cases of significant data changes (for admin actions)
       if (forceRefresh) {
+        console.log('سيتم إعادة تحميل الصفحة لتطبيق التغييرات...');
+        
+        // نؤخر إعادة تحميل الصفحة قليلاً لإتاحة الوقت لعرض رسالة النجاح
         setTimeout(() => {
           window.location.reload();
-        }, 1000);
+        }, 1500);
       }
       
       return true;
@@ -144,11 +172,29 @@ export const validateRemoteData = (data: any): boolean => {
   
   // Validate that each channel has required fields
   for (const channel of data.channels) {
-    if (!channel.id || !channel.name || !channel.streamUrl) {
+    if (!channel.name || !channel.streamUrl) {
       console.error('قناة غير صالحة:', channel);
       return false;
     }
   }
   
   return true;
+};
+
+// دالة جديدة للاستيراد المباشر من bladi-info.com
+export const importDirectlyFromBladiInfo = async (): Promise<boolean> => {
+  try {
+    setIsSyncing(true);
+    const url = `https://bladi-info.com/api/channels.json?_=${Date.now()}&direct=true`;
+    
+    console.log('استيراد مباشر من bladi-info.com:', url);
+    
+    // استدعاء دالة المزامنة مع إجبار التحديث
+    return await syncWithRemoteSource(url, true);
+  } catch (error) {
+    console.error('خطأ في الاستيراد المباشر من bladi-info.com:', error);
+    return false;
+  } finally {
+    setIsSyncing(false);
+  }
 };
