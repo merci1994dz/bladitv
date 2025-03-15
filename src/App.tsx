@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,7 +26,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60, // تقليل إلى دقيقة واحدة فقط
-      cacheTime: 1000 * 60 * 5, // تخزين مؤقت للبيانات لمدة 5 دقائق
+      gcTime: 1000 * 60 * 5, // تخزين مؤقت للبيانات لمدة 5 دقائق (renamed from cacheTime)
       retry: 3, // زيادة عدد المحاولات
       refetchOnWindowFocus: true,
       refetchOnMount: true,     
