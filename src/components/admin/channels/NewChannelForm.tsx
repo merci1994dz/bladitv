@@ -1,11 +1,12 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Channel } from '@/types';
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, RefreshCw } from 'lucide-react';
+import { PlusCircle, RefreshCw, LinkIcon, ImageIcon, Tag, Flag } from 'lucide-react';
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -13,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from '@/components/ui/separator';
 
 interface NewChannelFormProps {
   categories: any[];
@@ -28,9 +30,9 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({
   onManualSync 
 }) => {
   const { toast } = useToast();
-  const [isSyncing, setIsSyncing] = React.useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   
-  const [newChannel, setNewChannel] = React.useState<Omit<Channel, 'id'>>({
+  const [newChannel, setNewChannel] = useState<Omit<Channel, 'id'>>({
     name: '',
     logo: '',
     streamUrl: '',
@@ -60,6 +62,11 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({
       country: '',
       isFavorite: false
     });
+    
+    toast({
+      title: "تمت الإضافة بنجاح",
+      description: `تمت إضافة قناة "${newChannel.name}" ونشرها للمستخدمين`,
+    });
   };
   
   const handleManualSync = async () => {
@@ -74,53 +81,75 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({
   };
   
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <PlusCircle className="h-5 w-5 ml-2" />
+    <Card className="border border-primary/10 shadow-sm mb-6">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <PlusCircle className="h-5 w-5 text-primary" />
           <span>إضافة قناة جديدة</span>
         </CardTitle>
+        <CardDescription>
+          أضف قناة جديدة يدويًا وسيتم نشرها مباشرة لجميع المستخدمين
+        </CardDescription>
       </CardHeader>
+      
       <CardContent>
-        <form className="space-y-4" onSubmit={handleAddChannel}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form className="space-y-5" onSubmit={handleAddChannel} id="new-channel-form">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="space-y-2">
-              <label htmlFor="name" className="text-sm font-medium">اسم القناة</label>
+              <Label htmlFor="name" className="flex items-center gap-1.5">
+                <Tag className="h-4 w-4 text-primary/80" />
+                <span>اسم القناة</span>
+              </Label>
               <Input
                 id="name"
                 value={newChannel.name}
                 onChange={(e) => setNewChannel({...newChannel, name: e.target.value})}
                 placeholder="اسم القناة"
                 dir="rtl"
+                className="transition-all focus:border-primary"
               />
             </div>
+            
             <div className="space-y-2">
-              <label htmlFor="logo" className="text-sm font-medium">شعار القناة (رابط)</label>
+              <Label htmlFor="logo" className="flex items-center gap-1.5">
+                <ImageIcon className="h-4 w-4 text-primary/80" />
+                <span>شعار القناة (رابط)</span>
+              </Label>
               <Input
                 id="logo"
                 value={newChannel.logo}
                 onChange={(e) => setNewChannel({...newChannel, logo: e.target.value})}
                 placeholder="https://example.com/logo.png"
                 dir="ltr"
+                className="transition-all focus:border-primary"
               />
             </div>
-            <div className="space-y-2">
-              <label htmlFor="streamUrl" className="text-sm font-medium">رابط البث</label>
+            
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="streamUrl" className="flex items-center gap-1.5">
+                <LinkIcon className="h-4 w-4 text-primary/80" />
+                <span>رابط البث</span>
+              </Label>
               <Input
                 id="streamUrl"
                 value={newChannel.streamUrl}
                 onChange={(e) => setNewChannel({...newChannel, streamUrl: e.target.value})}
                 placeholder="https://example.com/stream.m3u8"
                 dir="ltr"
+                className="transition-all focus:border-primary"
               />
             </div>
+            
             <div className="space-y-2">
-              <label htmlFor="category" className="text-sm font-medium">الفئة</label>
+              <Label htmlFor="category" className="flex items-center gap-1.5">
+                <Tag className="h-4 w-4 text-primary/80" />
+                <span>الفئة</span>
+              </Label>
               <Select
                 value={newChannel.category}
                 onValueChange={(value) => setNewChannel({...newChannel, category: value})}
               >
-                <SelectTrigger>
+                <SelectTrigger id="category" className="transition-all">
                   <SelectValue placeholder="اختر الفئة" />
                 </SelectTrigger>
                 <SelectContent dir="rtl">
@@ -132,13 +161,17 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({
                 </SelectContent>
               </Select>
             </div>
+            
             <div className="space-y-2">
-              <label htmlFor="country" className="text-sm font-medium">البلد</label>
+              <Label htmlFor="country" className="flex items-center gap-1.5">
+                <Flag className="h-4 w-4 text-primary/80" />
+                <span>البلد</span>
+              </Label>
               <Select
                 value={newChannel.country}
                 onValueChange={(value) => setNewChannel({...newChannel, country: value})}
               >
-                <SelectTrigger>
+                <SelectTrigger id="country" className="transition-all">
                   <SelectValue placeholder="اختر البلد" />
                 </SelectTrigger>
                 <SelectContent dir="rtl">
@@ -151,22 +184,35 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({
               </Select>
             </div>
           </div>
-          <Button type="submit" className="w-full">إضافة القناة</Button>
+
+          <div className="pt-2">
+            <Button 
+              type="submit" 
+              className="w-full sm:w-auto gap-1.5"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>إضافة القناة</span>
+            </Button>
+          </div>
         </form>
       </CardContent>
+      
       {onManualSync && (
-        <CardFooter className="flex justify-center pt-0">
-          <Button 
-            variant="outline" 
-            type="button" 
-            onClick={handleManualSync}
-            disabled={isSyncing}
-            className="mt-2"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'جاري المزامنة...' : 'مزامنة القنوات ونشرها للمستخدمين'}
-          </Button>
-        </CardFooter>
+        <>
+          <Separator className="my-2" />
+          <CardFooter className="pt-4 pb-4">
+            <Button 
+              variant="outline" 
+              type="button" 
+              onClick={handleManualSync}
+              disabled={isSyncing}
+              className="w-full sm:w-auto"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'جاري المزامنة...' : 'مزامنة القنوات ونشرها للمستخدمين'}
+            </Button>
+          </CardFooter>
+        </>
       )}
     </Card>
   );

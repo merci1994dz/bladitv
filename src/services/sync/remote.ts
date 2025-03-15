@@ -32,7 +32,7 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
     console.log('جاري المزامنة مع المصدر الخارجي:', remoteUrl);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds timeout for larger files
     
     try {
       // Add cache-control headers and parameters to prevent caching
@@ -45,22 +45,32 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
       
       // Add random query parameter to bust cache
       const urlWithCacheBuster = remoteUrl.includes('?') 
-        ? `${remoteUrl}&_=${Date.now()}` 
-        : `${remoteUrl}?_=${Date.now()}`;
+        ? `${remoteUrl}&_=${Date.now()}&nocache=${Math.random()}`
+        : `${remoteUrl}?_=${Date.now()}&nocache=${Math.random()}`;
       
       const response = await fetch(urlWithCacheBuster, { 
         signal: controller.signal,
         cache: 'no-store', 
-        headers
+        headers,
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'omit'
       });
       
       clearTimeout(timeoutId);
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('خطأ في الاستجابة:', response.status, errorText);
         throw new Error(`فشل الاتصال بالمصدر الخارجي: ${response.status}`);
       }
       
       const remoteData = await response.json();
+      console.log('تم استلام البيانات:', {
+        channels: remoteData.channels?.length || 0,
+        countries: remoteData.countries?.length || 0,
+        categories: remoteData.categories?.length || 0
+      });
       
       // Data validation
       if (!remoteData || !remoteData.channels || !remoteData.countries || !remoteData.categories) {
@@ -71,6 +81,11 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
       localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(remoteData.channels));
       localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(remoteData.countries));
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(remoteData.categories));
+      
+      // Save last updated timestamps for each data type
+      localStorage.setItem('channels_updated_at', new Date().toISOString());
+      localStorage.setItem('countries_updated_at', new Date().toISOString());
+      localStorage.setItem('categories_updated_at', new Date().toISOString());
       
       // Update last sync time
       const lastSyncTime = updateLastSyncTime();
@@ -86,7 +101,9 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
       
       // Force page reload in cases of significant data changes (for admin actions)
       if (forceRefresh) {
-        window.location.reload();
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
       }
       
       return true;
@@ -95,6 +112,7 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
       if (fetchError.name === 'AbortError') {
         throw new Error('انتهت المهلة الزمنية للاتصال بالمصدر الخارجي');
       }
+      console.error('خطأ في الاتصال:', fetchError);
       throw fetchError;
     }
   } catch (error) {
@@ -103,4 +121,34 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
   } finally {
     setIsSyncing(false);
   }
+};
+
+// New function to validate JSON from bladi-info.com
+export const validateRemoteData = (data: any): boolean => {
+  if (!data) return false;
+  
+  if (!Array.isArray(data.channels)) {
+    console.error('بيانات القنوات غير صالحة - يجب أن تكون مصفوفة');
+    return false;
+  }
+  
+  if (!Array.isArray(data.countries)) {
+    console.error('بيانات الدول غير صالحة - يجب أن تكون مصفوفة');
+    return false;
+  }
+  
+  if (!Array.isArray(data.categories)) {
+    console.error('بيانات الفئات غير صالحة - يجب أن تكون مصفوفة');
+    return false;
+  }
+  
+  // Validate that each channel has required fields
+  for (const channel of data.channels) {
+    if (!channel.id || !channel.name || !channel.streamUrl) {
+      console.error('قناة غير صالحة:', channel);
+      return false;
+    }
+  }
+  
+  return true;
 };
