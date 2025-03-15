@@ -3,7 +3,7 @@ import { STORAGE_KEYS } from '../config';
 import { setIsSyncing } from '../dataStore';
 import { updateLastSyncTime } from './config';
 import { validateRemoteData } from './remoteValidation';
-import { updateRemoteConfigLastSync } from './remoteConfig';
+import { updateRemoteConfigLastSync } from './remote';
 
 /**
  * Synchronize with remote source

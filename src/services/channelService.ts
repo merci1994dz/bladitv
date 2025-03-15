@@ -1,16 +1,14 @@
-
 import { Channel } from '@/types';
 import { channels } from './dataStore';
 import { STORAGE_KEYS } from './config';
-import { syncWithRemoteAPI } from './sync'; // Fixed import path
+import { syncWithLocalData } from './sync/local';
 import { addChannelToHistory } from './historyService';
 
 // وظائف API المتعلقة بالقنوات
 export const getChannels = async (): Promise<Channel[]> => {
   await new Promise(resolve => setTimeout(resolve, 300));
   
-  // محاولة المزامنة مع التخزين المحلي (ولكن دون انتظار ذلك)
-  syncWithRemoteAPI().catch(console.error);
+  syncWithLocalData().catch(console.error);
   
   return [...channels];
 };
@@ -53,10 +51,8 @@ export const toggleFavoriteChannel = async (channelId: string): Promise<Channel>
 export const playChannel = async (channelId: string): Promise<Channel> => {
   await new Promise(resolve => setTimeout(resolve, 100));
   
-  // التحقق من وجود القناة
   const channelIndex = channels.findIndex(c => c.id === channelId);
   if (channelIndex >= 0) {
-    // إضافة القناة إلى سجل المشاهدة
     await addChannelToHistory(channelId);
     
     return channels[channelIndex];

@@ -1,7 +1,7 @@
 
 import { REMOTE_CONFIG } from '../config';
 import { setIsSyncing } from '../dataStore';
-import { getRemoteConfig } from './remoteConfig';
+import { getRemoteConfig } from './remote'; // تم تصحيح المسار
 import { syncWithRemoteSource } from './remoteSync';
 import { syncWithLocalData } from './local';
 import { isSyncLocked, setSyncLock, releaseSyncLock, addToSyncQueue } from './syncLock';

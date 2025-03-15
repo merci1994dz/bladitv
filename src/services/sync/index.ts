@@ -21,7 +21,7 @@ export {
 export { 
   getLastSyncTime, 
   isSyncNeeded,
-  syncWithRemoteAPI,
+  syncWithLocalData,
   forceSync,
   obfuscateStreamUrls
 } from './local';
