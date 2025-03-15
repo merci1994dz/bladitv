@@ -17,14 +17,37 @@ import NotFound from "./pages/NotFound";
 import UserSettings from "./pages/UserSettings";
 import { useEffect } from "react";
 import { setupSettingsListener } from "./services/sync/settingsSync";
+import { syncAllData } from "./services/sync";
 
-const queryClient = new QueryClient();
+// إنشاء عميل استعلام ثابت
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 دقائق
+      retry: 2,
+      refetchOnWindowFocus: true,
+    },
+  },
+});
 
 const App = () => {
-  // تهيئة مستمع الإعدادات عند بدء التطبيق
+  // تهيئة مستمعات التغييرات عند بدء التطبيق
   useEffect(() => {
+    console.log('تهيئة التطبيق والمستمعات...');
+    
+    // إعداد مستمع التغييرات في الإعدادات والبيانات
     const cleanupSettingsListener = setupSettingsListener();
-    return () => cleanupSettingsListener();
+    
+    // مزامنة البيانات عند بدء التطبيق
+    syncAllData().catch(console.error);
+    
+    // إضافة علامة زمنية لبدء التطبيق
+    localStorage.setItem('app_started', Date.now().toString());
+    
+    return () => {
+      // تنظيف المستمعات عند إغلاق التطبيق
+      cleanupSettingsListener();
+    };
   }, []);
 
   return (
@@ -72,21 +95,21 @@ const App = () => {
                   <Navigation />
                 </>
               } />
-              {/* إضافة مسار صفحة الإعدادات الجديدة */}
+              {/* مسار صفحة الإعدادات */}
               <Route path="/settings" element={
                 <>
                   <UserSettings />
                   <Navigation />
                 </>
               } />
-              {/* مسار المشرف لا يزال موجودًا ولكنه مخفي من التنقل */}
+              {/* مسار المشرف */}
               <Route path="/admin" element={
                 <>
                   <Admin />
                   <Navigation />
                 </>
               } />
-              {/* أضف جميع المسارات المخصصة فوق مسار الالتقاط "*" */}
+              {/* مسار الالتقاط لجميع المسارات غير الموجودة */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>

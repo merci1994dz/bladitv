@@ -14,17 +14,28 @@ export const setIsSyncing = (value: boolean) => {
   isSyncing = value;
 };
 
-// دالة جديدة لحفظ القنوات إلى التخزين المحلي وضمان مزامنتها
+// دالة محسّنة لحفظ القنوات إلى التخزين المحلي وضمان مزامنتها
 export const saveChannelsToStorage = () => {
   try {
     console.log(`حفظ ${channels.length} قناة إلى التخزين المحلي للنشر للجميع`);
+    
+    // حفظ البيانات بتنسيق JSON
     localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
     
-    // إضافة علامة زمنية للتأكد من أن المتصفح سيحدث القنوات
-    localStorage.setItem('channels_last_updated', Date.now().toString());
+    // إضافة علامات زمنية متعددة للتأكد من أن المتصفح سيحدث القنوات
+    const timestamp = Date.now().toString();
+    localStorage.setItem('channels_last_updated', timestamp);
+    localStorage.setItem('last_update_time', timestamp); 
+    localStorage.setItem('bladi_info_update', timestamp);
+    localStorage.setItem('force_refresh', 'true');
     
-    // إضافة علامة للتحديث على bladi-info.com
-    localStorage.setItem('bladi_info_update', Date.now().toString());
+    // لتوافق إضافي مع جميع المتصفحات
+    try {
+      sessionStorage.setItem('channel_update', timestamp);
+      document.cookie = `channel_update=${timestamp}; path=/;`;
+    } catch (e) {
+      // تجاهل أي أخطاء هنا
+    }
     
     return true;
   } catch (error) {
@@ -33,10 +44,12 @@ export const saveChannelsToStorage = () => {
   }
 };
 
-// دالة مُحَسَّنة لتحميل البيانات من التخزين المحلي أو استخدام البيانات الاحتياطية
+// دالة مُحسَّنة لتحميل البيانات من التخزين المحلي أو استخدام البيانات الاحتياطية
 export const loadFromLocalStorage = () => {
   try {
-    // Clear memory cache first
+    console.log('تحميل البيانات من التخزين المحلي...');
+    
+    // تفريغ ذاكرة التخزين المؤقت أولاً
     channels = [];
     countries = [];
     categories = [];
@@ -45,40 +58,77 @@ export const loadFromLocalStorage = () => {
     const storedCountries = localStorage.getItem(STORAGE_KEYS.COUNTRIES);
     const storedCategories = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
 
+    // تحميل القنوات
     if (storedChannels) {
-      channels = JSON.parse(storedChannels);
-      console.log(`تم تحميل ${channels.length} قناة من التخزين المحلي`);
+      try {
+        const parsedChannels = JSON.parse(storedChannels);
+        if (Array.isArray(parsedChannels) && parsedChannels.length > 0) {
+          channels = parsedChannels;
+          console.log(`تم تحميل ${channels.length} قناة من التخزين المحلي`);
+        } else {
+          throw new Error('تنسيق القنوات غير صالح');
+        }
+      } catch (e) {
+        console.error('خطأ في تحليل بيانات القنوات:', e);
+        channels = [...fallbackChannels];
+        console.log(`تم تحميل ${channels.length} قناة من البيانات الاحتياطية بسبب خطأ`);
+      }
     } else {
       channels = [...fallbackChannels];
       console.log(`تم تحميل ${channels.length} قناة من البيانات الاحتياطية`);
-      // حفظ البيانات الاحتياطية إلى التخزين المحلي لضمان توفرها
-      saveChannelsToStorage();
     }
 
+    // تحميل الدول
     if (storedCountries) {
-      countries = JSON.parse(storedCountries);
-      console.log(`تم تحميل ${countries.length} دولة من التخزين المحلي`);
+      try {
+        const parsedCountries = JSON.parse(storedCountries);
+        if (Array.isArray(parsedCountries) && parsedCountries.length > 0) {
+          countries = parsedCountries;
+          console.log(`تم تحميل ${countries.length} دولة من التخزين المحلي`);
+        } else {
+          throw new Error('تنسيق الدول غير صالح');
+        }
+      } catch (e) {
+        console.error('خطأ في تحليل بيانات الدول:', e);
+        countries = [...fallbackCountries];
+      }
     } else {
       countries = [...fallbackCountries];
       console.log(`تم تحميل ${countries.length} دولة من البيانات الاحتياطية`);
-      localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(countries));
     }
 
+    // تحميل التصنيفات
     if (storedCategories) {
-      categories = JSON.parse(storedCategories);
-      console.log(`تم تحميل ${categories.length} فئة من التخزين المحلي`);
+      try {
+        const parsedCategories = JSON.parse(storedCategories);
+        if (Array.isArray(parsedCategories) && parsedCategories.length > 0) {
+          categories = parsedCategories;
+          console.log(`تم تحميل ${categories.length} فئة من التخزين المحلي`);
+        } else {
+          throw new Error('تنسيق الفئات غير صالح');
+        }
+      } catch (e) {
+        console.error('خطأ في تحليل بيانات الفئات:', e);
+        categories = [...fallbackCategories];
+      }
     } else {
       categories = [...fallbackCategories];
       console.log(`تم تحميل ${categories.length} فئة من البيانات الاحتياطية`);
-      localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
     }
+    
+    // حفظ البيانات المحملة مرة أخرى لضمان توفرها
+    saveChannelsToStorage();
+    localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(countries));
+    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
     
     // تهيئة كلمة مرور المشرف إذا لم تكن موجودة
     if (!localStorage.getItem(STORAGE_KEYS.ADMIN_PASSWORD)) {
       localStorage.setItem(STORAGE_KEYS.ADMIN_PASSWORD, 'admin123');
     }
+    
+    return true;
   } catch (error) {
-    console.error('Error loading data from localStorage:', error);
+    console.error('خطأ خطير في تحميل البيانات من التخزين المحلي:', error);
     
     // استخدام البيانات الاحتياطية
     channels = [...fallbackChannels];
@@ -86,32 +136,41 @@ export const loadFromLocalStorage = () => {
     categories = [...fallbackCategories];
     
     // محاولة حفظ البيانات الاحتياطية
-    saveChannelsToStorage();
-    localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(countries));
-    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+    try {
+      saveChannelsToStorage();
+      localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(countries));
+      localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+    } catch (saveError) {
+      console.error('فشل في حفظ البيانات الاحتياطية:', saveError);
+    }
+    
+    return false;
   }
 };
 
-// دالة محسنة لإضافة قناة وضمان تخزينها بشكل صحيح
+// دالة محسنة لإضافة قناة وضمان تخزينها ونشرها
 export const addChannelToMemory = (channel: Channel) => {
   // التحقق من وجود القناة
   const index = channels.findIndex(c => c.id === channel.id);
+  
   if (index >= 0) {
     // تحديث القناة الموجودة
-    channels[index] = channel;
+    channels[index] = { ...channel };
+    console.log(`تم تحديث القناة: ${channel.name}`);
   } else {
     // إضافة قناة جديدة
-    channels.push(channel);
+    channels.push({ ...channel });
+    console.log(`تم إضافة القناة: ${channel.name}`);
   }
   
-  // حفظ إلى التخزين المحلي مباشرة
+  // حفظ إلى التخزين المحلي مباشرة وإضافة علامات تحديث
   saveChannelsToStorage();
   
-  // إضافة علامة زمنية للتحديثات الجديدة
+  // إضافة علامات تحديث إضافية
+  const timestamp = Date.now().toString();
   localStorage.setItem('channels_updated_at', new Date().toISOString());
-  localStorage.setItem('bladi_info_update', Date.now().toString());
-  
-  console.log(`تم ${index >= 0 ? 'تحديث' : 'إضافة'} القناة: ${channel.name} ونشرها للمستخدمين`);
+  localStorage.setItem('bladi_info_update', timestamp);
+  localStorage.setItem('force_browser_refresh', 'true');
   
   return channel;
 };
@@ -126,10 +185,32 @@ export const removeChannelFromMemory = (channelId: string) => {
     // حفظ التغييرات مباشرة
     saveChannelsToStorage();
     
-    // إضافة علامة التحديث لـ bladi-info.com
-    localStorage.setItem('bladi_info_update', Date.now().toString());
+    // إضافة علامات تحديث
+    const timestamp = Date.now().toString();
+    localStorage.setItem('bladi_info_update', timestamp);
+    localStorage.setItem('force_browser_refresh', 'true');
     
     console.log(`تم حذف القناة: ${channelName} وتحديث البيانات`);
+    return true;
+  }
+  return false;
+};
+
+// تحديث بيانات قناة وضمان نشرها
+export const updateChannelInMemory = (channel: Channel) => {
+  const index = channels.findIndex(c => c.id === channel.id);
+  if (index >= 0) {
+    channels[index] = { ...channel };
+    
+    // حفظ التغييرات ونشرها
+    saveChannelsToStorage();
+    
+    // إضافة علامات تحديث
+    const timestamp = Date.now().toString();
+    localStorage.setItem('channel_updated', timestamp);
+    localStorage.setItem('force_browser_refresh', 'true');
+    
+    console.log(`تم تحديث القناة: ${channel.name} ونشرها`);
     return true;
   }
   return false;
