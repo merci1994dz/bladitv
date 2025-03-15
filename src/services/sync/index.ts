@@ -4,6 +4,8 @@ import { isSyncing, setIsSyncing, saveChannelsToStorage } from '../dataStore';
 import { getRemoteConfig, setRemoteConfig, syncWithRemoteSource } from './remote';
 import { syncWithLocalData, getLastSyncTime, isSyncNeeded, forceSync, obfuscateStreamUrls, syncWithRemoteAPI } from './local';
 import { setupAutoSync } from './auto';
+// Import the refactored settings sync functionality
+import { setupSettingsListener, broadcastSettingsUpdate, forceAppReloadForAllUsers } from './settingsSync';
 
 // Main export of sync functions
 export { 
@@ -21,6 +23,13 @@ export {
 } from './remote';
 
 export { setupAutoSync } from './auto';
+
+// Export the refactored settings sync functionality
+export {
+  setupSettingsListener,
+  broadcastSettingsUpdate,
+  forceAppReloadForAllUsers
+} from './settingsSync';
 
 // آلية قفل المزامنة المحسنة
 let syncLock = false;
