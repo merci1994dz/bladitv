@@ -65,7 +65,7 @@ const ChannelsManager: React.FC<ChannelsManagerProps> = ({
           <TabsList className="mb-6 w-full grid grid-cols-2">
             <TabsTrigger value="import" className="flex items-center gap-1.5">
               <Globe className="h-4 w-4" />
-              <span>استيراد من bladi-info.com</span>
+              <span>التزامن مع bladi-info.com</span>
             </TabsTrigger>
             <TabsTrigger value="add" className="flex items-center gap-1.5">
               <PlusCircle className="h-4 w-4" />

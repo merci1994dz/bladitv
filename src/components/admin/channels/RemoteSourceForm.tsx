@@ -37,13 +37,15 @@ const RemoteSourceForm: React.FC<RemoteSourceFormProps> = ({ onSyncComplete }) =
     try {
       // إضافة معلمات لتجنب التخزين المؤقت
       const urlWithCacheBuster = `${remoteUrl}${remoteUrl.includes('?') ? '&' : '?'}_=${Date.now()}&nocache=${Math.random()}`;
+      
+      console.log('بدء التزامن مع:', urlWithCacheBuster);
         
       const success = await syncWithRemoteSource(urlWithCacheBuster, forceRefresh);
       
       if (success) {
         toast({
-          title: "تمت المزامنة بنجاح",
-          description: "تم استيراد القنوات من bladi-info.com بنجاح وستظهر للمستخدمين فورًا",
+          title: "تم التزامن بنجاح",
+          description: "تم التزامن مع bladi-info.com بنجاح وستظهر القنوات للمستخدمين فورًا",
         });
         
         onSyncComplete();
@@ -57,13 +59,13 @@ const RemoteSourceForm: React.FC<RemoteSourceFormProps> = ({ onSyncComplete }) =
         }, 2000);
       } else {
         toast({
-          title: "فشلت المزامنة",
-          description: "حدث خطأ أثناء محاولة استيراد القنوات",
+          title: "فشل التزامن",
+          description: "حدث خطأ أثناء محاولة التزامن مع bladi-info.com",
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error('خطأ في مزامنة البيانات:', error);
+      console.error('خطأ في التزامن:', error);
       toast({
         title: "خطأ",
         description: "حدث خطأ أثناء الاتصال بـ bladi-info.com",
@@ -81,12 +83,14 @@ const RemoteSourceForm: React.FC<RemoteSourceFormProps> = ({ onSyncComplete }) =
       // استخدام الرابط المباشر لـ bladi-info.com
       const directUrl = `https://bladi-info.com/api/channels.json?_=${Date.now()}&direct=true`;
       
+      console.log('بدء التزامن المباشر مع bladi-info.com:', directUrl);
+      
       const success = await syncWithRemoteSource(directUrl, true);
       
       if (success) {
         toast({
-          title: "تمت المزامنة بنجاح",
-          description: "تم استيراد القنوات مباشرة من bladi-info.com ونشرها للمستخدمين",
+          title: "تم التزامن بنجاح",
+          description: "تم التزامن مباشرة مع bladi-info.com ونشر القنوات للمستخدمين",
         });
         
         onSyncComplete();
@@ -96,13 +100,13 @@ const RemoteSourceForm: React.FC<RemoteSourceFormProps> = ({ onSyncComplete }) =
           window.location.reload();
         }, 1500);
       } else {
-        throw new Error("فشل استيراد البيانات المباشر من bladi-info.com");
+        throw new Error("فشل التزامن المباشر مع bladi-info.com");
       }
     } catch (error) {
-      console.error('خطأ في المزامنة المباشرة:', error);
+      console.error('خطأ في التزامن المباشر:', error);
       toast({
-        title: "خطأ في المزامنة المباشرة",
-        description: "حدث خطأ أثناء استيراد القنوات مباشرة من bladi-info.com",
+        title: "خطأ في التزامن المباشر",
+        description: "حدث خطأ أثناء التزامن مباشرة مع bladi-info.com",
         variant: "destructive",
       });
     } finally {
@@ -115,19 +119,19 @@ const RemoteSourceForm: React.FC<RemoteSourceFormProps> = ({ onSyncComplete }) =
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Globe className="h-5 w-5 text-primary" />
-          <span>استيراد القنوات من bladi-info.com</span>
+          <span>التزامن مع bladi-info.com</span>
         </CardTitle>
         <CardDescription>
-          يمكنك استيراد قائمة القنوات مباشرة من موقع bladi-info.com وستظهر للمستخدمين فورًا
+          يمكنك التزامن مباشرة مع موقع bladi-info.com وستظهر القنوات للمستخدمين فورًا
         </CardDescription>
       </CardHeader>
       
       <CardContent className="space-y-4">
         <Alert className="bg-amber-50 text-amber-900 border-amber-200">
           <Globe className="h-4 w-4 text-amber-500" />
-          <AlertTitle>استيراد مباشر من bladi-info.com</AlertTitle>
+          <AlertTitle>تزامن مباشر مع bladi-info.com</AlertTitle>
           <AlertDescription>
-            للحصول على أفضل تجربة، يمكنك الضغط على زر "استيراد مباشر من bladi-info.com" أدناه للحصول على أحدث القنوات فورًا.
+            للحصول على أفضل تجربة، يمكنك الضغط على زر "تزامن مباشر مع bladi-info.com" أدناه للحصول على أحدث القنوات فورًا.
           </AlertDescription>
         </Alert>
         
@@ -155,7 +159,7 @@ const RemoteSourceForm: React.FC<RemoteSourceFormProps> = ({ onSyncComplete }) =
             onCheckedChange={(checked) => setForceRefresh(checked as boolean)}
           />
           <Label htmlFor="forceRefresh" className="text-sm cursor-pointer">
-            فرض تحديث البيانات وإعادة تحميل الصفحة بعد المزامنة
+            فرض تحديث البيانات وإعادة تحميل الصفحة بعد التزامن
           </Label>
         </div>
         
@@ -181,12 +185,12 @@ const RemoteSourceForm: React.FC<RemoteSourceFormProps> = ({ onSyncComplete }) =
           {isSyncing ? (
             <>
               <RefreshCw className="h-4 w-4 animate-spin" />
-              <span>جاري المزامنة...</span>
+              <span>جاري التزامن...</span>
             </>
           ) : (
             <>
               <Globe className="h-4 w-4" />
-              <span>استيراد مباشر من bladi-info.com</span>
+              <span>تزامن مباشر مع bladi-info.com</span>
             </>
           )}
         </Button>
@@ -200,12 +204,12 @@ const RemoteSourceForm: React.FC<RemoteSourceFormProps> = ({ onSyncComplete }) =
           {isSyncing ? (
             <>
               <RefreshCw className="h-4 w-4 animate-spin" />
-              <span>جاري المزامنة...</span>
+              <span>جاري التزامن...</span>
             </>
           ) : (
             <>
               <ArrowDownToLine className="h-4 w-4" />
-              <span>استيراد من الرابط المخصص</span>
+              <span>تزامن من الرابط المخصص</span>
             </>
           )}
         </Button>

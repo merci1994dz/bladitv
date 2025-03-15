@@ -31,6 +31,14 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 // إضافة متغير للتحقق مما إذا كان التطبيق يعمل على خادم استضافة أو محليًا
+// تعريف النوع لتجنب خطأ TypeScript
+declare global {
+  interface Window {
+    isHostedEnvironment: boolean;
+  }
+}
+
+// تهيئة المتغير
 window.isHostedEnvironment = window.location.hostname !== 'localhost' && !window.location.hostname.includes('127.0.0.1');
 
 // تحسين الأداء عند التشغيل على الاستضافة

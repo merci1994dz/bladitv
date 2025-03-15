@@ -21,8 +21,14 @@ export const useChannelsSync = (refetchChannels: () => Promise<any>) => {
       const cacheBuster = `?_=${Date.now()}&nocache=${Math.random()}`;
       const syncUrl = `https://bladi-info.com/api/channels.json${cacheBuster}`;
       
-      // محاولة المزامنة مع bladi-info.com أولاً
-      await syncWithRemoteSource(syncUrl, true);
+      console.log('بدء التزامن مع موقع bladi-info.com على الرابط:', syncUrl);
+      
+      // محاولة المزامنة مع bladi-info.com
+      const success = await syncWithRemoteSource(syncUrl, true);
+      
+      if (!success) {
+        throw new Error('فشلت عملية المزامنة مع bladi-info.com');
+      }
       
       // نشر التغييرات مع إجبار إعادة تحميل الصفحة
       await publishChannelsToAllUsers();
@@ -50,14 +56,16 @@ export const useChannelsSync = (refetchChannels: () => Promise<any>) => {
   // وظيفة مزامنة القنوات من bladi-info.com فقط
   const syncFromBladiInfo = async (): Promise<void> => {
     toast({
-      title: "جاري الاستيراد",
-      description: "جاري استيراد القنوات من bladi-info.com...",
+      title: "جاري التزامن",
+      description: "جاري التزامن مع bladi-info.com...",
     });
     
     try {
       // إضافة رمز عشوائي لتجنب التخزين المؤقت
       const cacheBuster = `?_=${Date.now()}&r=${Math.random()}`;
       const url = `https://bladi-info.com/api/channels.json${cacheBuster}`;
+      
+      console.log('التزامن المباشر مع bladi-info.com على الرابط:', url);
       
       // إضافة معلمات إضافية للتوافق مع بعض الاستضافات
       const success = await syncWithRemoteSource(url, true);
@@ -67,18 +75,18 @@ export const useChannelsSync = (refetchChannels: () => Promise<any>) => {
         await refetchChannels();
         
         toast({
-          title: "تم الاستيراد",
-          description: "تم استيراد القنوات بنجاح من bladi-info.com",
+          title: "تم التزامن",
+          description: "تم التزامن بنجاح مع bladi-info.com وتحديث القنوات",
         });
       } else {
-        throw new Error("فشل استيراد البيانات من bladi-info.com");
+        throw new Error("فشل التزامن مع bladi-info.com");
       }
     } catch (error) {
-      console.error('خطأ في استيراد القنوات:', error);
+      console.error('خطأ في التزامن مع bladi-info.com:', error);
       
       toast({
-        title: "خطأ في الاستيراد",
-        description: "حدث خطأ أثناء استيراد القنوات من bladi-info.com، يرجى المحاولة مرة أخرى",
+        title: "خطأ في التزامن",
+        description: "حدث خطأ أثناء التزامن مع bladi-info.com، يرجى المحاولة مرة أخرى",
         variant: "destructive",
       });
     }
