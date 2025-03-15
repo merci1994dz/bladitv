@@ -64,7 +64,7 @@ const ChannelsTab: React.FC = () => {
   const handleForceSync = async () => {
     setIsSyncing(true);
     toast({
-      title: "جاري المزامنة",
+      title: "جاري النشر",
       description: "جاري تحديث البيانات ونشرها للمستخدمين..."
     });
     
@@ -73,13 +73,13 @@ const ChannelsTab: React.FC = () => {
       setLastSyncTime(getLastSyncTime());
       
       toast({
-        title: "تمت المزامنة",
+        title: "تم النشر",
         description: "تم تحديث البيانات بنجاح ونشرها للمستخدمين",
       });
     } catch (error) {
       toast({
         title: "حدث خطأ",
-        description: "فشلت عملية المزامنة، يرجى المحاولة مرة أخرى",
+        description: "فشلت عملية النشر، يرجى المحاولة مرة أخرى",
         variant: "destructive"
       });
     } finally {

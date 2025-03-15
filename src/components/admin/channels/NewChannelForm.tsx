@@ -98,14 +98,14 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({
       
       // عرض رسالة نجاح المزامنة
       toast({
-        title: "تمت المزامنة بنجاح",
-        description: "تم تحديث جميع القنوات ونشرها للمستخدمين",
+        title: "تم النشر بنجاح",
+        description: "تم نشر جميع القنوات للمستخدمين",
       });
     } catch (error) {
-      console.error("خطأ أثناء المزامنة:", error);
+      console.error("خطأ أثناء النشر:", error);
       toast({
-        title: "خطأ في المزامنة",
-        description: "حدث خطأ أثناء مزامنة القنوات، يرجى المحاولة مرة أخرى",
+        title: "خطأ في النشر",
+        description: "حدث خطأ أثناء نشر القنوات، يرجى المحاولة مرة أخرى",
         variant: "destructive",
       });
     } finally {
@@ -148,7 +148,7 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({
             <ChannelFormActions 
               onManualSync={handleManualSync}
               isSyncing={isSyncing}
-              submitLabel="مزامنة القنوات ونشرها للمستخدمين"
+              submitLabel="نشر القنوات للمستخدمين"
               submitIcon={<PlusCircle className="h-4 w-4" />}
               isSubmitDisabled={true}
             />
