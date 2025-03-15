@@ -44,20 +44,15 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
       clearTimeout(timeoutId);
       
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('خطأ في الاستجابة:', response.status, errorText);
         throw new Error(`فشل الاتصال بالمصدر الخارجي: ${response.status}`);
       }
       
       const responseText = await response.text();
-      console.log('النص المستلم:', responseText.substring(0, 150) + '...');
       
       let remoteData;
       try {
         remoteData = JSON.parse(responseText);
       } catch (parseError) {
-        console.error('خطأ في تحليل JSON:', parseError);
-        console.log('النص المستلم غير صالح:', responseText.substring(0, 500));
         throw new Error('البيانات المستلمة ليست بتنسيق JSON صالح');
       }
       
@@ -80,32 +75,28 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
         return channel;
       });
       
-      // For forced refresh, we completely replace the data
+      // Store the data
       localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(remoteData.channels));
       localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(remoteData.countries));
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(remoteData.categories));
       
-      // Save last updated timestamps for each data type
+      // Save last updated timestamps
       localStorage.setItem('channels_updated_at', new Date().toISOString());
       localStorage.setItem('countries_updated_at', new Date().toISOString());
       localStorage.setItem('categories_updated_at', new Date().toISOString());
       
       // Update last sync time
-      const lastSyncTime = updateLastSyncTime();
+      updateLastSyncTime();
       
       // Update stored config
       updateRemoteConfigLastSync(remoteUrl);
       
       console.log('تم تحديث البيانات بنجاح من المصدر الخارجي');
       
-      // إضافة علامة زمنية مميزة لإجبار جميع المستخدمين على رؤية البيانات الجديدة
-      localStorage.setItem('force_data_refresh', Date.now().toString());
-      
       // Force page reload in cases of significant data changes (for admin actions)
       if (forceRefresh) {
         console.log('سيتم إعادة تحميل الصفحة لتطبيق التغييرات...');
         
-        // نؤخر إعادة تحميل الصفحة قليلاً لإتاحة الوقت لعرض رسالة النجاح
         setTimeout(() => {
           window.location.reload();
         }, 1500);
@@ -117,7 +108,6 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
       if (fetchError.name === 'AbortError') {
         throw new Error('انتهت المهلة الزمنية للاتصال بالمصدر الخارجي');
       }
-      console.error('خطأ في الاتصال:', fetchError);
       throw fetchError;
     }
   } catch (error) {
