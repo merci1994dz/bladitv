@@ -7,7 +7,11 @@ import { useToast } from '@/hooks/use-toast';
 import { publishChannelsToAllUsers } from '@/services/sync';
 import { saveChannelsToStorage } from '@/services/dataStore';
 
-export const useChannelsAdmin = () => {
+interface UseChannelsAdminProps {
+  autoPublish?: boolean;
+}
+
+export const useChannelsAdmin = ({ autoPublish = true }: UseChannelsAdminProps = {}) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editableChannels, setEditableChannels] = useState<AdminChannel[]>([]);
@@ -42,13 +46,21 @@ export const useChannelsAdmin = () => {
       // إظهار إشعار للمستخدم
       toast({
         title: "تمت الإضافة بنجاح",
-        description: `تمت إضافة قناة "${newChannel.name}" ونشرها للمستخدمين`,
+        description: `تمت إضافة قناة "${newChannel.name}" ${autoPublish ? 'ونشرها للمستخدمين' : ''}`,
       });
       
-      // نشر القنوات لجميع المستخدمين
-      publishChannelsToAllUsers().catch(error => {
-        console.error('خطأ في نشر القنوات للمستخدمين:', error);
-      });
+      // نشر القنوات لجميع المستخدمين (إذا كان التلقائي مفعل)
+      if (autoPublish) {
+        publishChannelsToAllUsers().catch(error => {
+          console.error('خطأ في نشر القنوات للمستخدمين:', error);
+          
+          toast({
+            title: "تنبيه",
+            description: "تم إضافة القناة، لكن قد يكون هناك مشكلة في النشر التلقائي",
+            variant: "warning",
+          });
+        });
+      }
     },
     onError: (error) => {
       toast({
@@ -72,13 +84,21 @@ export const useChannelsAdmin = () => {
       // إظهار إشعار للمستخدم
       toast({
         title: "تم التحديث",
-        description: `تم تحديث بيانات قناة "${updatedChannel.name}" ونشرها للمستخدمين`,
+        description: `تم تحديث بيانات قناة "${updatedChannel.name}" ${autoPublish ? 'ونشرها للمستخدمين' : ''}`,
       });
       
-      // نشر التغييرات لجميع المستخدمين
-      publishChannelsToAllUsers().catch(error => {
-        console.error('خطأ في نشر التغييرات للمستخدمين:', error);
-      });
+      // نشر التغييرات لجميع المستخدمين (إذا كان التلقائي مفعل)
+      if (autoPublish) {
+        publishChannelsToAllUsers().catch(error => {
+          console.error('خطأ في نشر التغييرات للمستخدمين:', error);
+          
+          toast({
+            title: "تنبيه",
+            description: "تم تحديث القناة، لكن قد يكون هناك مشكلة في النشر التلقائي",
+            variant: "warning",
+          });
+        });
+      }
     },
     onError: (error) => {
       toast({
@@ -102,13 +122,21 @@ export const useChannelsAdmin = () => {
       // إظهار إشعار للمستخدم
       toast({
         title: "تم الحذف",
-        description: "تم حذف القناة بنجاح ونشر التغييرات للمستخدمين",
+        description: `تم حذف القناة بنجاح ${autoPublish ? 'ونشر التغييرات للمستخدمين' : ''}`,
       });
       
-      // نشر التغييرات لجميع المستخدمين
-      publishChannelsToAllUsers().catch(error => {
-        console.error('خطأ في نشر التغييرات للمستخدمين بعد الحذف:', error);
-      });
+      // نشر التغييرات لجميع المستخدمين (إذا كان التلقائي مفعل)
+      if (autoPublish) {
+        publishChannelsToAllUsers().catch(error => {
+          console.error('خطأ في نشر التغييرات للمستخدمين بعد الحذف:', error);
+          
+          toast({
+            title: "تنبيه",
+            description: "تم حذف القناة، لكن قد يكون هناك مشكلة في النشر التلقائي",
+            variant: "warning",
+          });
+        });
+      }
     },
     onError: (error) => {
       toast({
@@ -119,7 +147,7 @@ export const useChannelsAdmin = () => {
     }
   });
   
-  // وظيفة جديدة لإضافة قناة
+  // وظيفة إضافة قناة
   const addChannel = (channelData: Omit<Channel, 'id'>) => {
     addChannelMutation.mutate(channelData);
   };
@@ -150,7 +178,7 @@ export const useChannelsAdmin = () => {
     deleteChannelMutation.mutate(id);
   };
   
-  // وظيفة جديدة لتحديث القنوات يدويًا
+  // وظيفة مزامنة القنوات يدويًا وضمان نشرها للمستخدمين
   const manualSyncChannels = async () => {
     toast({
       title: "جاري المزامنة",
@@ -158,6 +186,7 @@ export const useChannelsAdmin = () => {
     });
     
     try {
+      // نشر التغييرات مع إجبار إعادة تحميل الصفحة
       await publishChannelsToAllUsers();
       await refetchChannels();
       
