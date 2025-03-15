@@ -1,8 +1,8 @@
 
-import { REMOTE_CONFIG } from '../config';
+import { REMOTE_CONFIG, STORAGE_KEYS } from '../config';
 import { setIsSyncing } from '../dataStore';
-import { getRemoteConfig } from './remote'; // تم تصحيح المسار
-import { syncWithRemoteSource } from './remoteSync';
+import { getRemoteConfig } from './remote';
+import { syncWithRemoteSource, syncWithBladiInfo } from './remoteSync';
 import { syncWithLocalData } from './local';
 import { isSyncLocked, setSyncLock, releaseSyncLock, addToSyncQueue } from './syncLock';
 
@@ -26,22 +26,25 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     // إضافة معامل لمنع التخزين المؤقت (cache-busting)
     const cacheBuster = `?_=${Date.now()}&nocache=${Math.random().toString(36).substring(2, 15)}`;
     
+    // محاولة المزامنة مع مواقع Bladi Info أولاً
+    const bladiInfoResult = await syncWithBladiInfo(forceRefresh);
+    if (bladiInfoResult) {
+      return true;
+    }
+    
     // التحقق من وجود تكوين خارجي
-    const remoteConfigStr = localStorage.getItem('tv_remote_config');
-    if (REMOTE_CONFIG.ENABLED && remoteConfigStr) {
+    const remoteConfig = getRemoteConfig();
+    if (REMOTE_CONFIG.ENABLED && remoteConfig && remoteConfig.url) {
       try {
-        const remoteConfig = JSON.parse(remoteConfigStr);
-        if (remoteConfig && remoteConfig.url) {
-          // إضافة معامل كسر التخزين المؤقت للرابط
-          const urlWithCacheBuster = remoteConfig.url.includes('?') 
-            ? `${remoteConfig.url}&_=${Date.now()}&nocache=${Math.random().toString(36).substring(2, 15)}` 
-            : `${remoteConfig.url}${cacheBuster}`;
-            
-          const result = await syncWithRemoteSource(urlWithCacheBuster, forceRefresh);
-          return result;
-        }
+        // إضافة معامل كسر التخزين المؤقت للرابط
+        const urlWithCacheBuster = remoteConfig.url.includes('?') 
+          ? `${remoteConfig.url}&_=${Date.now()}&nocache=${Math.random().toString(36).substring(2, 15)}` 
+          : `${remoteConfig.url}${cacheBuster}`;
+          
+        const result = await syncWithRemoteSource(urlWithCacheBuster, forceRefresh);
+        return result;
       } catch (error) {
-        console.error('خطأ في قراءة تكوين المصدر الخارجي:', error);
+        console.error('خطأ في المزامنة مع المصدر الخارجي المحفوظ:', error);
       }
     }
     
@@ -62,14 +65,28 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
 export const performInitialSync = async (): Promise<boolean> => {
   const { isSyncNeeded } = await import('./local');
   
-  if (isSyncNeeded()) {
-    try {
-      console.log('بدء المزامنة الأولية...');
-      return await syncAllData();
-    } catch (error) {
-      console.error('فشلت المزامنة الأولية:', error);
-      return false;
+  try {
+    console.log('بدء المزامنة الأولية...');
+    const needsSync = isSyncNeeded();
+    
+    if (needsSync) {
+      console.log('التطبيق يحتاج إلى مزامنة البيانات');
+      // محاولة مزامنة مع مواقع Bladi Info أولاً
+      try {
+        const bladiResult = await syncWithBladiInfo(false);
+        if (bladiResult) {
+          console.log('تمت المزامنة بنجاح مع مواقع Bladi Info');
+          return true;
+        }
+      } catch (error) {
+        console.error('فشلت المزامنة مع مواقع Bladi Info:', error);
+      }
     }
+    
+    // إذا لم تكن هناك حاجة للمزامنة أو فشلت المزامنة مع المواقع، استخدم المزامنة العادية
+    return await syncAllData();
+  } catch (error) {
+    console.error('فشلت المزامنة الأولية:', error);
+    return false;
   }
-  return true;
 };

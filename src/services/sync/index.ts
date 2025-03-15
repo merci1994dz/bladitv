@@ -14,8 +14,11 @@ import { isSyncInProgress } from './status';
 export { 
   getRemoteConfig, 
   setRemoteConfig,
-  syncWithRemoteSource 
+  syncWithRemoteSource
 } from './remote';
+
+// Export from remoteSync.ts
+export { syncWithBladiInfo } from './remoteSync';
 
 // Export from local.ts
 export { 

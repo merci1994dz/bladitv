@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { syncAllData } from '@/services/sync';
+import { syncAllData, syncWithBladiInfo } from '@/services/sync';
 import { useToast } from '@/hooks/use-toast';
 import { broadcastSettingsUpdate } from '@/services/sync/settingsSync';
 
@@ -13,6 +13,24 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
   const [syncError, setSyncError] = useState<string | null>(null);
   
   useEffect(() => {
+    // محاولة المزامنة مع bladi-info.com أو bladitv.lovable.app أولاً
+    const performInitialBladiSync = async () => {
+      console.log('جاري محاولة المزامنة مع مواقع Bladi Info...');
+      try {
+        const success = await syncWithBladiInfo();
+        if (success) {
+          console.log('تمت المزامنة الأولية بنجاح مع مواقع Bladi Info');
+          setSyncError(null);
+        } else {
+          console.warn('فشلت المزامنة مع مواقع Bladi Info، جاري المحاولة مع المصادر الأخرى');
+          await performSync();
+        }
+      } catch (error) {
+        console.error('خطأ في المزامنة الأولية مع مواقع Bladi Info:', error);
+        await performSync();
+      }
+    };
+    
     // وظيفة المزامنة المحسنة مع تجنب المزامنات المتكررة
     const performSync = async () => {
       try {
@@ -27,13 +45,13 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
     // تأخير المزامنة الأولية لمنع التعارض مع التهيئة الأولية
     const initialSyncTimeout = setTimeout(() => {
       console.log('بدء المزامنة الأولية في AutoSyncProvider');
-      performSync();
-    }, 5000);
+      performInitialBladiSync();
+    }, 3000);
     
-    // إعداد مزامنة تلقائية كل 5 دقائق (زيادة من دقيقتين)
+    // إعداد مزامنة تلقائية كل 5 دقائق
     const syncInterval = setInterval(() => {
       console.log('تنفيذ المزامنة الدورية');
-      performSync();
+      performInitialBladiSync();
     }, 5 * 60 * 1000);
     
     // إعداد مستمع لحالة الاتصال بالإنترنت
@@ -43,7 +61,7 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
         description: "جاري تحديث البيانات...",
         duration: 3000,
       });
-      performSync();
+      performInitialBladiSync();
     };
     
     window.addEventListener('online', handleOnline);
@@ -52,13 +70,14 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
     const handleFocus = () => {
       // تأخير بسيط لمنع المزامنات المتكررة عند التبديل بين علامات التبويب
       setTimeout(() => {
-        performSync();
+        console.log('تم اكتشاف العودة إلى التبويب، جاري التحقق من التحديثات...');
+        performInitialBladiSync();
       }, 1000);
     };
     
     window.addEventListener('focus', handleFocus);
     
-    // إنشاء فاصل زمني لنشر حالة التحديث (كل 10 دقائق بدلاً من 5)
+    // إنشاء فاصل زمني لنشر حالة التحديث
     const broadcastInterval = setInterval(() => {
       broadcastSettingsUpdate();
     }, 10 * 60 * 1000);
