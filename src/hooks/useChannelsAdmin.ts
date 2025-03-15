@@ -1,9 +1,11 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getChannels, updateChannel, deleteChannel } from '@/services/api';
+import { getChannels, updateChannel, deleteChannel, addChannel as apiAddChannel } from '@/services/api';
 import { Channel, AdminChannel } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { publishChannelsToAllUsers } from '@/services/sync';
+import { saveChannelsToStorage } from '@/services/dataStore';
 
 export const useChannelsAdmin = () => {
   const { toast } = useToast();
@@ -13,7 +15,8 @@ export const useChannelsAdmin = () => {
   // Query channels data
   const { 
     data: channels,
-    isLoading: isLoadingChannels
+    isLoading: isLoadingChannels,
+    refetch: refetchChannels
   } = useQuery({
     queryKey: ['channels'],
     queryFn: getChannels
@@ -26,14 +29,55 @@ export const useChannelsAdmin = () => {
     }
   }, [channels]);
   
-  // Update mutation
+  // Add channel mutation
+  const addChannelMutation = useMutation({
+    mutationFn: apiAddChannel,
+    onSuccess: async (newChannel) => {
+      // إعادة تحميل البيانات
+      queryClient.invalidateQueries({ queryKey: ['channels'] });
+      
+      // ضمان النشر للجميع
+      await saveChannelsToStorage();
+      
+      // إظهار إشعار للمستخدم
+      toast({
+        title: "تمت الإضافة بنجاح",
+        description: `تمت إضافة قناة "${newChannel.name}" ونشرها للمستخدمين`,
+      });
+      
+      // نشر القنوات لجميع المستخدمين
+      publishChannelsToAllUsers().catch(error => {
+        console.error('خطأ في نشر القنوات للمستخدمين:', error);
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "حدث خطأ",
+        description: `تعذر إضافة القناة: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Update mutation - محسنة لضمان ظهور التغييرات
   const updateChannelMutation = useMutation({
     mutationFn: updateChannel,
-    onSuccess: () => {
+    onSuccess: async (updatedChannel) => {
+      // إعادة تحميل البيانات
       queryClient.invalidateQueries({ queryKey: ['channels'] });
+      
+      // ضمان النشر للجميع
+      await saveChannelsToStorage();
+      
+      // إظهار إشعار للمستخدم
       toast({
         title: "تم التحديث",
-        description: "تم تحديث بيانات القناة بنجاح",
+        description: `تم تحديث بيانات قناة "${updatedChannel.name}" ونشرها للمستخدمين`,
+      });
+      
+      // نشر التغييرات لجميع المستخدمين
+      publishChannelsToAllUsers().catch(error => {
+        console.error('خطأ في نشر التغييرات للمستخدمين:', error);
       });
     },
     onError: (error) => {
@@ -45,14 +89,25 @@ export const useChannelsAdmin = () => {
     }
   });
   
-  // Delete mutation
+  // Delete mutation - محسنة لضمان تحديث القنوات
   const deleteChannelMutation = useMutation({
     mutationFn: deleteChannel,
-    onSuccess: () => {
+    onSuccess: async () => {
+      // إعادة تحميل البيانات
       queryClient.invalidateQueries({ queryKey: ['channels'] });
+      
+      // ضمان تحديث القائمة
+      await saveChannelsToStorage();
+      
+      // إظهار إشعار للمستخدم
       toast({
         title: "تم الحذف",
-        description: "تم حذف القناة بنجاح",
+        description: "تم حذف القناة بنجاح ونشر التغييرات للمستخدمين",
+      });
+      
+      // نشر التغييرات لجميع المستخدمين
+      publishChannelsToAllUsers().catch(error => {
+        console.error('خطأ في نشر التغييرات للمستخدمين بعد الحذف:', error);
       });
     },
     onError: (error) => {
@@ -63,6 +118,11 @@ export const useChannelsAdmin = () => {
       });
     }
   });
+  
+  // وظيفة جديدة لإضافة قناة
+  const addChannel = (channelData: Omit<Channel, 'id'>) => {
+    addChannelMutation.mutate(channelData);
+  };
   
   const toggleEditChannel = (id: string) => {
     setEditableChannels(channels => channels.map(channel => 
@@ -90,12 +150,39 @@ export const useChannelsAdmin = () => {
     deleteChannelMutation.mutate(id);
   };
   
+  // وظيفة جديدة لتحديث القنوات يدويًا
+  const manualSyncChannels = async () => {
+    toast({
+      title: "جاري المزامنة",
+      description: "جاري تحديث قائمة القنوات ونشرها للمستخدمين...",
+    });
+    
+    try {
+      await publishChannelsToAllUsers();
+      await refetchChannels();
+      
+      toast({
+        title: "تمت المزامنة",
+        description: "تم تحديث القنوات بنجاح ونشرها للمستخدمين",
+      });
+    } catch (error) {
+      console.error('خطأ في مزامنة القنوات:', error);
+      toast({
+        title: "خطأ في المزامنة",
+        description: "حدث خطأ أثناء مزامنة القنوات، يرجى المحاولة مرة أخرى",
+        variant: "destructive",
+      });
+    }
+  };
+  
   return {
     editableChannels,
     isLoadingChannels,
+    addChannel,
     toggleEditChannel,
     updateEditableChannel,
     saveChannelChanges,
-    handleDeleteChannel
+    handleDeleteChannel,
+    manualSyncChannels
   };
 };

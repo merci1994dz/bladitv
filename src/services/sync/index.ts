@@ -1,6 +1,6 @@
 
 import { REMOTE_CONFIG } from '../config';
-import { isSyncing, setIsSyncing } from '../dataStore';
+import { isSyncing, setIsSyncing, saveChannelsToStorage } from '../dataStore';
 import { getRemoteConfig, setRemoteConfig, syncWithRemoteSource } from './remote';
 import { syncWithLocalData, getLastSyncTime, isSyncNeeded, forceSync, obfuscateStreamUrls, syncWithRemoteAPI } from './local';
 import { setupAutoSync } from './auto';
@@ -22,7 +22,7 @@ export {
 
 export { setupAutoSync } from './auto';
 
-// Main sync function - Improved with better caching control
+// Main sync function - Improved with better caching control and guaranteed refresh
 export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
   if (isSyncing) {
     console.log('المزامنة قيد التنفيذ بالفعل');
@@ -60,14 +60,26 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
   }
 };
 
-// Force refresh function - this can be called from admin interface to ensure new channels appear
+// Force refresh function - enhanced to ensure all data is refreshed
 export const forceDataRefresh = async (): Promise<boolean> => {
   // Clear channel data from localStorage to force a refresh
   localStorage.removeItem('last_sync_time');
   localStorage.removeItem('last_sync');
   
+  // Trigger a save of current channels to ensure they're included in local storage
+  saveChannelsToStorage();
+  
   // Force the refresh
-  return syncAllData(true);
+  const success = await syncAllData(true);
+  
+  // Force page reload to show new data
+  if (success) {
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+  }
+  
+  return success;
 };
 
 // Export sync status check function
@@ -82,6 +94,15 @@ export const performInitialSync = (): void => {
       console.error('Initial sync failed:', error);
     });
   }
+};
+
+// Ensure channels are visible to all users - new function
+export const publishChannelsToAllUsers = async (): Promise<boolean> => {
+  // Save channels to make sure they're visible to all
+  saveChannelsToStorage();
+  
+  // Force sync to make sure changes are propagated
+  return await forceDataRefresh();
 };
 
 // Initialize sync on application startup (only if needed)

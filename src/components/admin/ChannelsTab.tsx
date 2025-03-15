@@ -5,6 +5,8 @@ import { getCountries, getCategories } from '@/services/api';
 import NewChannelForm from './channels/NewChannelForm';
 import ChannelsList from './channels/ChannelsList';
 import { useChannelsAdmin } from '@/hooks/useChannelsAdmin';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
 
 const ChannelsTab: React.FC = () => {
   // Get categories and countries data
@@ -24,14 +26,16 @@ const ChannelsTab: React.FC = () => {
     queryFn: getCategories
   });
   
-  // Use the channels admin hook
+  // Use the enhanced channels admin hook
   const {
     editableChannels,
     isLoadingChannels,
+    addChannel,
     toggleEditChannel,
     updateEditableChannel,
     saveChannelChanges,
-    handleDeleteChannel
+    handleDeleteChannel,
+    manualSyncChannels
   } = useChannelsAdmin();
 
   if (isLoadingChannels || isLoadingCountries || isLoadingCategories) {
@@ -44,10 +48,12 @@ const ChannelsTab: React.FC = () => {
   
   return (
     <div className="space-y-6">
-      {/* Form for adding new channels */}
+      {/* Form for adding new channels - with sync button */}
       <NewChannelForm 
         categories={categories || []} 
         countries={countries || []} 
+        onAddChannel={addChannel}
+        onManualSync={manualSyncChannels}
       />
       
       {/* List of existing channels */}

@@ -1,13 +1,11 @@
 
 import React from 'react';
 import { Channel } from '@/types';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { addChannel } from '@/services/api';
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, RefreshCw } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -19,11 +17,18 @@ import {
 interface NewChannelFormProps {
   categories: any[];
   countries: any[];
+  onAddChannel: (channel: Omit<Channel, 'id'>) => void;
+  onManualSync?: () => Promise<void>;
 }
 
-const NewChannelForm: React.FC<NewChannelFormProps> = ({ categories, countries }) => {
+const NewChannelForm: React.FC<NewChannelFormProps> = ({ 
+  categories, 
+  countries, 
+  onAddChannel,
+  onManualSync 
+}) => {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [isSyncing, setIsSyncing] = React.useState(false);
   
   const [newChannel, setNewChannel] = React.useState<Omit<Channel, 'id'>>({
     name: '',
@@ -32,32 +37,6 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({ categories, countries }
     category: '',
     country: '',
     isFavorite: false
-  });
-  
-  const addChannelMutation = useMutation({
-    mutationFn: addChannel,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['channels'] });
-      toast({
-        title: "تمت الإضافة بنجاح",
-        description: "تمت إضافة القناة الجديدة",
-      });
-      setNewChannel({
-        name: '',
-        logo: '',
-        streamUrl: '',
-        category: '',
-        country: '',
-        isFavorite: false
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "حدث خطأ",
-        description: `تعذر إضافة القناة: ${error.message}`,
-        variant: "destructive",
-      });
-    }
   });
   
   const handleAddChannel = (e: React.FormEvent) => {
@@ -70,7 +49,28 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({ categories, countries }
       });
       return;
     }
-    addChannelMutation.mutate(newChannel);
+    onAddChannel(newChannel);
+    
+    // تفريغ النموذج بعد الإضافة
+    setNewChannel({
+      name: '',
+      logo: '',
+      streamUrl: '',
+      category: '',
+      country: '',
+      isFavorite: false
+    });
+  };
+  
+  const handleManualSync = async () => {
+    if (!onManualSync) return;
+    
+    setIsSyncing(true);
+    try {
+      await onManualSync();
+    } finally {
+      setIsSyncing(false);
+    }
   };
   
   return (
@@ -154,6 +154,20 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({ categories, countries }
           <Button type="submit" className="w-full">إضافة القناة</Button>
         </form>
       </CardContent>
+      {onManualSync && (
+        <CardFooter className="flex justify-center pt-0">
+          <Button 
+            variant="outline" 
+            type="button" 
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className="mt-2"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+            {isSyncing ? 'جاري المزامنة...' : 'مزامنة القنوات ونشرها للمستخدمين'}
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 };
