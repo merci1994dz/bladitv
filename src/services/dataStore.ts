@@ -23,6 +23,9 @@ export const saveChannelsToStorage = () => {
     // إضافة علامة زمنية للتأكد من أن المتصفح سيحدث القنوات
     localStorage.setItem('channels_last_updated', Date.now().toString());
     
+    // إضافة علامة للتحديث على bladi-info.com
+    localStorage.setItem('bladi_info_update', Date.now().toString());
+    
     return true;
   } catch (error) {
     console.error('خطأ في حفظ القنوات إلى التخزين المحلي:', error);
@@ -106,6 +109,7 @@ export const addChannelToMemory = (channel: Channel) => {
   
   // إضافة علامة زمنية للتحديثات الجديدة
   localStorage.setItem('channels_updated_at', new Date().toISOString());
+  localStorage.setItem('bladi_info_update', Date.now().toString());
   
   console.log(`تم ${index >= 0 ? 'تحديث' : 'إضافة'} القناة: ${channel.name} ونشرها للمستخدمين`);
   
@@ -121,6 +125,9 @@ export const removeChannelFromMemory = (channelId: string) => {
     
     // حفظ التغييرات مباشرة
     saveChannelsToStorage();
+    
+    // إضافة علامة التحديث لـ bladi-info.com
+    localStorage.setItem('bladi_info_update', Date.now().toString());
     
     console.log(`تم حذف القناة: ${channelName} وتحديث البيانات`);
     return true;

@@ -75,6 +75,9 @@ export const forceDataRefresh = async (): Promise<boolean> => {
   // Force the refresh
   const success = await syncAllData(true);
   
+  // Add a special flag for bladi-info.com to detect changes
+  localStorage.setItem('bladi_info_update', Date.now().toString());
+  
   // Force page reload to show new data
   if (success) {
     // إضافة تأخير أطول لضمان اكتمال المزامنة
@@ -113,6 +116,7 @@ export const publishChannelsToAllUsers = async (): Promise<boolean> => {
     
     // 2. إضافة علامة زمنية للتأكد من أن كل المستخدمين سيرون البيانات المحدثة
     localStorage.setItem('data_version', Date.now().toString());
+    localStorage.setItem('bladi_info_update', Date.now().toString());
     
     // 3. تطبيق المزامنة القسرية - مع إعادة التحميل المتأخرة
     const syncResult = await forceDataRefresh();

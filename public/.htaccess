@@ -9,10 +9,18 @@
   # RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
   
   # تجنب التخزين المؤقت للملفات المهمة
-  <FilesMatch "\.(html|json)$">
+  <FilesMatch "\.(html|json|js)$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
     Header set Expires "0"
+  </FilesMatch>
+  
+  # منع التخزين المؤقت لبيانات API
+  <FilesMatch "data\.json$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+    Header set Access-Control-Allow-Origin "*"
   </FilesMatch>
   
   # السماح بالوصول عبر CORS (مهم لملفات API)
