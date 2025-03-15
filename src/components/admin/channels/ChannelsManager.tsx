@@ -1,10 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlusCircle, Link, Server, Globe } from 'lucide-react';
 import NewChannelForm from './NewChannelForm';
 import RemoteSourceForm from './RemoteSourceForm';
+import { useToast } from '@/hooks/use-toast';
 
 interface ChannelsManagerProps {
   categories: any[];
@@ -20,6 +21,36 @@ const ChannelsManager: React.FC<ChannelsManagerProps> = ({
   manualSyncChannels
 }) => {
   const [activeTab, setActiveTab] = useState<string>("import");
+  const { toast } = useToast();
+  
+  // تأكد من تهيئة التطبيق للاستضافة عند التحميل
+  useEffect(() => {
+    // التحقق من وجود ربط صحيح للاستضافة
+    const checkHostingConfig = async () => {
+      try {
+        // اختبار الاتصال بالمصدر الخارجي
+        const testUrl = 'https://bladi-info.com/api/channels.json';
+        const response = await fetch(`${testUrl}?_=${Date.now()}`, {
+          method: 'HEAD',
+          cache: 'no-store'
+        });
+        
+        if (response.ok) {
+          console.log('تم التحقق من الاتصال بـ bladi-info.com بنجاح');
+        }
+      } catch (error) {
+        console.warn('تنبيه: قد يكون هناك مشكلة في الاتصال بالمصدر الخارجي', error);
+        
+        toast({
+          title: "تنبيه حول الاستضافة",
+          description: "قد تحتاج لضبط CORS لإتاحة الاتصال بـ bladi-info.com من الاستضافة الخاصة بك",
+          duration: 10000
+        });
+      }
+    };
+    
+    checkHostingConfig();
+  }, [toast]);
 
   return (
     <Card className="border border-primary/20 shadow-md">

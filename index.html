@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ar">
   <head>
@@ -6,6 +7,11 @@
     <title>IPTV Streaming - بث القنوات المباشر</title>
     <meta name="description" content="شاهد قنوات IPTV مباشرة بجودة عالية وبسهولة." />
     <meta name="author" content="appdreamer-creator" />
+    
+    <!-- ضمان عدم التخزين المؤقت لتطبيق SPA -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     
     <!-- تحسينات السوشيال ميديا -->
     <meta property="og:title" content="IPTV Streaming - بث القنوات المباشر" />
@@ -24,13 +30,47 @@
     <!-- تحسين الأداء والأمان -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="robots" content="index, follow" />
+    
+    <!-- إضافة تلميح تحميل مسبق للمصادر الخارجية -->
+    <link rel="preconnect" href="https://bladi-info.com" crossorigin />
+    <link rel="dns-prefetch" href="https://bladi-info.com" />
   </head>
 
   <body class="bg-gray-100">
     <div id="root"></div>
     
     <!-- سكريبتات التطبيق -->
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- شيفرة لتحديث التطبيق عند وجود تغييرات -->
+    <script>
+      // تحقق من تحديثات التطبيق كل دقيقة (يمكن تعديلها)
+      const checkForUpdates = () => {
+        // تعيين وقت للتحقق من التحديثات
+        const lastCheck = localStorage.getItem('app_update_check');
+        const now = Date.now();
+        if (!lastCheck || (now - parseInt(lastCheck)) > 60000) { // كل دقيقة
+          console.log('التحقق من تحديثات التطبيق...');
+          localStorage.setItem('app_update_check', now.toString());
+          
+          // طريقة بسيطة للتحقق من تحديث الصفحة: طلب رمز التحميل
+          fetch(`/index.html?_=${now}`, { cache: 'no-store' })
+            .then(response => response.text())
+            .then(html => {
+              // تحقق بسيط من اختلاف المحتوى
+              const currentVersion = document.documentElement.outerHTML;
+              if (html && html !== currentVersion && !html.includes('Error')) {
+                console.log('تم العثور على تحديث للتطبيق، جارٍ التحديث...');
+                // تحديث الصفحة للحصول على أحدث إصدار
+                window.location.reload(true);
+              }
+            })
+            .catch(err => console.log('خطأ في التحقق من التحديثات:', err));
+        }
+      };
+      
+      // تشغيل فحص التحديثات دوريًا
+      setInterval(checkForUpdates, 60000); // كل دقيقة
+    </script>
   </body>
 </html>

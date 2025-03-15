@@ -17,8 +17,12 @@ export const useChannelsSync = (refetchChannels: () => Promise<any>) => {
     });
     
     try {
+      // إضافة رمز عشوائي لتجنب التخزين المؤقت بشكل كامل (مهم للاستضافات)
+      const cacheBuster = `?_=${Date.now()}&nocache=${Math.random()}`;
+      const syncUrl = `https://bladi-info.com/api/channels.json${cacheBuster}`;
+      
       // محاولة المزامنة مع bladi-info.com أولاً
-      await syncWithRemoteSource('https://bladi-info.com/api/channels.json', true);
+      await syncWithRemoteSource(syncUrl, true);
       
       // نشر التغييرات مع إجبار إعادة تحميل الصفحة
       await publishChannelsToAllUsers();
@@ -52,9 +56,10 @@ export const useChannelsSync = (refetchChannels: () => Promise<any>) => {
     
     try {
       // إضافة رمز عشوائي لتجنب التخزين المؤقت
-      const cacheBuster = `?_=${Date.now()}`;
+      const cacheBuster = `?_=${Date.now()}&r=${Math.random()}`;
       const url = `https://bladi-info.com/api/channels.json${cacheBuster}`;
       
+      // إضافة معلمات إضافية للتوافق مع بعض الاستضافات
       const success = await syncWithRemoteSource(url, true);
       
       if (success) {
