@@ -28,7 +28,7 @@ export const useChannelsMutations = ({
       // إعادة تحميل البيانات
       queryClient.invalidateQueries({ queryKey: ['channels'] });
       
-      // ضمان النشر للجميع
+      // ضمان النشر للجميع - أنقذ البيانات أولاً
       await saveChannelsToStorage();
       
       // إظهار إشعار للمستخدم
@@ -39,7 +39,10 @@ export const useChannelsMutations = ({
       
       // نشر القنوات لجميع المستخدمين (إذا كان التلقائي مفعل)
       if (autoPublish) {
-        publishChannelsToAllUsers().catch(error => {
+        try {
+          await publishChannelsToAllUsers();
+          console.log("تم نشر القناة الجديدة للمستخدمين بنجاح");
+        } catch (error) {
           console.error('خطأ في نشر القنوات للمستخدمين:', error);
           
           toast({
@@ -47,7 +50,7 @@ export const useChannelsMutations = ({
             description: "تم إضافة القناة، لكن قد يكون هناك مشكلة في النشر التلقائي",
             variant: "destructive",
           });
-        });
+        }
       }
     },
     onError: (error) => {
@@ -66,7 +69,7 @@ export const useChannelsMutations = ({
       // إعادة تحميل البيانات
       queryClient.invalidateQueries({ queryKey: ['channels'] });
       
-      // ضمان النشر للجميع
+      // ضمان حفظ التغييرات في التخزين المحلي
       await saveChannelsToStorage();
       
       // إظهار إشعار للمستخدم
@@ -77,7 +80,10 @@ export const useChannelsMutations = ({
       
       // نشر التغييرات لجميع المستخدمين (إذا كان التلقائي مفعل)
       if (autoPublish) {
-        publishChannelsToAllUsers().catch(error => {
+        try {
+          await publishChannelsToAllUsers();
+          console.log("تم نشر التغييرات للمستخدمين بنجاح");
+        } catch (error) {
           console.error('خطأ في نشر التغييرات للمستخدمين:', error);
           
           toast({
@@ -85,7 +91,7 @@ export const useChannelsMutations = ({
             description: "تم تحديث القناة، لكن قد يكون هناك مشكلة في النشر التلقائي",
             variant: "destructive",
           });
-        });
+        }
       }
     },
     onError: (error) => {
@@ -104,7 +110,7 @@ export const useChannelsMutations = ({
       // إعادة تحميل البيانات
       queryClient.invalidateQueries({ queryKey: ['channels'] });
       
-      // ضمان تحديث القائمة
+      // ضمان حفظ التغييرات في التخزين المحلي
       await saveChannelsToStorage();
       
       // إظهار إشعار للمستخدم
@@ -115,7 +121,10 @@ export const useChannelsMutations = ({
       
       // نشر التغييرات لجميع المستخدمين (إذا كان التلقائي مفعل)
       if (autoPublish) {
-        publishChannelsToAllUsers().catch(error => {
+        try {
+          await publishChannelsToAllUsers();
+          console.log("تم نشر تغييرات الحذف للمستخدمين بنجاح");
+        } catch (error) {
           console.error('خطأ في نشر التغييرات للمستخدمين بعد الحذف:', error);
           
           toast({
@@ -123,7 +132,7 @@ export const useChannelsMutations = ({
             description: "تم حذف القناة، لكن قد يكون هناك مشكلة في النشر التلقائي",
             variant: "destructive",
           });
-        });
+        }
       }
     },
     onError: (error) => {

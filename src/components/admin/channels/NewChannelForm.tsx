@@ -7,6 +7,8 @@ import { PlusCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import ChannelFormFields from './ChannelFormFields';
 import ChannelFormActions from './ChannelFormActions';
+import { saveChannelsToStorage } from '@/services/dataStore';
+import { publishChannelsToAllUsers } from '@/services/sync';
 
 interface NewChannelFormProps {
   categories: any[];
@@ -33,7 +35,7 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({
     isFavorite: false
   });
   
-  const handleAddChannel = (e: React.FormEvent) => {
+  const handleAddChannel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newChannel.name || !newChannel.logo || !newChannel.streamUrl || !newChannel.category || !newChannel.country) {
       toast({
@@ -43,22 +45,44 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({
       });
       return;
     }
-    onAddChannel(newChannel);
     
-    // تفريغ النموذج بعد الإضافة
-    setNewChannel({
-      name: '',
-      logo: '',
-      streamUrl: '',
-      category: '',
-      country: '',
-      isFavorite: false
-    });
-    
-    toast({
-      title: "تمت الإضافة بنجاح",
-      description: `تمت إضافة قناة "${newChannel.name}" ونشرها للمستخدمين`,
-    });
+    try {
+      // إضافة القناة
+      onAddChannel(newChannel);
+      
+      // ضمان حفظ القناة وتوفرها للجميع
+      await saveChannelsToStorage();
+      
+      // محاولة نشرها لجميع المستخدمين
+      try {
+        await publishChannelsToAllUsers();
+        console.log("تم نشر القناة الجديدة للمستخدمين");
+      } catch (err) {
+        console.error("خطأ أثناء نشر القناة للمستخدمين:", err);
+      }
+      
+      // تفريغ النموذج بعد الإضافة
+      setNewChannel({
+        name: '',
+        logo: '',
+        streamUrl: '',
+        category: '',
+        country: '',
+        isFavorite: false
+      });
+      
+      toast({
+        title: "تمت الإضافة بنجاح",
+        description: `تمت إضافة قناة "${newChannel.name}" ونشرها للمستخدمين`,
+      });
+    } catch (error) {
+      console.error("خطأ أثناء إضافة القناة:", error);
+      toast({
+        title: "خطأ في إضافة القناة",
+        description: "حدث خطأ أثناء إضافة القناة، يرجى المحاولة مرة أخرى",
+        variant: "destructive",
+      });
+    }
   };
   
   const handleFieldChange = (field: keyof Omit<Channel, 'id'>, value: string) => {
@@ -71,6 +95,19 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({
     setIsSyncing(true);
     try {
       await onManualSync();
+      
+      // عرض رسالة نجاح المزامنة
+      toast({
+        title: "تمت المزامنة بنجاح",
+        description: "تم تحديث جميع القنوات ونشرها للمستخدمين",
+      });
+    } catch (error) {
+      console.error("خطأ أثناء المزامنة:", error);
+      toast({
+        title: "خطأ في المزامنة",
+        description: "حدث خطأ أثناء مزامنة القنوات، يرجى المحاولة مرة أخرى",
+        variant: "destructive",
+      });
     } finally {
       setIsSyncing(false);
     }

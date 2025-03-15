@@ -18,19 +18,30 @@ export const useChannelsSync = (refetchChannels: () => Promise<any>) => {
     try {
       // نشر التغييرات مع إجبار إعادة تحميل الصفحة
       await publishChannelsToAllUsers();
+      
+      // تحديث البيانات في واجهة المستخدم
       await refetchChannels();
+      
+      console.log("تمت المزامنة بنجاح ونشر القنوات للمستخدمين");
       
       toast({
         title: "تمت المزامنة",
         description: "تم تحديث القنوات بنجاح ونشرها للمستخدمين",
       });
+      
+      // تأكيد النجاح
+      return true;
     } catch (error) {
       console.error('خطأ في مزامنة القنوات:', error);
+      
       toast({
         title: "خطأ في المزامنة",
         description: "حدث خطأ أثناء مزامنة القنوات، يرجى المحاولة مرة أخرى",
         variant: "destructive",
       });
+      
+      // إرجاع الخطأ للمعالجة
+      throw error;
     }
   };
   
