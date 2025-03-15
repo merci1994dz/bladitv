@@ -3,18 +3,10 @@ import React, { useState } from 'react';
 import { Channel } from '@/types';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { PlusCircle, RefreshCw, LinkIcon, ImageIcon, Tag, Flag } from 'lucide-react';
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { PlusCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import ChannelFormFields from './ChannelFormFields';
+import ChannelFormActions from './ChannelFormActions';
 
 interface NewChannelFormProps {
   categories: any[];
@@ -69,6 +61,10 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({
     });
   };
   
+  const handleFieldChange = (field: keyof Omit<Channel, 'id'>, value: string) => {
+    setNewChannel({...newChannel, [field]: value});
+  };
+  
   const handleManualSync = async () => {
     if (!onManualSync) return;
     
@@ -94,106 +90,17 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({
       
       <CardContent>
         <form className="space-y-5" onSubmit={handleAddChannel} id="new-channel-form">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="flex items-center gap-1.5">
-                <Tag className="h-4 w-4 text-primary/80" />
-                <span>اسم القناة</span>
-              </Label>
-              <Input
-                id="name"
-                value={newChannel.name}
-                onChange={(e) => setNewChannel({...newChannel, name: e.target.value})}
-                placeholder="اسم القناة"
-                dir="rtl"
-                className="transition-all focus:border-primary"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="logo" className="flex items-center gap-1.5">
-                <ImageIcon className="h-4 w-4 text-primary/80" />
-                <span>شعار القناة (رابط)</span>
-              </Label>
-              <Input
-                id="logo"
-                value={newChannel.logo}
-                onChange={(e) => setNewChannel({...newChannel, logo: e.target.value})}
-                placeholder="https://example.com/logo.png"
-                dir="ltr"
-                className="transition-all focus:border-primary"
-              />
-            </div>
-            
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="streamUrl" className="flex items-center gap-1.5">
-                <LinkIcon className="h-4 w-4 text-primary/80" />
-                <span>رابط البث</span>
-              </Label>
-              <Input
-                id="streamUrl"
-                value={newChannel.streamUrl}
-                onChange={(e) => setNewChannel({...newChannel, streamUrl: e.target.value})}
-                placeholder="https://example.com/stream.m3u8"
-                dir="ltr"
-                className="transition-all focus:border-primary"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="category" className="flex items-center gap-1.5">
-                <Tag className="h-4 w-4 text-primary/80" />
-                <span>الفئة</span>
-              </Label>
-              <Select
-                value={newChannel.category}
-                onValueChange={(value) => setNewChannel({...newChannel, category: value})}
-              >
-                <SelectTrigger id="category" className="transition-all">
-                  <SelectValue placeholder="اختر الفئة" />
-                </SelectTrigger>
-                <SelectContent dir="rtl">
-                  {categories?.map(category => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="country" className="flex items-center gap-1.5">
-                <Flag className="h-4 w-4 text-primary/80" />
-                <span>البلد</span>
-              </Label>
-              <Select
-                value={newChannel.country}
-                onValueChange={(value) => setNewChannel({...newChannel, country: value})}
-              >
-                <SelectTrigger id="country" className="transition-all">
-                  <SelectValue placeholder="اختر البلد" />
-                </SelectTrigger>
-                <SelectContent dir="rtl">
-                  {countries?.map(country => (
-                    <SelectItem key={country.id} value={country.id}>
-                      {country.flag} {country.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <ChannelFormFields 
+            channel={newChannel}
+            onChange={handleFieldChange}
+            categories={categories}
+            countries={countries}
+          />
 
-          <div className="pt-2">
-            <Button 
-              type="submit" 
-              className="w-full sm:w-auto gap-1.5"
-            >
-              <PlusCircle className="h-4 w-4" />
-              <span>إضافة القناة</span>
-            </Button>
-          </div>
+          <ChannelFormActions 
+            onManualSync={onManualSync ? handleManualSync : undefined}
+            isSyncing={isSyncing}
+          />
         </form>
       </CardContent>
       
@@ -201,16 +108,13 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({
         <>
           <Separator className="my-2" />
           <CardFooter className="pt-4 pb-4">
-            <Button 
-              variant="outline" 
-              type="button" 
-              onClick={handleManualSync}
-              disabled={isSyncing}
-              className="w-full sm:w-auto"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-              {isSyncing ? 'جاري المزامنة...' : 'مزامنة القنوات ونشرها للمستخدمين'}
-            </Button>
+            <ChannelFormActions 
+              onManualSync={handleManualSync}
+              isSyncing={isSyncing}
+              submitLabel="مزامنة القنوات ونشرها للمستخدمين"
+              submitIcon={<PlusCircle className="h-4 w-4" />}
+              isSubmitDisabled={true}
+            />
           </CardFooter>
         </>
       )}
