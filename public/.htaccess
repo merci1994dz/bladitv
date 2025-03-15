@@ -8,6 +8,12 @@
   # RewriteCond %{HTTP_HOST} ^www\.(.*)$ [NC]
   # RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
   
+  # منع الوصول إلى ملفات معينة
+  <FilesMatch "^(\.htaccess|\.htpasswd|\.git|\.env|\.DS_Store)">
+    Order Allow,Deny
+    Deny from all
+  </FilesMatch>
+  
   # تجنب التخزين المؤقت للملفات المهمة
   <FilesMatch "\.(html|json|js)$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
@@ -28,6 +34,19 @@
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
     Header set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept"
+    
+    # إضافة رأس خاص لتجنب التخزين المؤقت في bladi-info.com
+    Header set X-Bladi-Info-Version "%{TIME}e"
+    Header set X-Last-Modified "%{TIME}e"
+  </IfModule>
+  
+  # إضافة رؤوس أمان إضافية
+  <IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "no-referrer-when-downgrade"
+    Header set Feature-Policy "microphone 'none'; camera 'none'"
   </IfModule>
   
   # توجيه جميع الطلبات إلى index.html (ضروري لـ React Router)
@@ -42,5 +61,25 @@
   AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
 </IfModule>
 
+# تفعيل Brotli إذا كان متاحًا (أكثر كفاءة من Gzip)
+<IfModule mod_brotli.c>
+  AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/xml text/css text/javascript application/javascript application/json
+</IfModule>
+
 # تعيين منطقة زمنية افتراضية
 SetEnv TZ Africa/Casablanca
+
+# تعطيل فهرسة دليل المجلدات
+Options -Indexes
+
+# تعيين الصفحة الافتراضية
+DirectoryIndex index.html
+
+# تحديد حجم أقصى للطلبات HTTP POST
+<IfModule mod_php.c>
+  php_value post_max_size 8M
+  php_value upload_max_filesize 8M
+  php_value memory_limit 256M
+  php_value max_execution_time 120
+  php_value max_input_time 120
+</IfModule>

@@ -32,8 +32,8 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
   try {
     setIsSyncing(true);
     
-    // Add cache-busting parameter to avoid browser caching
-    const cacheBuster = `?_=${Date.now()}`;
+    // Add cache-busting parameter with random value to avoid browser caching
+    const cacheBuster = `?_=${Date.now()}&nocache=${Math.random().toString(36).substring(2, 15)}`;
     
     // Check for remote config
     const remoteConfigStr = localStorage.getItem('tv_remote_config');
@@ -43,7 +43,7 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
         if (remoteConfig && remoteConfig.url) {
           // Add cache-busting to the URL
           const urlWithCacheBuster = remoteConfig.url.includes('?') 
-            ? `${remoteConfig.url}&_=${Date.now()}` 
+            ? `${remoteConfig.url}&_=${Date.now()}&nocache=${Math.random().toString(36).substring(2, 15)}` 
             : `${remoteConfig.url}${cacheBuster}`;
             
           return await syncWithRemoteSource(urlWithCacheBuster, forceRefresh);
@@ -118,7 +118,12 @@ export const publishChannelsToAllUsers = async (): Promise<boolean> => {
     localStorage.setItem('data_version', Date.now().toString());
     localStorage.setItem('bladi_info_update', Date.now().toString());
     
-    // 3. تطبيق المزامنة القسرية - مع إعادة التحميل المتأخرة
+    // 3. إضافة علامات خاصة لـ bladi-info.com
+    localStorage.setItem('bladi_update_version', Date.now().toString());
+    localStorage.setItem('bladi_update_channels', 'true');
+    localStorage.setItem('bladi_force_refresh', 'true');
+    
+    // 4. تطبيق المزامنة القسرية - مع إعادة التحميل المتأخرة
     const syncResult = await forceDataRefresh();
     
     // تسجيل النتيجة

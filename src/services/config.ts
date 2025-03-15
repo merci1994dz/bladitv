@@ -12,6 +12,8 @@ export const STORAGE_KEYS = {
   THEME: 'app_theme',
   LANGUAGE: 'app_language',
   ADMIN_PASSWORD: 'admin_password',
+  ADMIN_ACCESS_TOKEN: 'admin_access_token', // توكن جديد للمصادقة
+  ADMIN_LOGIN_ATTEMPTS: 'admin_login_attempts', // عدد محاولات تسجيل الدخول
   RECENTLY_WATCHED: 'recently_watched_channels',
   USER_SETTINGS: 'user_settings',
   PROGRAM_GUIDE: 'program_guide_data',
@@ -58,6 +60,11 @@ export const SECURITY_CONFIG = {
   DISABLE_VIDEO_DOWNLOAD: true, // منع تنزيل الفيديو
   DISABLE_RIGHT_CLICK: true, // منع النقر بزر الماوس الأيمن
   DISABLE_INSPECT: true, // منع فتح أدوات المطور
+  ADMIN_PROTECTION: {
+    MAX_LOGIN_ATTEMPTS: 5, // الحد الأقصى لمحاولات تسجيل الدخول
+    LOCK_TIME: 30 * 60 * 1000, // وقت القفل (30 دقيقة)
+    SESSION_TIMEOUT: 60 * 60 * 1000, // مهلة الجلسة (ساعة واحدة)
+  },
   PARENTAL_CONTROL: {
     ENABLED: false,
     PIN_PROTECTED: false,
@@ -83,5 +90,5 @@ export const REMOTE_CONFIG = {
 // بيانات الإصدار
 export const APP_VERSION = 'v1.3.0';
 
-// كلمة مرور المسؤول الافتراضية
-export const DEFAULT_ADMIN_PASSWORD = 'admin123';
+// كلمة مرور المسؤول الافتراضية - تم تغييرها لتكون أكثر أمانًا
+export const DEFAULT_ADMIN_PASSWORD = 'Secure_Admin_2024!';

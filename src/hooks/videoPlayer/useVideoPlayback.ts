@@ -52,8 +52,8 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
   // تحديث مرجع القناة الحالية عند تغيير القناة
   useEffect(() => {
     // تسجيل معلومات القناة الجديدة
-    if (currentChannelRef.current.id !== channel.id) {
-      console.log("تغيير القناة من", currentChannelRef.current.name, "إلى", channel.name);
+    if (currentChannelRef.current?.id !== channel?.id) {
+      console.log("تغيير القناة من", currentChannelRef.current?.name || 'لا يوجد', "إلى", channel?.name || 'لا يوجد');
     }
     currentChannelRef.current = channel;
   }, [channel]);
@@ -73,8 +73,8 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
   // تسجيل معلومات تصحيح الأخطاء البسيطة
   useEffect(() => {
     console.log("معلومات القناة:", {
-      name: channel.name,
-      streamUrl: channel.streamUrl ? "موجود" : "مفقود",
+      name: channel?.name || 'لا يوجد',
+      streamUrl: channel?.streamUrl ? "موجود" : "مفقود",
       isMobile,
       isPlaying,
       isLoading,

@@ -3,20 +3,41 @@ import React, { useState, useEffect } from 'react';
 import AdminLogin from '@/components/AdminLogin';
 import AdminHeader from '@/components/admin/AdminHeader';
 import AdminTabs from '@/components/admin/AdminTabs';
+import SettingsTab from '@/components/admin/SettingsTab';
 import { useToast } from '@/hooks/use-toast';
+import { verifyAdminSession, logoutAdmin } from '@/services/adminService';
 
 const Admin: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('channels');
   const { toast } = useToast();
 
-  // Check for authentication status on component mount
+  // التحقق من حالة المصادقة عند تحميل المكون
   useEffect(() => {
-    const storedAuthStatus = localStorage.getItem('admin_authenticated');
-    if (storedAuthStatus === 'true') {
-      setIsAuthenticated(true);
-    }
-  }, []);
+    const checkAuth = () => {
+      const isValid = verifyAdminSession();
+      setIsAuthenticated(isValid);
+      
+      if (isValid) {
+        // تحقق دوري من صلاحية الجلسة
+        const interval = setInterval(() => {
+          if (!verifyAdminSession()) {
+            setIsAuthenticated(false);
+            clearInterval(interval);
+            toast({
+              title: "انتهت الجلسة",
+              description: "انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.",
+              variant: "destructive",
+            });
+          }
+        }, 60000); // التحقق كل دقيقة
+        
+        return () => clearInterval(interval);
+      }
+    };
+    
+    checkAuth();
+  }, [toast]);
 
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
@@ -28,22 +49,26 @@ const Admin: React.FC = () => {
   };
 
   const handleLogout = () => {
+    logoutAdmin();
     setIsAuthenticated(false);
-    localStorage.removeItem('admin_authenticated');
     toast({
       title: "تم تسجيل الخروج",
       description: "تم تسجيل الخروج بنجاح",
     });
   };
 
+  // عرض شاشة تسجيل الدخول إذا لم يتم المصادقة
   if (!isAuthenticated) {
     return <AdminLogin onLoginSuccess={handleLoginSuccess} />;
   }
 
+  // عرض لوحة الإدارة إذا تم المصادقة
   return (
     <div className="container max-w-6xl mx-auto px-4 pb-32 pt-4">
       <AdminHeader />
       <AdminTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+      
+      {activeTab === 'settings' && <SettingsTab />}
       
       <div className="mt-12 text-center">
         <button 

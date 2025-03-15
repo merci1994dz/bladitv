@@ -1,11 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { verifyAdminPassword, updateAdminPassword } from '@/services/adminService';
-import { Lock, Key, ShieldAlert, Save, ArrowLeft, Check } from 'lucide-react';
+import { Lock, Key, ShieldAlert, Save, ArrowLeft, Check, AlertTriangle } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 
 interface AdminLoginProps {
@@ -20,10 +20,23 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordChanged, setPasswordChanged] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // التحقق من وجود قفل على تسجيل الدخول
+  useEffect(() => {
+    const lockUntil = localStorage.getItem('admin_lock_until');
+    if (lockUntil && Number(lockUntil) > Date.now()) {
+      const remainingMinutes = Math.ceil((Number(lockUntil) - Date.now()) / 60000);
+      setLoginError(`تم قفل الحساب مؤقتًا. يرجى المحاولة بعد ${remainingMinutes} دقيقة`);
+    } else {
+      setLoginError(null);
+    }
+  }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginError(null);
     
     if (!password) {
       toast({
@@ -38,23 +51,35 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
     
     // إضافة تأخير بسيط لمحاكاة المصادقة
     setTimeout(() => {
-      const isPasswordValid = verifyAdminPassword(password);
-      
-      if (isPasswordValid) {
-        toast({
-          title: "تم تسجيل الدخول بنجاح",
-          description: "مرحبًا بك في لوحة التحكم"
-        });
-        onLoginSuccess();
-      } else {
-        toast({
-          title: "خطأ في تسجيل الدخول",
-          description: "كلمة المرور غير صحيحة",
-          variant: "destructive",
-        });
+      try {
+        const isPasswordValid = verifyAdminPassword(password);
+        
+        if (isPasswordValid) {
+          toast({
+            title: "تم تسجيل الدخول بنجاح",
+            description: "مرحبًا بك في لوحة التحكم"
+          });
+          onLoginSuccess();
+        } else {
+          toast({
+            title: "خطأ في تسجيل الدخول",
+            description: "كلمة المرور غير صحيحة",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        // التقاط أخطاء الأمان مثل قفل الحساب
+        if (error instanceof Error) {
+          setLoginError(error.message);
+          toast({
+            title: "خطأ في تسجيل الدخول",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     }, 500);
   };
 
@@ -70,10 +95,10 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
       return;
     }
 
-    if (!newPassword || newPassword.length < 6) {
+    if (!newPassword || newPassword.length < 8) {
       toast({
         title: "خطأ",
-        description: "يجب أن تكون كلمة المرور الجديدة 6 أحرف على الأقل",
+        description: "يجب أن تكون كلمة المرور الجديدة 8 أحرف على الأقل",
         variant: "destructive",
       });
       return;
@@ -91,47 +116,59 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
     setIsLoading(true);
 
     // التحقق من كلمة المرور الحالية
-    const isCurrentPasswordValid = verifyAdminPassword(currentPassword);
-    
-    if (!isCurrentPasswordValid) {
-      toast({
-        title: "خطأ",
-        description: "كلمة المرور الحالية غير صحيحة",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
-    // تغيير كلمة المرور
     try {
-      updateAdminPassword(newPassword);
-      setPasswordChanged(true);
-      toast({
-        title: "تم بنجاح",
-        description: "تم تغيير كلمة المرور بنجاح",
-      });
+      const isCurrentPasswordValid = verifyAdminPassword(currentPassword);
       
-      // مسح جميع الحقول
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      
-      // العودة إلى شاشة تسجيل الدخول بعد ثانيتين
-      setTimeout(() => {
-        setShowChangePassword(false);
-        setPasswordChanged(false);
-      }, 2000);
-      
+      if (!isCurrentPasswordValid) {
+        toast({
+          title: "خطأ",
+          description: "كلمة المرور الحالية غير صحيحة",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // تغيير كلمة المرور
+      try {
+        updateAdminPassword(newPassword);
+        setPasswordChanged(true);
+        toast({
+          title: "تم بنجاح",
+          description: "تم تغيير كلمة المرور بنجاح",
+        });
+        
+        // مسح جميع الحقول
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        
+        // العودة إلى شاشة تسجيل الدخول بعد ثانيتين
+        setTimeout(() => {
+          setShowChangePassword(false);
+          setPasswordChanged(false);
+        }, 2000);
+        
+      } catch (error) {
+        toast({
+          title: "خطأ",
+          description: error instanceof Error ? error.message : "حدث خطأ أثناء تغيير كلمة المرور",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
-      toast({
-        title: "خطأ",
-        description: error instanceof Error ? error.message : "حدث خطأ أثناء تغيير كلمة المرور",
-        variant: "destructive",
-      });
+      // معالجة خطأ قفل الحساب
+      if (error instanceof Error) {
+        setLoginError(error.message);
+        toast({
+          title: "خطأ في المصادقة",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   return (
@@ -266,6 +303,13 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {loginError && (
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md flex items-start">
+                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 ml-2" />
+                  <div className="text-sm text-red-600 dark:text-red-400">{loginError}</div>
+                </div>
+              )}
+              
               <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-3">
                   <Label htmlFor="password" className="text-right block">
@@ -281,17 +325,15 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
                       dir="rtl"
                       autoComplete="current-password"
                       className="pl-10 pr-4 py-6 text-lg"
+                      disabled={!!loginError}
                     />
                     <Key className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   </div>
-                  <p className="text-xs text-gray-500 text-right mt-1">
-                    كلمة المرور الافتراضية هي: "admin123"
-                  </p>
                 </div>
                 <Button
                   type="submit"
                   className="w-full py-6 text-lg"
-                  disabled={isLoading}
+                  disabled={isLoading || !!loginError}
                 >
                   {isLoading ? (
                     <>
@@ -313,6 +355,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
                 type="button" 
                 onClick={() => setShowChangePassword(true)}
                 className="text-primary hover:text-primary/80"
+                disabled={!!loginError}
               >
                 تغيير كلمة المرور
               </Button>
