@@ -1,4 +1,3 @@
-
 import { STORAGE_KEYS, SECURITY_CONFIG } from './config';
 
 // وظيفة للتحقق من صحة كلمة المرور
@@ -99,13 +98,8 @@ export const logoutAdmin = (): void => {
   localStorage.removeItem('admin_session_expiry');
 };
 
-// تغيير كلمة مرور المشرف
-export const changeAdminPassword = (currentPassword: string, newPassword: string): boolean => {
-  // التحقق من كلمة المرور الحالية
-  if (!verifyPassword(currentPassword)) {
-    return false;
-  }
-  
+// تغيير كلمة مرور المشرف - this was previously changeAdminPassword, renaming to updateAdminPassword
+export const updateAdminPassword = (newPassword: string): boolean => {
   // حفظ كلمة المرور الجديدة
   localStorage.setItem(STORAGE_KEYS.ADMIN_PASSWORD, newPassword);
   
@@ -143,3 +137,6 @@ export const isAccountLocked = (): { locked: boolean; remainingTime: number } =>
     remainingTime: 0
   };
 };
+
+// Alias for verifyPassword as verifyAdminPassword for backward compatibility
+export const verifyAdminPassword = verifyPassword;

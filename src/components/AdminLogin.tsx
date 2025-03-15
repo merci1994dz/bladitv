@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { verifyAdminPassword, updateAdminPassword } from '@/services/adminService';
+import { verifyPassword, updateAdminPassword } from '@/services/adminService';
 import { Lock, Key, ShieldAlert, Save, ArrowLeft, Check, AlertTriangle } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 
