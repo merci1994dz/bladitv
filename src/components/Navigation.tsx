@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Globe, Search, Heart, Settings, Video, PieChart } from 'lucide-react';
+import { Home, Globe, Search, Heart, Settings, Video, PieChart, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDeviceType } from '@/hooks/use-tv';
 
@@ -46,6 +46,12 @@ const Navigation: React.FC = () => {
       icon: <Settings strokeWidth={2} size={24} />, 
       label: 'الإعدادات', 
       active: isActive('/settings') 
+    },
+    { 
+      to: '/admin', 
+      icon: <Shield strokeWidth={2} size={24} />, 
+      label: 'المشرف', 
+      active: isActive('/admin') 
     }
   ];
 

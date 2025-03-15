@@ -9,14 +9,16 @@ import {
   HardDrive, 
   Shield, 
   Globe,
-  Tv 
+  Tv,
+  Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import InterfaceSettings from '@/components/settings/InterfaceSettings';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useDeviceType } from '@/hooks/use-tv';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Link } from 'react-router-dom';
 
 const UserSettings: React.FC = () => {
   const navigate = useNavigate();
@@ -34,16 +36,29 @@ const UserSettings: React.FC = () => {
 
   return (
     <div className="container mx-auto pb-24 pt-4 min-h-screen">
-      <header className="flex items-center mb-6 px-4">
+      <header className="flex items-center mb-6 px-4 justify-between">
+        <div className="flex items-center">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate(-1)}
+            className="mr-2 rounded-full"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className={`text-2xl font-bold ${isTV ? 'tv-text' : ''}`}>الإعدادات</h1>
+        </div>
+        
         <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => navigate(-1)}
-          className="mr-2 rounded-full"
+          variant="outline" 
+          size="sm" 
+          asChild
         >
-          <ArrowLeft className="h-5 w-5" />
+          <Link to="/admin">
+            <Settings className="h-4 w-4 mr-2" />
+            <span>إعدادات المشرف</span>
+          </Link>
         </Button>
-        <h1 className={`text-2xl font-bold ${isTV ? 'tv-text' : ''}`}>الإعدادات</h1>
       </header>
       
       <div className="grid grid-cols-1 md:grid-cols-[250px_1fr] gap-6 px-4">

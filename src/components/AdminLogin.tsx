@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { verifyAdminPassword } from '@/services/api';
+import { verifyAdminPassword } from '@/services/adminService';
 import { Lock, Key, ShieldAlert } from 'lucide-react';
 
 interface AdminLoginProps {
