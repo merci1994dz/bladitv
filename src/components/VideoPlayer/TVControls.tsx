@@ -3,27 +3,29 @@ import React, { useEffect } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface TVControlsProps {
-  isTV: boolean;
-  isInitialized: boolean;
-  isLoading: boolean;
-  onClose: () => void;
-  togglePlayPause: () => void;
-  seekVideo: (seconds: number) => void;
-  toggleMute: () => void;
-  toggleFullscreen: (ref: React.RefObject<HTMLDivElement>) => void;
-  playerContainerRef: React.RefObject<HTMLDivElement>;
+  show: boolean;
+  isTV?: boolean;
+  isInitialized?: boolean;
+  isLoading?: boolean;
+  onClose?: () => void;
+  togglePlayPause?: () => void;
+  seekVideo?: (seconds: number) => void;
+  toggleMute?: () => void;
+  toggleFullscreen?: (ref: React.RefObject<HTMLDivElement>) => void;
+  playerContainerRef?: React.RefObject<HTMLDivElement>;
 }
 
 const TVControls: React.FC<TVControlsProps> = ({
-  isTV,
-  isInitialized,
-  isLoading,
-  onClose,
-  togglePlayPause,
-  seekVideo,
-  toggleMute,
-  toggleFullscreen,
-  playerContainerRef
+  show,
+  isTV = false,
+  isInitialized = true,
+  isLoading = false,
+  onClose = () => {},
+  togglePlayPause = () => {},
+  seekVideo = () => {},
+  toggleMute = () => {},
+  toggleFullscreen = () => {},
+  playerContainerRef = React.createRef()
 }) => {
   const isMobile = useIsMobile();
   
@@ -66,8 +68,8 @@ const TVControls: React.FC<TVControlsProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isTV, isMobile, togglePlayPause, seekVideo, onClose, toggleMute, toggleFullscreen, playerContainerRef]);
 
-  // Don't show TV controls on mobile devices
-  if (!isTV || isMobile || !isInitialized) return null;
+  // Don't show TV controls on mobile devices or if not requested
+  if (!isTV || isMobile || !isInitialized || !show) return null;
 
   return (
     <div className={`absolute top-20 left-0 right-0 flex justify-center transition-opacity duration-1000 ${isLoading ? 'opacity-100' : 'opacity-0'}`}>

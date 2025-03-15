@@ -120,11 +120,17 @@ export function useVideoControl({
       }
     }
   };
+  
+  // وظائف البحث للأمام والخلف
+  const seekForward = () => seekVideo(10);
+  const seekBackward = () => seekVideo(-10);
 
   return {
     isPlaying,
     setIsPlaying,
     togglePlayPause,
-    seekVideo
+    seekVideo,
+    seekForward,
+    seekBackward
   };
 }

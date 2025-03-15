@@ -1,8 +1,9 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Channel } from '@/types';
-import { useVideo } from '@/hooks/videoPlayer/useVideo';
+import { useVideoPlayback } from '@/hooks/videoPlayer/useVideoPlayback';
 import { useDeviceType } from '@/hooks/use-tv';
+import { useVideo } from '@/hooks/videoPlayer/useVideo';
 
 import VideoHeader from './VideoHeader';
 import TVControls from './TVControls';
@@ -20,24 +21,26 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
   const [showStreamSources, setShowStreamSources] = React.useState(false);
   const [showProgramGuide, setShowProgramGuide] = React.useState(false);
   const [currentStreamUrl, setCurrentStreamUrl] = React.useState(channel.streamUrl);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const {
     videoRef,
     isLoading,
     error,
     isPlaying,
-    togglePlayPause,
     isMuted,
-    toggleMute,
     currentVolume,
-    setVolume,
     isFullscreen,
-    toggleFullscreen,
-    retryCount,
-    retryPlayback,
     showControls,
+    retryCount,
     setShowControls,
     handleMouseMove,
+    togglePlayPause,
+    toggleMute,
+    setVolume,
+    toggleFullscreen,
+    retryPlayback,
+    seekVideo,
     cleanup
   } = useVideo(channel);
 
@@ -76,11 +79,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     retryPlayback();
   };
 
-  // Handle volume change
-  const handleVolumeChange = (value: number) => {
-    setVolume(value);
-  };
-
   // Handle toggling stream sources panel
   const handleToggleStreamSources = () => {
     setShowStreamSources(prev => !prev);
@@ -93,6 +91,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     setShowStreamSources(false);
   };
 
+  // Modified wrappers for event handlers to match expected types
+  const handleToggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleMute();
+  };
+  
+  const handleToggleFullscreen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleFullscreen();
+  };
+
   // Modify container click behavior based on streaming mode
   const handleContainerClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -102,8 +111,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
     }
   };
 
+  // Handle close with correct event type
+  const handleClose = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onClose();
+  };
+
   return (
     <div 
+      ref={containerRef}
       className="relative w-full aspect-video bg-black overflow-hidden mb-4 z-10 shadow-lg rounded-lg"
       onClick={handleContainerClick}
     >
@@ -111,7 +127,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
       
       <VideoHeader 
         channel={channel} 
-        onClose={onClose}
+        onClose={handleClose}
         showControls={showControls}
       />
       
@@ -139,9 +155,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
         isFullscreen={isFullscreen}
         currentVolume={currentVolume}
         onPlayPause={togglePlayPause}
-        onMuteToggle={toggleMute}
-        onFullscreenToggle={toggleFullscreen}
-        onVolumeChange={handleVolumeChange}
+        onMuteToggle={handleToggleMute}
+        onFullscreenToggle={handleToggleFullscreen}
+        onVolumeChange={setVolume}
         onClick={handleVideoClick}
         onReload={handleReload}
         isTV={isTV}
@@ -150,7 +166,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ channel, onClose }) => {
         onShowProgramGuide={handleToggleProgramGuide}
       />
       
-      {isTV && <TVControls show={showControls} />}
+      <TVControls 
+        show={showControls}
+        isTV={isTV}
+        isInitialized={true}
+        isLoading={isLoading}
+        onClose={onClose}
+        togglePlayPause={togglePlayPause}
+        seekVideo={seekVideo}
+        toggleMute={toggleMute}
+        toggleFullscreen={toggleFullscreen}
+        playerContainerRef={containerRef}
+      />
     </div>
   );
 };

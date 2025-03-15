@@ -7,13 +7,13 @@ import { Channel } from '@/types';
 interface VideoHeaderProps {
   channel: Channel;
   onClose: (e: React.MouseEvent) => void;
-  show: boolean;
+  showControls: boolean;
 }
 
-const VideoHeader: React.FC<VideoHeaderProps> = ({ channel, onClose, show }) => {
+const VideoHeader: React.FC<VideoHeaderProps> = ({ channel, onClose, showControls }) => {
   return (
     <div 
-      className={`p-4 flex justify-between items-center bg-gradient-to-b from-black/90 to-transparent absolute top-0 left-0 right-0 z-10 transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0'}`}
+      className={`p-4 flex justify-between items-center bg-gradient-to-b from-black/90 to-transparent absolute top-0 left-0 right-0 z-10 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
     >
       <div className="flex items-center gap-3">
         <div className="relative w-12 h-12 bg-black/40 rounded-lg overflow-hidden flex items-center justify-center backdrop-blur-sm border border-white/10 shadow-lg">

@@ -1,13 +1,14 @@
 
 import { useState, useRef, useEffect } from 'react';
+import { VideoRef } from './useVideoSetup';
 
 export function useVideoVolume() {
   const [isMuted, setIsMuted] = useState(false);
   const [currentVolume, setCurrentVolume] = useState(1);
   
   // Toggle mute
-  const toggleMute = (videoRef: React.RefObject<HTMLVideoElement>) => {
-    if (videoRef.current) {
+  const toggleMute = (videoRef?: React.RefObject<HTMLVideoElement>) => {
+    if (videoRef?.current) {
       const newMutedState = !isMuted;
       videoRef.current.muted = newMutedState;
       setIsMuted(newMutedState);
@@ -16,6 +17,8 @@ export function useVideoVolume() {
       if (!newMutedState && videoRef.current.volume === 0) {
         videoRef.current.volume = currentVolume || 0.5;
       }
+    } else {
+      setIsMuted(!isMuted);
     }
   };
   
@@ -33,6 +36,8 @@ export function useVideoVolume() {
         videoRef.current.muted = false;
         setIsMuted(false);
       }
+    } else {
+      setCurrentVolume(newVolume);
     }
   };
 
@@ -43,11 +48,36 @@ export function useVideoVolume() {
     videoRef.current.volume = currentVolume;
   };
   
+  // Volume increase/decrease functions
+  const increaseVolume = (videoRef?: React.RefObject<HTMLVideoElement>) => {
+    const newVolume = Math.min(1, currentVolume + 0.1);
+    if (videoRef) {
+      handleVolumeChange(videoRef, newVolume);
+    } else {
+      setCurrentVolume(newVolume);
+      setIsMuted(false);
+    }
+  };
+  
+  const decreaseVolume = (videoRef?: React.RefObject<HTMLVideoElement>) => {
+    const newVolume = Math.max(0, currentVolume - 0.1);
+    if (videoRef) {
+      handleVolumeChange(videoRef, newVolume);
+    } else {
+      setCurrentVolume(newVolume);
+      if (newVolume === 0) {
+        setIsMuted(true);
+      }
+    }
+  };
+  
   return {
     isMuted,
     currentVolume,
     toggleMute,
     handleVolumeChange,
-    initializeVolume
+    initializeVolume,
+    increaseVolume,
+    decreaseVolume
   };
 }
