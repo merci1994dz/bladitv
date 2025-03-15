@@ -35,14 +35,3 @@ export const setRemoteConfig = (url: string): void => {
   };
   localStorage.setItem(STORAGE_KEYS.REMOTE_CONFIG, JSON.stringify(remoteConfig));
 };
-
-/**
- * Update the last sync timestamp in the remote config
- */
-export const updateRemoteConfigLastSync = (remoteUrl: string): void => {
-  const remoteConfig = {
-    url: remoteUrl.split('?')[0], // Store the clean URL without parameters
-    lastSync: new Date().toISOString()
-  };
-  localStorage.setItem(STORAGE_KEYS.REMOTE_CONFIG, JSON.stringify(remoteConfig));
-};
