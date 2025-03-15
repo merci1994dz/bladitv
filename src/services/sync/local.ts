@@ -1,6 +1,6 @@
 
 import { STORAGE_KEYS, SECURITY_CONFIG, VIDEO_PLAYER } from '../config';
-import { channels, countries, categories, setIsSyncing } from '../dataStore';
+import { channels, countries, categories, setIsSyncing, loadFromLocalStorage } from '../dataStore';
 import { updateLastSyncTime } from './config';
 
 // Data obfuscation function for security
@@ -34,11 +34,17 @@ export function obfuscateStreamUrls(data: any[]): any[] {
   });
 }
 
-// Function that works with local data
-export const syncWithLocalData = async (): Promise<boolean> => {
+// Function that works with local data - improved to handle forced refresh
+export const syncWithLocalData = async (forceRefresh = false): Promise<boolean> => {
   try {
     setIsSyncing(true);
-    console.log('Using local data only (no remote sync)');
+    console.log('Using local data for sync');
+    
+    if (forceRefresh) {
+      // Reload data from localStorage
+      loadFromLocalStorage();
+      console.log('Forced refresh of local data');
+    }
     
     // Simply save current data to localStorage
     localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
@@ -49,6 +55,12 @@ export const syncWithLocalData = async (): Promise<boolean> => {
     updateLastSyncTime();
     
     console.log('Local data saved successfully');
+    
+    // If this was a forced refresh, reload the page
+    if (forceRefresh) {
+      window.location.reload();
+    }
+    
     return true;
   } catch (error) {
     console.error('Error saving local data:', error);
@@ -58,12 +70,12 @@ export const syncWithLocalData = async (): Promise<boolean> => {
   }
 };
 
-// Helper function to get last sync time - added to fix export error
+// Helper function to get last sync time
 export const getLastSyncTime = (): string | null => {
   return localStorage.getItem(STORAGE_KEYS.LAST_SYNC_TIME) || localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
 };
 
-// Helper function to check if sync is needed - added to fix export error
+// Helper function to check if sync is needed
 export const isSyncNeeded = (): boolean => {
   const hasChannels = !!localStorage.getItem(STORAGE_KEYS.CHANNELS);
   const hasCategories = !!localStorage.getItem(STORAGE_KEYS.CATEGORIES);

@@ -25,23 +25,33 @@ export const setRemoteConfig = (url: string): void => {
   localStorage.setItem(STORAGE_KEYS.REMOTE_CONFIG, JSON.stringify(remoteConfig));
 };
 
-// Function to sync with remote source
-export const syncWithRemoteSource = async (remoteUrl: string): Promise<boolean> => {
+// Improved function to sync with remote source
+export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = false): Promise<boolean> => {
   try {
     setIsSyncing(true);
     console.log('جاري المزامنة مع المصدر الخارجي:', remoteUrl);
     
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 ثانية للمهلة الزمنية
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
     
     try {
-      const response = await fetch(remoteUrl, { 
+      // Add cache-control headers and parameters to prevent caching
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      };
+      
+      // Add random query parameter to bust cache
+      const urlWithCacheBuster = remoteUrl.includes('?') 
+        ? `${remoteUrl}&_=${Date.now()}` 
+        : `${remoteUrl}?_=${Date.now()}`;
+      
+      const response = await fetch(urlWithCacheBuster, { 
         signal: controller.signal,
-        cache: 'no-store', // تجنب التخزين المؤقت
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
+        cache: 'no-store', 
+        headers
       });
       
       clearTimeout(timeoutId);
@@ -52,27 +62,33 @@ export const syncWithRemoteSource = async (remoteUrl: string): Promise<boolean> 
       
       const remoteData = await response.json();
       
-      // التحقق من صحة البيانات
+      // Data validation
       if (!remoteData || !remoteData.channels || !remoteData.countries || !remoteData.categories) {
         throw new Error('تنسيق البيانات من المصدر الخارجي غير صالح');
       }
       
-      // تحديث البيانات المحلية
+      // For forced refresh, we completely replace the data
       localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(remoteData.channels));
       localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(remoteData.countries));
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(remoteData.categories));
       
-      // تحديث وقت آخر مزامنة
+      // Update last sync time
       const lastSyncTime = updateLastSyncTime();
       
-      // تحديث البيانات المخزنة مؤقتًا
+      // Update stored config
       const remoteConfig = {
-        url: remoteUrl,
+        url: remoteUrl.split('?')[0], // Store the clean URL without parameters
         lastSync: lastSyncTime
       };
       localStorage.setItem(STORAGE_KEYS.REMOTE_CONFIG, JSON.stringify(remoteConfig));
       
       console.log('تم تحديث البيانات بنجاح من المصدر الخارجي');
+      
+      // Force page reload in cases of significant data changes (for admin actions)
+      if (forceRefresh) {
+        window.location.reload();
+      }
+      
       return true;
     } catch (fetchError) {
       clearTimeout(timeoutId);

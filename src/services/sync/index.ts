@@ -22,8 +22,8 @@ export {
 
 export { setupAutoSync } from './auto';
 
-// Main sync function
-export const syncAllData = async (): Promise<boolean> => {
+// Main sync function - Improved with better caching control
+export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
   if (isSyncing) {
     console.log('المزامنة قيد التنفيذ بالفعل');
     return false;
@@ -32,13 +32,21 @@ export const syncAllData = async (): Promise<boolean> => {
   try {
     setIsSyncing(true);
     
+    // Add cache-busting parameter to avoid browser caching
+    const cacheBuster = `?_=${Date.now()}`;
+    
     // Check for remote config
     const remoteConfigStr = localStorage.getItem('tv_remote_config');
     if (REMOTE_CONFIG.ENABLED && remoteConfigStr) {
       try {
         const remoteConfig = JSON.parse(remoteConfigStr);
         if (remoteConfig && remoteConfig.url) {
-          return await syncWithRemoteSource(remoteConfig.url);
+          // Add cache-busting to the URL
+          const urlWithCacheBuster = remoteConfig.url.includes('?') 
+            ? `${remoteConfig.url}&_=${Date.now()}` 
+            : `${remoteConfig.url}${cacheBuster}`;
+            
+          return await syncWithRemoteSource(urlWithCacheBuster, forceRefresh);
         }
       } catch (error) {
         console.error('خطأ في قراءة تكوين المصدر الخارجي:', error);
@@ -46,10 +54,20 @@ export const syncAllData = async (): Promise<boolean> => {
     }
     
     // If no remote source or sync failed, use local data
-    return await syncWithLocalData();
+    return await syncWithLocalData(forceRefresh);
   } finally {
     setIsSyncing(false);
   }
+};
+
+// Force refresh function - this can be called from admin interface to ensure new channels appear
+export const forceDataRefresh = async (): Promise<boolean> => {
+  // Clear channel data from localStorage to force a refresh
+  localStorage.removeItem('last_sync_time');
+  localStorage.removeItem('last_sync');
+  
+  // Force the refresh
+  return syncAllData(true);
 };
 
 // Export sync status check function
@@ -57,9 +75,14 @@ export const isSyncInProgress = (): boolean => {
   return isSyncing;
 };
 
+// Add function to check and perform initial sync on application startup
+export const performInitialSync = (): void => {
+  if (isSyncNeeded()) {
+    syncAllData().catch(error => {
+      console.error('Initial sync failed:', error);
+    });
+  }
+};
+
 // Initialize sync on application startup (only if needed)
-if (isSyncNeeded()) {
-  syncAllData().catch(error => {
-    console.error('Initial sync failed:', error);
-  });
-}
+performInitialSync();

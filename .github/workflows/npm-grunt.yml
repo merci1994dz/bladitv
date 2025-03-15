@@ -1,3 +1,4 @@
+
 name: NodeJS with Grunt
 
 on:
@@ -26,3 +27,13 @@ jobs:
       run: |
         npm install
         grunt
+        
+    # Add cache-control headers to prevent caching
+    - name: Add cache-control headers
+      run: |
+        if [ -d "./dist" ]; then
+          echo "Adding cache-control headers to HTML files"
+          find ./dist -name "*.html" -exec sh -c 'echo "Cache-Control: no-cache, no-store, must-revalidate" > {}' \;
+          echo "Adding cache-control headers to JSON files"
+          find ./dist -name "*.json" -exec sh -c 'echo "Cache-Control: no-cache, no-store, must-revalidate" > {}' \;
+        fi
