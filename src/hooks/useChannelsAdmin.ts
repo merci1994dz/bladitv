@@ -57,7 +57,7 @@ export const useChannelsAdmin = ({ autoPublish = true }: UseChannelsAdminProps =
           toast({
             title: "تنبيه",
             description: "تم إضافة القناة، لكن قد يكون هناك مشكلة في النشر التلقائي",
-            variant: "warning",
+            variant: "destructive",
           });
         });
       }
@@ -95,7 +95,7 @@ export const useChannelsAdmin = ({ autoPublish = true }: UseChannelsAdminProps =
           toast({
             title: "تنبيه",
             description: "تم تحديث القناة، لكن قد يكون هناك مشكلة في النشر التلقائي",
-            variant: "warning",
+            variant: "destructive",
           });
         });
       }
@@ -133,7 +133,7 @@ export const useChannelsAdmin = ({ autoPublish = true }: UseChannelsAdminProps =
           toast({
             title: "تنبيه",
             description: "تم حذف القناة، لكن قد يكون هناك مشكلة في النشر التلقائي",
-            variant: "warning",
+            variant: "destructive",
           });
         });
       }
