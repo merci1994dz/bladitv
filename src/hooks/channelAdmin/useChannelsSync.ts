@@ -9,7 +9,7 @@ export const useChannelsSync = (refetchChannels: () => Promise<any>) => {
   const { toast } = useToast();
   
   // وظيفة مزامنة القنوات يدويًا وضمان نشرها للمستخدمين
-  const manualSyncChannels = async () => {
+  const manualSyncChannels = async (): Promise<void> => {
     toast({
       title: "جاري المزامنة",
       description: "جاري تحديث قائمة القنوات ونشرها للمستخدمين...",
@@ -29,8 +29,7 @@ export const useChannelsSync = (refetchChannels: () => Promise<any>) => {
         description: "تم تحديث القنوات بنجاح ونشرها للمستخدمين",
       });
       
-      // تأكيد النجاح
-      return true;
+      // Changed from returning boolean to void
     } catch (error) {
       console.error('خطأ في مزامنة القنوات:', error);
       
@@ -40,8 +39,7 @@ export const useChannelsSync = (refetchChannels: () => Promise<any>) => {
         variant: "destructive",
       });
       
-      // إرجاع الخطأ للمعالجة
-      throw error;
+      // No longer throwing the error to ensure void return type
     }
   };
   
