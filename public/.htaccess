@@ -4,29 +4,32 @@
   RewriteEngine On
   RewriteBase /
   
-  # إعادة توجيه www إلى non-www (اختياري)
-  # RewriteCond %{HTTP_HOST} ^www\.(.*)$ [NC]
-  # RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
-  
   # منع الوصول إلى ملفات معينة
   <FilesMatch "^(\.htaccess|\.htpasswd|\.git|\.env|\.DS_Store)">
     Order Allow,Deny
     Deny from all
   </FilesMatch>
   
-  # تجنب التخزين المؤقت للملفات المهمة
-  <FilesMatch "\.(html|json|js)$">
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  # تجنب التخزين المؤقت للملفات المهمة - تحسين
+  <FilesMatch "\.(html|htm|js|json|css)$">
+    Header unset ETag
+    FileETag None
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
     Header set Pragma "no-cache"
-    Header set Expires "0"
+    Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
+    Header set X-Content-Type-Options "nosniff"
   </FilesMatch>
   
-  # منع التخزين المؤقت لبيانات API
-  <FilesMatch "data\.json$">
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  # منع التخزين المؤقت لبيانات API - تحسين
+  <FilesMatch "(data\.json|channels\.json|countries\.json|categories\.json)$">
+    Header unset ETag
+    FileETag None
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
     Header set Pragma "no-cache"
-    Header set Expires "0"
+    Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
     Header set Access-Control-Allow-Origin "*"
+    Header set X-Cache-Disabled "true"
+    Header set X-Timestamp "%{TIME}e"
   </FilesMatch>
   
   # السماح بالوصول عبر CORS (مهم لملفات API)
@@ -35,15 +38,14 @@
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
     Header set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept"
     
-    # إضافة رأس خاص لتجنب التخزين المؤقت
+    # إضافة رؤوس خاصة لتجنب التخزين المؤقت
     Header set X-App-Version "%{TIME}e"
     Header set X-Last-Modified "%{TIME}e"
-    
-    # إضافة رأس للكشف عن التحديثات الجديدة
     Header set X-Content-Update-Time "%{TIME}e"
+    Header set X-Cache-Control "no-cache"
   </IfModule>
   
-  # إضافة رؤوس أمان إضافية
+  # إضافة رؤوس أمان إضافية - تحسين
   <IfModule mod_headers.c>
     Header set X-Content-Type-Options "nosniff"
     Header set X-XSS-Protection "1; mode=block"
@@ -79,25 +81,21 @@ Options -Indexes
 # تعيين الصفحة الافتراضية
 DirectoryIndex index.html
 
-# تحديد حجم أقصى للطلبات HTTP POST
-<IfModule mod_php.c>
-  php_value post_max_size 8M
-  php_value upload_max_filesize 8M
-  php_value memory_limit 256M
-  php_value max_execution_time 120
-  php_value max_input_time 120
-</IfModule>
-
-# إضافة رأس خاص للتمييز بين التحديثات
+# إضافة رأس خاص للتمييز بين التحديثات - تحسين
 <IfModule mod_headers.c>
-  Header set Cache-Control "private, max-age=0, must-revalidate"
+  Header unset ETag
+  FileETag None
+  Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+  Header set Pragma "no-cache"
+  Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
   Header set X-App-Update "%{TIME}e"
+  Header set X-Bladi-Time "%{TIME}e"
   
-  # ضبط ETag للتحكم في التخزين المؤقت
-  FileETag All
-</IfModule>
-
-# حماية الدليل admin (اختياري إذا كان هناك دليل admin منفصل)
-<IfModule mod_rewrite.c>
-  RewriteRule ^admin/?$ /index.html [L]
+  # منع caching بشكل كامل
+  <FilesMatch "^(?!.*\.(jpg|jpeg|png|gif|ico|svg|webp|woff|woff2|ttf|eot)).*$">
+    Header unset ETag
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
+  </FilesMatch>
 </IfModule>

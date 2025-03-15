@@ -28,12 +28,89 @@ jobs:
         npm install
         grunt
         
-    # Add cache-control headers to prevent caching
+    # إضافة رؤوس HTTP للتحكم في التخزين المؤقت - محسّن
     - name: Add cache-control headers
       run: |
         if [ -d "./dist" ]; then
-          echo "Adding cache-control headers to HTML files"
-          find ./dist -name "*.html" -exec sh -c 'echo "Cache-Control: no-cache, no-store, must-revalidate" > {}' \;
-          echo "Adding cache-control headers to JSON files"
-          find ./dist -name "*.json" -exec sh -c 'echo "Cache-Control: no-cache, no-store, must-revalidate" > {}' \;
+          echo "Adding strict cache-control headers to all files"
+          
+          # إضافة الرؤوس إلى ملفات HTML
+          find ./dist -name "*.html" -exec bash -c 'echo -e "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\nPragma: no-cache\nExpires: 0" > "{}".headers' \;
+          
+          # إضافة الرؤوس إلى ملفات JSON
+          find ./dist -name "*.json" -exec bash -c 'echo -e "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\nPragma: no-cache\nExpires: 0\nAccess-Control-Allow-Origin: *" > "{}".headers' \;
+          
+          # إضافة الرؤوس إلى ملفات JavaScript
+          find ./dist -name "*.js" -exec bash -c 'echo -e "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\nPragma: no-cache\nExpires: 0" > "{}".headers' \;
+          
+          # إضافة رؤوس إلى ملف index.html
+          if [ -f "./dist/index.html" ]; then
+            echo -e "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\nPragma: no-cache\nExpires: 0\nX-Frame-Options: SAMEORIGIN\nX-Content-Type-Options: nosniff\nX-XSS-Protection: 1; mode=block" > "./dist/index.html.headers"
+          fi
+          
+          # إنشاء ملف _headers لاستضافة Netlify أو Cloudflare Pages (احتياطي)
+          echo "/* 
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+  Pragma: no-cache
+  Expires: 0
+  X-Content-Type-Options: nosniff
+  
+/*.html
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+  Pragma: no-cache
+  Expires: 0
+  
+/*.json
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+  Pragma: no-cache
+  Expires: 0
+  Access-Control-Allow-Origin: *
+  
+/*.js
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+  Pragma: no-cache
+  Expires: 0" > "./dist/_headers"
+          
+          echo "Headers added successfully"
+        else
+          echo "Distribution directory not found"
+        fi
+        
+    # إضافة وثيقة لمنع استخدام الكاش
+    - name: Create additional no-cache files
+      run: |
+        if [ -d "./dist" ]; then
+          # إنشاء ملف meta.json للتحقق من وقت البناء
+          echo "{\"build_time\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\", \"version\": \"$(date +%s)\", \"cache_buster\": \"$(date +%s%N | sha256sum | head -c 10)\"}" > "./dist/meta.json"
+          
+          # إنشاء ملف service-worker.js لمنع الكاش
+          echo "// Service worker to prevent caching
+self.addEventListener('install', function(event) {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', function(event) {
+  event.waitUntil(clients.claim());
+});
+
+self.addEventListener('fetch', function(event) {
+  event.respondWith(
+    fetch(event.request, { 
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache'
+      }
+    })
+  );
+});" > "./dist/sw-no-cache.js"
+          
+          # إضافة النص البرمجي لتسجيل service worker إلى index.html
+          if [ -f "./dist/index.html" ]; then
+            sed -i 's/<\/body>/  <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("\/sw-no-cache.js").catch(console.error);}<\/script>\n<\/body>/g' "./dist/index.html"
+          fi
+          
+          echo "No-cache files created successfully"
+        else
+          echo "Distribution directory not found"
         fi

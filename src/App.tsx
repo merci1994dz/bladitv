@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,16 +18,19 @@ import { useEffect, useState } from "react";
 import { setupSettingsListener, forceAppReloadForAllUsers } from "./services/sync/settingsSync";
 import { syncAllData, getLastSyncTime } from "./services/sync";
 import { useToast } from "./hooks/use-toast";
+import AutoSyncProvider from "./components/AutoSyncProvider";
 
 // إنشاء عميل استعلام معزز مع تقليل زمن التخزين المؤقت لضمان الحصول على البيانات المحدثة
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 2, // تقليل إلى دقيقتين (كان 5 دقائق)
-      retry: 2,
+      staleTime: 1000 * 60, // تقليل إلى دقيقة واحدة فقط
+      cacheTime: 1000 * 60 * 5, // تخزين مؤقت للبيانات لمدة 5 دقائق
+      retry: 3, // زيادة عدد المحاولات
       refetchOnWindowFocus: true,
-      refetchOnMount: true,     // إضافة خاصية جديدة
-      refetchOnReconnect: true, // إضافة خاصية جديدة
+      refetchOnMount: true,     
+      refetchOnReconnect: true, 
+      refetchInterval: 1000 * 60 * 10, // إعادة جلب البيانات كل 10 دقائق
     },
   },
 });
@@ -46,36 +48,28 @@ const App = () => {
     // وظيفة التهيئة
     const initialize = async () => {
       try {
-        // فحص حالة المزامنة وتنفيذها إذا لزم الأمر
-        const lastSync = getLastSyncTime();
-        const now = Date.now();
+        // إجبار تحديث البيانات عند كل بدء تشغيل (تعديل مهم)
+        console.log('بدء المزامنة الإجبارية عند تشغيل التطبيق...');
         
-        if (!lastSync || (now - new Date(lastSync).getTime() > 5 * 60 * 1000)) {
-          console.log('بدء المزامنة الأولية عند تشغيل التطبيق...');
-          
-          // محاولة المزامنة مع معالجة الأخطاء
-          try {
-            await syncAllData();
-            if (mounted) {
-              toast({
-                title: "تم تحديث البيانات",
-                description: "تم تحديث البيانات بنجاح",
-                duration: 3000,
-              });
-            }
-          } catch (syncError) {
-            console.error('خطأ أثناء المزامنة الأولية:', syncError);
-            if (mounted) {
-              toast({
-                title: "تعذر تحديث البيانات",
-                description: "سيتم إعادة المحاولة لاحقًا",
-                variant: "destructive",
-                duration: 4000,
-              });
-            }
+        try {
+          await syncAllData(true); // إجبار المزامنة
+          if (mounted) {
+            toast({
+              title: "تم تحديث البيانات",
+              description: "تم تحديث البيانات بنجاح",
+              duration: 3000,
+            });
           }
-        } else {
-          console.log('آخر مزامنة حديثة، تخطي المزامنة الأولية');
+        } catch (syncError) {
+          console.error('خطأ أثناء المزامنة الأولية:', syncError);
+          if (mounted) {
+            toast({
+              title: "تعذر تحديث البيانات",
+              description: "سيتم إعادة المحاولة لاحقًا",
+              variant: "destructive",
+              duration: 4000,
+            });
+          }
         }
         
         if (mounted) {
@@ -89,11 +83,19 @@ const App = () => {
       }
     };
     
-    // إعداد مستمع التغييرات في الإعدادات والبيانات
+    // إعداد مستمع التغييرات في الإعدادات والبيانات - محسن
     const cleanupSettingsListener = setupSettingsListener();
     
     // بدء عملية التهيئة
     initialize();
+    
+    // حل مشكلة التخزين المؤقت عن طريق إضافة معلمة عشوائية إلى عنوان URL
+    const currentUrl = window.location.href;
+    if (!currentUrl.includes('nocache=') && !currentUrl.includes('refresh=')) {
+      const separator = currentUrl.includes('?') ? '&' : '?';
+      const newUrl = `${currentUrl}${separator}nocache=${Date.now()}`;
+      window.history.replaceState(null, document.title, newUrl);
+    }
     
     // إضافة علامة زمنية لبدء التطبيق
     localStorage.setItem('app_started', Date.now().toString());
@@ -103,75 +105,71 @@ const App = () => {
       mounted = false;
       cleanupSettingsListener();
     };
-  }, [toast]); // إضافة toast إلى مصفوفة التبعيات
-  
-  // ننتظر اكتمال تهيئة التطبيق قبل عرض المحتوى الرئيسي
-  // لكن لا نظهر شاشة تحميل إضافية حتى لا نربك المستخدم، نستمر بعرض SplashScreen العادية
+  }, [toast]);
   
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-            <Routes>
-              <Route path="/" element={<SplashScreen />} />
-              <Route path="/home" element={
-                <>
-                  <Home />
-                  <Navigation />
-                </>
-              } />
-              <Route path="/categories" element={
-                <>
-                  <Categories />
-                  <Navigation />
-                </>
-              } />
-              <Route path="/countries" element={
-                <>
-                  <Countries />
-                  <Navigation />
-                </>
-              } />
-              <Route path="/country/:countryId" element={
-                <>
-                  <CountryChannels />
-                  <Navigation />
-                </>
-              } />
-              <Route path="/search" element={
-                <>
-                  <Search />
-                  <Navigation />
-                </>
-              } />
-              <Route path="/favorites" element={
-                <>
-                  <Favorites />
-                  <Navigation />
-                </>
-              } />
-              {/* مسار صفحة الإعدادات */}
-              <Route path="/settings" element={
-                <>
-                  <UserSettings />
-                  <Navigation />
-                </>
-              } />
-              {/* مسار المشرف */}
-              <Route path="/admin" element={
-                <>
-                  <Admin />
-                  <Navigation />
-                </>
-              } />
-              {/* مسار الالتقاط لجميع المسارات غير الموجودة */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </div>
-        </BrowserRouter>
+        <AutoSyncProvider>
+          <BrowserRouter>
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+              <Routes>
+                <Route path="/" element={<SplashScreen />} />
+                <Route path="/home" element={
+                  <>
+                    <Home />
+                    <Navigation />
+                  </>
+                } />
+                <Route path="/categories" element={
+                  <>
+                    <Categories />
+                    <Navigation />
+                  </>
+                } />
+                <Route path="/countries" element={
+                  <>
+                    <Countries />
+                    <Navigation />
+                  </>
+                } />
+                <Route path="/country/:countryId" element={
+                  <>
+                    <CountryChannels />
+                    <Navigation />
+                  </>
+                } />
+                <Route path="/search" element={
+                  <>
+                    <Search />
+                    <Navigation />
+                  </>
+                } />
+                <Route path="/favorites" element={
+                  <>
+                    <Favorites />
+                    <Navigation />
+                  </>
+                } />
+                <Route path="/settings" element={
+                  <>
+                    <UserSettings />
+                    <Navigation />
+                  </>
+                } />
+                <Route path="/admin" element={
+                  <>
+                    <Admin />
+                    <Navigation />
+                  </>
+                } />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </div>
+          </BrowserRouter>
+        </AutoSyncProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

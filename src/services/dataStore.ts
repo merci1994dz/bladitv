@@ -28,11 +28,18 @@ export const saveChannelsToStorage = () => {
     localStorage.setItem('last_update_time', timestamp); 
     localStorage.setItem('bladi_info_update', timestamp);
     localStorage.setItem('force_refresh', 'true');
+    localStorage.setItem('nocache_version', timestamp);
     
     // لتوافق إضافي مع جميع المتصفحات
     try {
       sessionStorage.setItem('channel_update', timestamp);
       document.cookie = `channel_update=${timestamp}; path=/;`;
+      
+      // محاولة نشر حدث مخصص للتطبيق
+      const event = new CustomEvent('bladi_data_update', { 
+        detail: { type: 'channels', time: timestamp } 
+      });
+      window.dispatchEvent(event);
     } catch (e) {
       // تجاهل أي أخطاء هنا
     }
@@ -121,6 +128,11 @@ export const loadFromLocalStorage = () => {
     localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(countries));
     localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
     
+    // ضمان نشر التغييرات - تحسين
+    const timestamp = Date.now().toString();
+    localStorage.setItem('bladi_info_update', timestamp);
+    localStorage.setItem('data_version', timestamp);
+    
     // تهيئة كلمة مرور المشرف إذا لم تكن موجودة
     if (!localStorage.getItem(STORAGE_KEYS.ADMIN_PASSWORD)) {
       localStorage.setItem(STORAGE_KEYS.ADMIN_PASSWORD, 'admin123');
@@ -166,11 +178,13 @@ export const addChannelToMemory = (channel: Channel) => {
   // حفظ إلى التخزين المحلي مباشرة وإضافة علامات تحديث
   saveChannelsToStorage();
   
-  // إضافة علامات تحديث إضافية
+  // إضافة علامات تحديث إضافية - تحسين
   const timestamp = Date.now().toString();
   localStorage.setItem('channels_updated_at', new Date().toISOString());
   localStorage.setItem('bladi_info_update', timestamp);
+  localStorage.setItem('force_refresh', 'true');
   localStorage.setItem('force_browser_refresh', 'true');
+  localStorage.setItem('app_update_required', timestamp);
   
   return channel;
 };
@@ -185,10 +199,12 @@ export const removeChannelFromMemory = (channelId: string) => {
     // حفظ التغييرات مباشرة
     saveChannelsToStorage();
     
-    // إضافة علامات تحديث
+    // إضافة علامات تحديث - تحسين
     const timestamp = Date.now().toString();
     localStorage.setItem('bladi_info_update', timestamp);
     localStorage.setItem('force_browser_refresh', 'true');
+    localStorage.setItem('force_refresh', 'true');
+    localStorage.setItem('app_update_required', timestamp);
     
     console.log(`تم حذف القناة: ${channelName} وتحديث البيانات`);
     return true;
@@ -196,7 +212,7 @@ export const removeChannelFromMemory = (channelId: string) => {
   return false;
 };
 
-// تحديث بيانات قناة وضمان نشرها
+// تحديث بيانات قناة وضمان نشرها - محسّن
 export const updateChannelInMemory = (channel: Channel) => {
   const index = channels.findIndex(c => c.id === channel.id);
   if (index >= 0) {
@@ -205,10 +221,22 @@ export const updateChannelInMemory = (channel: Channel) => {
     // حفظ التغييرات ونشرها
     saveChannelsToStorage();
     
-    // إضافة علامات تحديث
+    // إضافة علامات تحديث - تحسين
     const timestamp = Date.now().toString();
     localStorage.setItem('channel_updated', timestamp);
     localStorage.setItem('force_browser_refresh', 'true');
+    localStorage.setItem('app_update_required', timestamp);
+    localStorage.setItem('data_version', timestamp);
+    
+    // نشر حدث تم تحديث البيانات
+    try {
+      const event = new CustomEvent('channel_updated', { 
+        detail: { channelId: channel.id, time: timestamp }
+      });
+      window.dispatchEvent(event);
+    } catch (e) {
+      // تجاهل أي أخطاء هنا
+    }
     
     console.log(`تم تحديث القناة: ${channel.name} ونشرها`);
     return true;

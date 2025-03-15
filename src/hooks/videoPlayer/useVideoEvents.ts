@@ -35,38 +35,54 @@ export function useVideoEvents({
     handlePlaybackError
   });
 
-  // تأثير الإعداد - مبسط لتوافق أفضل
+  // تأثير محسّن لإعداد الفيديو - تم تحسينه لتوافق أفضل ومنع فقدان مصادر البث
   useEffect(() => {
-    console.log("Setting up video for channel:", channel.name, "attempt:", retryCount);
+    console.log("إعداد الفيديو للقناة:", channel.name, "محاولة:", retryCount);
     
     // إعادة تعيين الحالات
     setError(null);
     setIsLoading(true);
     
-    // تنظيف أي مصدر فيديو موجود
-    if (videoRef.current) {
-      try {
-        videoRef.current.pause();
-        videoRef.current.removeAttribute('src');
-        videoRef.current.load();
-      } catch (e) {
-        console.error("Error clearing video:", e);
-      }
-    }
+    // معرّف المؤقت
+    let timeoutId: number | undefined;
     
-    // تهيئة تشغيل الفيديو بعد تأخير قصير للأجهزة المحمولة
-    const timeoutId = setTimeout(() => {
+    // دالة الإعداد
+    const setupVideo = () => {
+      // تنظيف أي مصدر فيديو موجود
       if (videoRef.current) {
-        console.log("Initializing video playback after delay");
-        initializeVideoPlayback(videoRef, channel, setIsLoading, setError);
+        try {
+          videoRef.current.pause();
+          
+          // لا نقوم بإزالة السمة src مباشرة لتجنب مشاكل في بعض المتصفحات
+          if (videoRef.current.src !== channel.streamUrl) {
+            videoRef.current.src = '';
+            videoRef.current.load();
+          }
+        } catch (e) {
+          console.error("خطأ في تنظيف الفيديو:", e);
+        }
       }
-    }, 300);
+      
+      // تهيئة تشغيل الفيديو بعد تأخير قصير
+      timeoutId = window.setTimeout(() => {
+        if (videoRef.current) {
+          console.log("تهيئة تشغيل الفيديو بعد التأخير");
+          initializeVideoPlayback(videoRef, channel, setIsLoading, setError);
+        }
+      }, 200);
+    };
+    
+    // تنفيذ الإعداد
+    setupVideo();
     
     // وظيفة التنظيف
     return () => {
-      clearTimeout(timeoutId);
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+      
       if (videoRef.current) {
-        console.log("Cleaning up video element");
+        console.log("تنظيف عنصر الفيديو");
         try {
           // إزالة المستمعين أولاً
           videoRef.current.oncanplay = null;
@@ -80,9 +96,8 @@ export function useVideoEvents({
           videoRef.current.pause();
           videoRef.current.src = '';
           videoRef.current.load();
-          videoRef.current.removeAttribute('src');
         } catch (e) {
-          console.error("Error during video cleanup:", e);
+          console.error("خطأ أثناء تنظيف الفيديو:", e);
         }
       }
     };
