@@ -3,25 +3,33 @@ import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 
-// إضافة معالج أخطاء عالمي
+// تحسين معالج الأخطاء العالمي
 const handleGlobalError = (error: Error) => {
   console.error('خطأ غير معالج في التطبيق:', error);
   
-  // يمكن إضافة منطق إعادة تحميل التطبيق هنا إذا كانت المشكلة خطيرة
-  if (error.message.includes('network') || error.message.includes('fetch') || error.message.includes('API')) {
-    console.warn('خطأ في الاتصال، محاولة إعادة تحميل البيانات...');
+  // تحسين منطق إعادة تحميل التطبيق في حالة المشاكل الشبكية
+  if (error.message.includes('network') || 
+      error.message.includes('fetch') || 
+      error.message.includes('API') || 
+      error.message.includes('data')) {
+    console.warn('خطأ في الاتصال أو البيانات، محاولة استعادة التطبيق...');
     
-    // محاولة إعادة تحميل الصفحة في حالات خطأ الاتصال
+    // إضافة علامة للإشارة إلى خطأ حدث
+    localStorage.setItem('app_error_occurred', 'true');
+    localStorage.setItem('error_timestamp', Date.now().toString());
+    
+    // محاولة إعادة تحميل الصفحة فقط إذا كان المستخدم متصلاً بالإنترنت
     if (navigator.onLine) {
       setTimeout(() => {
-        // إعادة التحميل بدون التخزين المؤقت في حالة ظهور خطأ اتصال
-        window.location.reload();
-      }, 5000);
+        // إضافة معلمات لمنع التخزين المؤقت عند إعادة التحميل
+        window.location.href = window.location.href.split('?')[0] + 
+          `?reload=${Date.now()}&nocache=true`;
+      }, 3000);
     }
   }
 };
 
-// تسجيل معالج الأخطاء
+// تسجيل معالجات الأخطاء
 window.addEventListener('error', (event) => {
   handleGlobalError(event.error);
 });
@@ -30,37 +38,55 @@ window.addEventListener('unhandledrejection', (event) => {
   handleGlobalError(event.reason);
 });
 
-// إضافة متغير للتحقق مما إذا كان التطبيق يعمل على خادم استضافة أو محليًا
-// تعريف النوع لتجنب خطأ TypeScript
+// تحسين التعرف على بيئة التشغيل
 declare global {
   interface Window {
     isHostedEnvironment: boolean;
+    isGitHubPages: boolean;
   }
 }
 
-// تهيئة المتغير
-window.isHostedEnvironment = window.location.hostname !== 'localhost' && !window.location.hostname.includes('127.0.0.1');
+// تهيئة متغيرات بيئة التشغيل
+window.isHostedEnvironment = window.location.hostname !== 'localhost' && 
+                           !window.location.hostname.includes('127.0.0.1');
+                           
+window.isGitHubPages = window.location.hostname.includes('github.io');
 
-// تحسين الأداء عند التشغيل على الاستضافة
-if (window.isHostedEnvironment) {
-  console.log('التطبيق يعمل على بيئة استضافة');
+// تحسين الإعدادات بناءً على بيئة التشغيل
+if (window.isGitHubPages) {
+  console.log('التطبيق يعمل على GitHub Pages - تطبيق إعدادات خاصة');
+  // إعدادات خاصة بـ GitHub Pages
+  localStorage.setItem('is_github_pages', 'true');
+} else if (window.isHostedEnvironment) {
+  console.log('التطبيق يعمل على بيئة استضافة عادية');
+  localStorage.setItem('is_hosted', 'true');
+} else {
+  console.log('التطبيق يعمل محليًا - وضع التطوير');
+  localStorage.setItem('is_development', 'true');
 }
 
-// إضافة معلومات استضافة Namecheap
-console.log('تم تجهيز التطبيق للتوافق مع استضافة Namecheap');
-
 // تثبيت التطبيق الرئيسي
-createRoot(document.getElementById("root")!).render(<App />);
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("عنصر الجذر غير موجود في الصفحة");
+}
 
-// إضافة مؤقت للتحقق من اتصال الإنترنت
-let wasOffline = false;
+createRoot(rootElement).render(<App />);
+
+// إضافة مؤقت للتحقق من اتصال الإنترنت مع تحسين منطق المعالجة
+let wasOffline = !navigator.onLine;
 setInterval(() => {
   if (!navigator.onLine && !wasOffline) {
     console.warn('انقطع الاتصال بالإنترنت!');
     wasOffline = true;
+    
+    // إشعار للتخزين المحلي يمكن للمكونات الأخرى الاستجابة له
+    localStorage.setItem('connection_lost', Date.now().toString());
   } else if (navigator.onLine && wasOffline) {
     console.log('تم استعادة الاتصال بالإنترنت!');
     wasOffline = false;
-    // يمكنك إضافة منطق لإعادة تحميل البيانات هنا
+    
+    // إشعار بعودة الاتصال
+    localStorage.setItem('connection_restored', Date.now().toString());
   }
 }, 5000);

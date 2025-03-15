@@ -13,10 +13,10 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
   const [syncError, setSyncError] = useState<string | null>(null);
   
   useEffect(() => {
-    // وظيفة المزامنة المحسنة مع معالجة الأخطاء
+    // وظيفة المزامنة المحسنة مع تجنب المزامنات المتكررة
     const performSync = async () => {
       try {
-        await syncAllData(true);
+        await syncAllData(false); // استخدام false لتجنب المزامنات المتكررة عند بدء التشغيل
         setSyncError(null);
       } catch (error) {
         console.error('خطأ في المزامنة التلقائية:', error);
@@ -24,13 +24,17 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
       }
     };
     
-    // تنفيذ المزامنة عند بدء التشغيل
-    performSync();
-    
-    // إعداد مزامنة تلقائية كل دقيقتين
-    const syncInterval = setInterval(() => {
+    // تأخير المزامنة الأولية لمنع التعارض مع التهيئة الأولية
+    const initialSyncTimeout = setTimeout(() => {
+      console.log('بدء المزامنة الأولية في AutoSyncProvider');
       performSync();
-    }, 2 * 60 * 1000);
+    }, 5000);
+    
+    // إعداد مزامنة تلقائية كل 5 دقائق (زيادة من دقيقتين)
+    const syncInterval = setInterval(() => {
+      console.log('تنفيذ المزامنة الدورية');
+      performSync();
+    }, 5 * 60 * 1000);
     
     // إعداد مستمع لحالة الاتصال بالإنترنت
     const handleOnline = () => {
@@ -44,19 +48,23 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
     
     window.addEventListener('online', handleOnline);
     
-    // إضافة مستمع لتنشيط النافذة
+    // إضافة مستمع لتنشيط النافذة مع تأخير
     const handleFocus = () => {
-      performSync();
+      // تأخير بسيط لمنع المزامنات المتكررة عند التبديل بين علامات التبويب
+      setTimeout(() => {
+        performSync();
+      }, 1000);
     };
     
     window.addEventListener('focus', handleFocus);
     
-    // إنشاء فاصل زمني لنشر حالة التحديث للتأكد من انتشار التغييرات
+    // إنشاء فاصل زمني لنشر حالة التحديث (كل 10 دقائق بدلاً من 5)
     const broadcastInterval = setInterval(() => {
       broadcastSettingsUpdate();
-    }, 5 * 60 * 1000);
+    }, 10 * 60 * 1000);
     
     return () => {
+      clearTimeout(initialSyncTimeout);
       clearInterval(syncInterval);
       clearInterval(broadcastInterval);
       window.removeEventListener('online', handleOnline);
@@ -74,7 +82,7 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
           variant: "destructive",
           duration: 5000,
         });
-      }, 5000); // انتظر 5 ثوان قبل عرض الخطأ للمستخدم
+      }, 5000);
       
       return () => clearTimeout(errorTimeout);
     }
