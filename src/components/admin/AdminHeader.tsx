@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { RefreshCw, Globe } from 'lucide-react';
+import { RefreshCw, Globe, Settings } from 'lucide-react';
 import { forceSync } from '@/services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -45,9 +45,9 @@ const AdminHeader: React.FC = () => {
   return (
     <header className="mb-8 text-center">
       <h1 className="text-3xl font-bold mb-2">لوحة الإدارة</h1>
-      <p className="text-muted-foreground">إدارة القنوات والبلدان في التطبيق</p>
+      <p className="text-muted-foreground mb-6">إدارة القنوات والبلدان في التطبيق</p>
       
-      <div className="mt-4 flex flex-wrap justify-center gap-4">
+      <div className="flex flex-wrap justify-center gap-4">
         <Button 
           variant="outline" 
           onClick={handleForceSync}
@@ -59,13 +59,24 @@ const AdminHeader: React.FC = () => {
         </Button>
         
         <Button 
-          variant="outline" 
+          variant="default" 
           className="flex items-center gap-2"
           asChild
         >
           <Link to="/remote-config">
             <Globe className="h-4 w-4" />
             <span>إعدادات التحديث عن بُعد</span>
+          </Link>
+        </Button>
+        
+        <Button 
+          variant="outline" 
+          className="flex items-center gap-2"
+          asChild
+        >
+          <Link to="/settings">
+            <Settings className="h-4 w-4" />
+            <span>إعدادات المستخدم</span>
           </Link>
         </Button>
       </div>
