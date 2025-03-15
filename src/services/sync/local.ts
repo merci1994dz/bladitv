@@ -38,32 +38,43 @@ export function obfuscateStreamUrls(data: any[]): any[] {
 export const syncWithLocalData = async (forceRefresh = false): Promise<boolean> => {
   try {
     setIsSyncing(true);
-    console.log('Using local data for sync');
+    console.log('استخدام البيانات المحلية للمزامنة');
     
     if (forceRefresh) {
       // Reload data from localStorage
       loadFromLocalStorage();
-      console.log('Forced refresh of local data');
+      console.log('إعادة تحميل البيانات المحلية بشكل إجباري');
     }
     
-    // Simply save current data to localStorage
+    // إضافة طابع زمني لمنع التخزين المؤقت
+    const timestamp = Date.now().toString();
+    
+    // Simply save current data to localStorage with timestamp
     localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
     localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(countries));
     localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
     
+    // إضافة علامات تحديث خاصة لضمان تحديث جميع المتصفحات
+    localStorage.setItem('data_update_timestamp', timestamp);
+    localStorage.setItem('sync_complete_time', timestamp);
+    localStorage.setItem('force_browser_refresh', forceRefresh ? 'true' : 'false');
+    
     // Update last sync time
     updateLastSyncTime();
     
-    console.log('Local data saved successfully');
+    console.log('تم حفظ البيانات المحلية بنجاح');
     
     // If this was a forced refresh, reload the page
     if (forceRefresh) {
-      window.location.reload();
+      // تأخير قصير قبل إعادة التحميل لضمان حفظ البيانات
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
     }
     
     return true;
   } catch (error) {
-    console.error('Error saving local data:', error);
+    console.error('خطأ في حفظ البيانات المحلية:', error);
     return false;
   } finally {
     setIsSyncing(false);
@@ -90,6 +101,26 @@ export const isSyncNeeded = (): boolean => {
   }
   
   return !hasChannels || !hasCategories || !hasCountries;
+};
+
+// ضمان تحديث البيانات على جميع الأجهزة
+export const ensureDataPropagation = () => {
+  // إضافة علامات زمنية متعددة لضمان ظهور التحديثات
+  const timestamp = Date.now().toString();
+  
+  localStorage.setItem('data_update_timestamp', timestamp);
+  localStorage.setItem('sync_complete_time', timestamp);
+  localStorage.setItem('update_notification', timestamp);
+  localStorage.setItem('force_cache_refresh', timestamp);
+  localStorage.setItem('bladi_info_update', timestamp);
+  localStorage.setItem('data_version', timestamp);
+  
+  // تحديث علامات للمواقع المعروفة
+  localStorage.setItem('bladi_update_version', timestamp);
+  localStorage.setItem('bladi_update_channels', 'true');
+  localStorage.setItem('bladi_force_refresh', 'true');
+  
+  return timestamp;
 };
 
 // Alias for backward compatibility

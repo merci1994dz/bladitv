@@ -1,5 +1,5 @@
 
-# إعدادات التطبيق لاستضافة Namecheap
+# إعدادات التطبيق لاستضافة
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
@@ -35,9 +35,12 @@
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
     Header set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept"
     
-    # إضافة رأس خاص لتجنب التخزين المؤقت في bladi-info.com
-    Header set X-Bladi-Info-Version "%{TIME}e"
+    # إضافة رأس خاص لتجنب التخزين المؤقت
+    Header set X-App-Version "%{TIME}e"
     Header set X-Last-Modified "%{TIME}e"
+    
+    # إضافة رأس للكشف عن التحديثات الجديدة
+    Header set X-Content-Update-Time "%{TIME}e"
   </IfModule>
   
   # إضافة رؤوس أمان إضافية
@@ -46,7 +49,8 @@
     Header set X-XSS-Protection "1; mode=block"
     Header set X-Frame-Options "SAMEORIGIN"
     Header set Referrer-Policy "no-referrer-when-downgrade"
-    Header set Feature-Policy "microphone 'none'; camera 'none'"
+    Header set Permissions-Policy "microphone=(), camera=()"
+    Header set Content-Security-Policy "default-src 'self'; connect-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' data: https:; object-src 'none';"
   </IfModule>
   
   # توجيه جميع الطلبات إلى index.html (ضروري لـ React Router)
@@ -82,4 +86,18 @@ DirectoryIndex index.html
   php_value memory_limit 256M
   php_value max_execution_time 120
   php_value max_input_time 120
+</IfModule>
+
+# إضافة رأس خاص للتمييز بين التحديثات
+<IfModule mod_headers.c>
+  Header set Cache-Control "private, max-age=0, must-revalidate"
+  Header set X-App-Update "%{TIME}e"
+  
+  # ضبط ETag للتحكم في التخزين المؤقت
+  FileETag All
+</IfModule>
+
+# حماية الدليل admin (اختياري إذا كان هناك دليل admin منفصل)
+<IfModule mod_rewrite.c>
+  RewriteRule ^admin/?$ /index.html [L]
 </IfModule>

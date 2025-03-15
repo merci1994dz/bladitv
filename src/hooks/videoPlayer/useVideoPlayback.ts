@@ -4,7 +4,7 @@ import { useVideoSetup } from './useVideoSetup';
 import { useVideoRetry } from './useVideoRetry';
 import { useVideoControl } from './useVideoControl';
 import { useVideoEvents } from './useVideoEvents';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface UseVideoPlaybackProps {
   channel: Channel;
@@ -24,6 +24,9 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
   // إنشاء مرجع لتتبع القناة الحالية
   const currentChannelRef = useRef(channel);
   
+  // إضافة حالة لتتبع اكتمال التحميل
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  
   // إعداد عناصر التحكم في تشغيل الفيديو
   const {
     isPlaying,
@@ -36,7 +39,7 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     setError
   });
 
-  // إعداد منطق إعادة المحاولة - أبسط للأجهزة المحمولة
+  // إعداد منطق إعادة المحاولة - محسّن
   const {
     retryCount,
     retryPlayback,
@@ -54,9 +57,50 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     // تسجيل معلومات القناة الجديدة
     if (currentChannelRef.current?.id !== channel?.id) {
       console.log("تغيير القناة من", currentChannelRef.current?.name || 'لا يوجد', "إلى", channel?.name || 'لا يوجد');
+      
+      // إعادة ضبط حالة الفيديو
+      setIsLoading(true);
+      setError(null);
+      setIsVideoReady(false);
+      
+      // إعادة تحميل الفيديو
+      if (videoRef.current) {
+        videoRef.current.load();
+      }
     }
+    
     currentChannelRef.current = channel;
-  }, [channel]);
+  }, [channel, setIsLoading, setError]);
+
+  // إضافة معالج لحدث canplay
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    
+    const handleCanPlay = () => {
+      setIsVideoReady(true);
+      setIsLoading(false);
+      
+      // محاولة التشغيل التلقائي
+      if (videoElement) {
+        videoElement.play()
+          .then(() => {
+            setIsPlaying(true);
+          })
+          .catch((err) => {
+            // قد يكون التشغيل التلقائي ممنوعًا على بعض المتصفحات
+            console.log("خطأ في التشغيل التلقائي:", err);
+          });
+      }
+    };
+    
+    if (videoElement) {
+      videoElement.addEventListener('canplay', handleCanPlay);
+      
+      return () => {
+        videoElement.removeEventListener('canplay', handleCanPlay);
+      };
+    }
+  }, [videoRef, setIsLoading, setIsPlaying]);
 
   // إعداد مستمعي أحداث الفيديو
   useVideoEvents({
@@ -78,14 +122,16 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
       isMobile,
       isPlaying,
       isLoading,
+      isVideoReady,
       error: error || "لا يوجد خطأ"
     });
-  }, [channel, isMobile, isPlaying, isLoading, error]);
+  }, [channel, isMobile, isPlaying, isLoading, isVideoReady, error]);
 
   return {
     videoRef,
     isPlaying,
     isLoading,
+    isVideoReady,
     error,
     retryCount,
     togglePlayPause,

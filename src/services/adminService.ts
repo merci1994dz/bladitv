@@ -1,113 +1,145 @@
 
-import { STORAGE_KEYS, DEFAULT_ADMIN_PASSWORD, SECURITY_CONFIG } from './config';
-import { toast } from '@/hooks/use-toast';
+import { STORAGE_KEYS, SECURITY_CONFIG } from './config';
 
-// Function to verify admin password with security features
-export const verifyAdminPassword = (password: string): boolean => {
-  // التحقق من وجود قفل على تسجيل الدخول بعد عدة محاولات فاشلة
-  const lockUntil = localStorage.getItem('admin_lock_until');
-  if (lockUntil && Number(lockUntil) > Date.now()) {
-    const remainingMinutes = Math.ceil((Number(lockUntil) - Date.now()) / 60000);
-    throw new Error(`تم قفل الحساب مؤقتًا. يرجى المحاولة بعد ${remainingMinutes} دقيقة`);
+// وظيفة للتحقق من صحة كلمة المرور
+export const verifyPassword = (password: string): boolean => {
+  const storedPassword = localStorage.getItem(STORAGE_KEYS.ADMIN_PASSWORD);
+  
+  if (!storedPassword) {
+    // إذا لم يتم العثور على كلمة مرور، استخدام الافتراضية
+    return password === 'admin123';
   }
-
-  // استرجاع كلمة المرور المخزنة أو استخدام الافتراضية
-  const storedPassword = localStorage.getItem(STORAGE_KEYS.ADMIN_PASSWORD) || DEFAULT_ADMIN_PASSWORD;
   
-  // التحقق من صحة كلمة المرور
-  const isValid = password === storedPassword;
-  
-  // إدارة محاولات تسجيل الدخول
-  const attempts = Number(localStorage.getItem(STORAGE_KEYS.ADMIN_LOGIN_ATTEMPTS) || '0');
-  
-  if (isValid) {
-    // إعادة ضبط عدد المحاولات في حالة النجاح
-    localStorage.removeItem(STORAGE_KEYS.ADMIN_LOGIN_ATTEMPTS);
-    
-    // إنشاء توكن الجلسة
-    const sessionToken = generateSessionToken();
-    localStorage.setItem(STORAGE_KEYS.ADMIN_ACCESS_TOKEN, sessionToken);
-    localStorage.setItem('admin_session_expires', (Date.now() + SECURITY_CONFIG.ADMIN_PROTECTION.SESSION_TIMEOUT).toString());
-    
-    return true;
-  } else {
-    // زيادة عدد المحاولات الفاشلة
-    const newAttempts = attempts + 1;
-    localStorage.setItem(STORAGE_KEYS.ADMIN_LOGIN_ATTEMPTS, newAttempts.toString());
-    
-    // قفل الحساب بعد وصول الحد الأقصى من المحاولات
-    if (newAttempts >= SECURITY_CONFIG.ADMIN_PROTECTION.MAX_LOGIN_ATTEMPTS) {
-      const lockTime = Date.now() + SECURITY_CONFIG.ADMIN_PROTECTION.LOCK_TIME;
-      localStorage.setItem('admin_lock_until', lockTime.toString());
-      throw new Error(`تم تجاوز الحد الأقصى لمحاولات تسجيل الدخول. تم قفل الحساب لمدة ${SECURITY_CONFIG.ADMIN_PROTECTION.LOCK_TIME / 60000} دقيقة`);
-    }
-    
-    return false;
-  }
+  return password === storedPassword;
 };
 
-// وظيفة للتحقق من صلاحية جلسة المسؤول
-export const verifyAdminSession = (): boolean => {
-  const sessionToken = localStorage.getItem(STORAGE_KEYS.ADMIN_ACCESS_TOKEN);
-  const sessionExpires = localStorage.getItem('admin_session_expires');
+// إنشاء توكن فريد للجلسة
+export const generateSessionToken = (): string => {
+  const token = Math.random().toString(36).substring(2, 15) + 
+               Math.random().toString(36).substring(2, 15) + 
+               Date.now().toString(36);
   
-  if (!sessionToken || !sessionExpires) {
+  return token;
+};
+
+// تسجيل دخول المشرف
+export const loginAdmin = (password: string): boolean => {
+  // التحقق من عدد محاولات الدخول
+  const attemptsStr = localStorage.getItem(STORAGE_KEYS.ADMIN_LOGIN_ATTEMPTS) || '0';
+  const attempts = parseInt(attemptsStr, 10);
+  const lastAttemptTime = parseInt(localStorage.getItem('admin_last_attempt') || '0', 10);
+  const now = Date.now();
+  
+  // إذا كان هناك قفل مؤقت، تحقق مما إذا كان الوقت قد انتهى
+  if (attempts >= SECURITY_CONFIG.ADMIN_PROTECTION.MAX_LOGIN_ATTEMPTS) {
+    if (now - lastAttemptTime < SECURITY_CONFIG.ADMIN_PROTECTION.LOCK_TIME) {
+      // لا يزال وقت القفل ساري المفعول
+      return false;
+    } else {
+      // إعادة ضبط العداد بعد انتهاء فترة القفل
+      localStorage.setItem(STORAGE_KEYS.ADMIN_LOGIN_ATTEMPTS, '0');
+    }
+  }
+  
+  // تعيين وقت آخر محاولة
+  localStorage.setItem('admin_last_attempt', now.toString());
+  
+  // التحقق من كلمة المرور
+  const isValid = verifyPassword(password);
+  
+  if (!isValid) {
+    // زيادة عدد المحاولات الفاشلة
+    localStorage.setItem(STORAGE_KEYS.ADMIN_LOGIN_ATTEMPTS, (attempts + 1).toString());
     return false;
   }
   
-  // التحقق من انتهاء صلاحية الجلسة
-  if (Number(sessionExpires) < Date.now()) {
-    // إزالة بيانات الجلسة المنتهية
-    localStorage.removeItem(STORAGE_KEYS.ADMIN_ACCESS_TOKEN);
-    localStorage.removeItem('admin_session_expires');
-    return false;
-  }
+  // إذا كانت كلمة المرور صحيحة، قم بإعادة ضبط العداد وإنشاء توكن
+  localStorage.setItem(STORAGE_KEYS.ADMIN_LOGIN_ATTEMPTS, '0');
   
-  // تجديد مدة الجلسة
-  localStorage.setItem('admin_session_expires', (Date.now() + SECURITY_CONFIG.ADMIN_PROTECTION.SESSION_TIMEOUT).toString());
+  // إنشاء توكن جلسة جديد
+  const token = generateSessionToken();
+  localStorage.setItem(STORAGE_KEYS.ADMIN_ACCESS_TOKEN, token);
+  
+  // تعيين وقت انتهاء الجلسة
+  const expiryTime = now + SECURITY_CONFIG.ADMIN_PROTECTION.SESSION_TIMEOUT;
+  localStorage.setItem('admin_session_expiry', expiryTime.toString());
+  
   return true;
 };
 
-// Function to update admin password with validation
-export const updateAdminPassword = (newPassword: string): void => {
-  // التحقق من شروط كلمة المرور
-  if (!newPassword) {
-    throw new Error('كلمة المرور مطلوبة');
+// التحقق من صحة جلسة المشرف
+export const verifyAdminSession = (): boolean => {
+  const token = localStorage.getItem(STORAGE_KEYS.ADMIN_ACCESS_TOKEN);
+  
+  if (!token) {
+    return false;
   }
   
-  if (newPassword.length < 8) {
-    throw new Error('يجب أن تكون كلمة المرور 8 أحرف على الأقل');
+  // التحقق مما إذا كانت الجلسة قد انتهت صلاحيتها
+  const expiryTime = parseInt(localStorage.getItem('admin_session_expiry') || '0', 10);
+  const now = Date.now();
+  
+  if (now > expiryTime) {
+    // الجلسة منتهية الصلاحية، قم بحذف الرمز المميز
+    localStorage.removeItem(STORAGE_KEYS.ADMIN_ACCESS_TOKEN);
+    localStorage.removeItem('admin_session_expiry');
+    return false;
   }
   
-  // التحقق من تعقيد كلمة المرور
-  const hasUpperCase = /[A-Z]/.test(newPassword);
-  const hasLowerCase = /[a-z]/.test(newPassword);
-  const hasNumbers = /\d/.test(newPassword);
-  const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+/.test(newPassword);
+  // تحديث وقت انتهاء الصلاحية (تمديد الجلسة)
+  const newExpiryTime = now + SECURITY_CONFIG.ADMIN_PROTECTION.SESSION_TIMEOUT;
+  localStorage.setItem('admin_session_expiry', newExpiryTime.toString());
   
-  if (!(hasUpperCase && hasLowerCase && hasNumbers) && !hasSpecialChar) {
-    throw new Error('كلمة المرور ضعيفة جدًا. يجب أن تحتوي على أحرف كبيرة وصغيرة وأرقام أو رموز خاصة');
-  }
-  
-  // تخزين كلمة المرور الجديدة
-  localStorage.setItem(STORAGE_KEYS.ADMIN_PASSWORD, newPassword);
-  
-  // إنشاء توكن جلسة جديد بعد تغيير كلمة المرور
-  const sessionToken = generateSessionToken();
-  localStorage.setItem(STORAGE_KEYS.ADMIN_ACCESS_TOKEN, sessionToken);
-  localStorage.setItem('admin_session_expires', (Date.now() + SECURITY_CONFIG.ADMIN_PROTECTION.SESSION_TIMEOUT).toString());
+  return true;
 };
 
-// وظيفة لتسجيل خروج المسؤول
+// تسجيل خروج المشرف
 export const logoutAdmin = (): void => {
   localStorage.removeItem(STORAGE_KEYS.ADMIN_ACCESS_TOKEN);
-  localStorage.removeItem('admin_session_expires');
-  localStorage.removeItem('admin_authenticated');
+  localStorage.removeItem('admin_session_expiry');
 };
 
-// وظيفة مساعدة لإنشاء توكن عشوائي
-const generateSessionToken = (): string => {
-  const randomPart = Math.random().toString(36).substring(2, 15);
-  const timePart = Date.now().toString(36);
-  return `${randomPart}_${timePart}`;
+// تغيير كلمة مرور المشرف
+export const changeAdminPassword = (currentPassword: string, newPassword: string): boolean => {
+  // التحقق من كلمة المرور الحالية
+  if (!verifyPassword(currentPassword)) {
+    return false;
+  }
+  
+  // حفظ كلمة المرور الجديدة
+  localStorage.setItem(STORAGE_KEYS.ADMIN_PASSWORD, newPassword);
+  
+  // إنشاء جلسة جديدة
+  const token = generateSessionToken();
+  localStorage.setItem(STORAGE_KEYS.ADMIN_ACCESS_TOKEN, token);
+  
+  // تعيين وقت انتهاء الصلاحية الجديد
+  const expiryTime = Date.now() + SECURITY_CONFIG.ADMIN_PROTECTION.SESSION_TIMEOUT;
+  localStorage.setItem('admin_session_expiry', expiryTime.toString());
+  
+  return true;
+};
+
+// التحقق من حالة قفل الحساب
+export const isAccountLocked = (): { locked: boolean; remainingTime: number } => {
+  const attemptsStr = localStorage.getItem(STORAGE_KEYS.ADMIN_LOGIN_ATTEMPTS) || '0';
+  const attempts = parseInt(attemptsStr, 10);
+  const lastAttemptTime = parseInt(localStorage.getItem('admin_last_attempt') || '0', 10);
+  const now = Date.now();
+  
+  if (attempts >= SECURITY_CONFIG.ADMIN_PROTECTION.MAX_LOGIN_ATTEMPTS) {
+    const lockEndTime = lastAttemptTime + SECURITY_CONFIG.ADMIN_PROTECTION.LOCK_TIME;
+    if (now < lockEndTime) {
+      // الحساب لا يزال مقفلاً
+      return {
+        locked: true,
+        remainingTime: Math.floor((lockEndTime - now) / 1000) // بالثواني
+      };
+    }
+  }
+  
+  return {
+    locked: false,
+    remainingTime: 0
+  };
 };
