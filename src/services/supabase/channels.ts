@@ -1,8 +1,8 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Channel, Country, Category } from '@/types';
 import { STORAGE_KEYS } from '../config';
 import { Json } from '@/integrations/supabase/types';
+import { StreamingLink as ExternalStreamingLink } from '@/types/externalStreaming';
 
 // Interfaces to match Supabase schema columns with our app models
 interface SupabaseChannel {
@@ -17,12 +17,8 @@ interface SupabaseChannel {
   streamurl: string;
 }
 
-// Define StreamingLink interface here since it's not exported from @/types
-interface StreamingLink {
-  name: string;
-  url: string;
-  icon?: string;
-}
+// Import StreamingLink directly instead of redefining it
+type StreamingLink = ExternalStreamingLink;
 
 // Converter functions to map between our app models and Supabase schema
 const toChannel = (supabaseChannel: SupabaseChannel): Channel => ({
