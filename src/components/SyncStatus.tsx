@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getLastSyncTime, syncAllData, isSyncInProgress, forceDataRefresh } from '@/services/sync';
+import { getLastSyncTime, syncWithSupabase, isSyncInProgress, forceDataRefresh } from '@/services/sync';
 import { Clock, CloudOff, RefreshCw, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
@@ -24,9 +24,9 @@ const SyncStatus: React.FC<SyncStatusProps> = ({ isAdmin = false }) => {
     refetchInterval: 60000, // إعادة الفحص كل دقيقة للتأكد من حداثة البيانات
   });
 
-  // تشغيل المزامنة العادية
+  // تشغيل المزامنة مع Supabase
   const { mutate: runSync, isPending: isSyncing } = useMutation({
-    mutationFn: () => syncAllData(false),
+    mutationFn: () => syncWithSupabase(false),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lastSync'] });
       queryClient.invalidateQueries({ queryKey: ['channels'] });
@@ -35,7 +35,7 @@ const SyncStatus: React.FC<SyncStatusProps> = ({ isAdmin = false }) => {
       refetchLastSync();
       toast({
         title: "تمت المزامنة",
-        description: "تم تحديث البيانات بنجاح",
+        description: "تم تحديث البيانات بنجاح من Supabase",
       });
     },
     onError: (error) => {
@@ -116,7 +116,7 @@ const SyncStatus: React.FC<SyncStatusProps> = ({ isAdmin = false }) => {
         )}
         <span>آخر تحديث: {timeAgo}</span>
         
-        {/* زر التحديث العادي */}
+        {/* زر التحديث مع Supabase */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -131,7 +131,7 @@ const SyncStatus: React.FC<SyncStatusProps> = ({ isAdmin = false }) => {
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>تحديث الآن</p>
+            <p>تحديث الآن من Supabase</p>
           </TooltipContent>
         </Tooltip>
         

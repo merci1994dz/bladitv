@@ -1,8 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
-import { syncAllData, syncWithBladiInfo } from '@/services/sync';
+import { syncWithSupabase, setupRealtimeSync, initializeSupabaseTables } from '@/services/sync/supabaseSync';
 import { useToast } from '@/hooks/use-toast';
-import { broadcastSettingsUpdate } from '@/services/sync/settingsSync';
 
 interface AutoSyncProviderProps {
   children: React.ReactNode;
@@ -13,40 +12,29 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
   const [syncError, setSyncError] = useState<string | null>(null);
   
   useEffect(() => {
-    // تسجيل معلومات بيئة Vercel للتصحيح
-    if (typeof window !== 'undefined' && window.ENV) {
-      console.log('بيئة Vercel:', {
-        skewProtectionEnabled: window.ENV.VERCEL_SKEW_PROTECTION_ENABLED === '1',
-        deploymentId: window.ENV.VERCEL_DEPLOYMENT_ID || 'غير متوفر',
-        environment: window.ENV.VERCEL_ENV || 'development'
-      });
-    }
-    
-    // محاولة المزامنة مع bladi-info.com أو bladitv.lovable.app أولاً
-    const performInitialBladiSync = async () => {
-      console.log('جاري محاولة المزامنة مع مواقع Bladi Info...');
+    // تهيئة جداول Supabase وتحميل البيانات الأولية
+    const initializeSupabase = async () => {
       try {
-        const success = await syncWithBladiInfo();
-        if (success) {
-          console.log('تمت المزامنة الأولية بنجاح مع مواقع Bladi Info');
-          setSyncError(null);
-        } else {
-          console.warn('فشلت المزامنة مع مواقع Bladi Info، جاري المحاولة مع المصادر الأخرى');
-          await performSync();
-        }
+        await initializeSupabaseTables();
       } catch (error) {
-        console.error('خطأ في المزامنة الأولية مع مواقع Bladi Info:', error);
-        await performSync();
+        console.error('خطأ في تهيئة Supabase:', error);
       }
     };
     
-    // وظيفة المزامنة المحسنة مع تجنب المزامنات المتكررة
-    const performSync = async () => {
+    // مزامنة البيانات مع Supabase عند بدء التشغيل
+    const performInitialSync = async () => {
+      console.log('بدء المزامنة الأولية مع Supabase...');
       try {
-        await syncAllData(false); // استخدام false لتجنب المزامنات المتكررة عند بدء التشغيل
-        setSyncError(null);
+        const success = await syncWithSupabase(false);
+        if (success) {
+          console.log('تمت المزامنة الأولية بنجاح مع Supabase');
+          setSyncError(null);
+        } else {
+          console.warn('فشلت المزامنة مع Supabase، جاري المحاولة مرة أخرى...');
+          setSyncError('لم يمكن الاتصال بـ Supabase');
+        }
       } catch (error) {
-        console.error('خطأ في المزامنة التلقائية:', error);
+        console.error('خطأ في المزامنة الأولية مع Supabase:', error);
         setSyncError(String(error));
       }
     };
@@ -54,49 +42,47 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
     // تأخير المزامنة الأولية لمنع التعارض مع التهيئة الأولية
     const initialSyncTimeout = setTimeout(() => {
       console.log('بدء المزامنة الأولية في AutoSyncProvider');
-      performInitialBladiSync();
+      initializeSupabase().then(performInitialSync);
     }, 3000);
     
     // إعداد مزامنة تلقائية كل 5 دقائق
     const syncInterval = setInterval(() => {
-      console.log('تنفيذ المزامنة الدورية');
-      performInitialBladiSync();
+      console.log('تنفيذ المزامنة الدورية مع Supabase');
+      syncWithSupabase(false);
     }, 5 * 60 * 1000);
     
     // إعداد مستمع لحالة الاتصال بالإنترنت
     const handleOnline = () => {
       toast({
         title: "تم استعادة الاتصال",
-        description: "جاري تحديث البيانات...",
+        description: "جاري تحديث البيانات من Supabase...",
         duration: 3000,
       });
-      performInitialBladiSync();
+      syncWithSupabase(false);
     };
     
     window.addEventListener('online', handleOnline);
+    
+    // إعداد الاشتراك في تحديثات البيانات في الوقت الحقيقي
+    const unsubscribeRealtime = setupRealtimeSync();
     
     // إضافة مستمع لتنشيط النافذة مع تأخير
     const handleFocus = () => {
       // تأخير بسيط لمنع المزامنات المتكررة عند التبديل بين علامات التبويب
       setTimeout(() => {
         console.log('تم اكتشاف العودة إلى التبويب، جاري التحقق من التحديثات...');
-        performInitialBladiSync();
+        syncWithSupabase(false);
       }, 1000);
     };
     
     window.addEventListener('focus', handleFocus);
     
-    // إنشاء فاصل زمني لنشر حالة التحديث
-    const broadcastInterval = setInterval(() => {
-      broadcastSettingsUpdate();
-    }, 10 * 60 * 1000);
-    
     return () => {
       clearTimeout(initialSyncTimeout);
       clearInterval(syncInterval);
-      clearInterval(broadcastInterval);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('focus', handleFocus);
+      unsubscribeRealtime();
     };
   }, [toast]);
   
@@ -106,7 +92,7 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
       const errorTimeout = setTimeout(() => {
         toast({
           title: "خطأ في المزامنة",
-          description: "تعذر تحديث البيانات. سيتم إعادة المحاولة تلقائيًا.",
+          description: "تعذر تحديث البيانات من Supabase. سيتم إعادة المحاولة تلقائيًا.",
           variant: "destructive",
           duration: 5000,
         });

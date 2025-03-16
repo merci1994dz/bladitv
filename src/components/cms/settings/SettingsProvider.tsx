@@ -3,15 +3,16 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { CMSSettings } from '@/services/cms/types';
 import { getCMSSettings, saveCMSSettings, updateSettings } from '@/services/cms';
-import { getSettingsFromFirebase, updateSettingsInFirebase } from '@/services/firebase/cms/settings';
+import { getSettingsFromSupabase, updateSettingsInSupabase } from '@/services/supabase/settings';
+import { supabase } from '@/integrations/supabase/client';
 
 // Create context for the settings
 type SettingsContextType = {
   settings: CMSSettings | null;
   loading: boolean;
   savingSettings: boolean;
-  storageType: 'local' | 'firebase';
-  setStorageType: (type: 'local' | 'firebase') => void;
+  storageType: 'local' | 'supabase';
+  setStorageType: (type: 'local' | 'supabase') => void;
   updateSettingValue: <K extends keyof CMSSettings>(key: K, value: CMSSettings[K]) => void;
   saveSettings: () => Promise<void>;
 };
@@ -31,7 +32,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [settings, setSettings] = useState<CMSSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
-  const [storageType, setStorageType] = useState<'local' | 'firebase'>('local');
+  const [storageType, setStorageType] = useState<'local' | 'supabase'>('supabase');
 
   // Load settings when component mounts or storage type changes
   useEffect(() => {
@@ -41,11 +42,17 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         
         let loadedSettings;
         
-        if (storageType === 'firebase') {
-          loadedSettings = await getSettingsFromFirebase();
+        if (storageType === 'supabase') {
+          loadedSettings = await getSettingsFromSupabase();
           if (!loadedSettings) {
-            // If settings don't exist in Firebase, use local settings
+            // If settings don't exist in Supabase, use local settings
             loadedSettings = getCMSSettings();
+            // And try to save them to Supabase
+            try {
+              await updateSettingsInSupabase(loadedSettings);
+            } catch (e) {
+              console.warn('تعذر حفظ الإعدادات في Supabase:', e);
+            }
           }
         } else {
           loadedSettings = getCMSSettings();
@@ -53,7 +60,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         
         setSettings(loadedSettings);
       } catch (error) {
-        console.error('Error loading settings:', error);
+        console.error('خطأ في تحميل الإعدادات:', error);
         toast({
           title: "خطأ في التحميل",
           description: "تعذر تحميل إعدادات النظام، يرجى المحاولة مرة أخرى",
@@ -67,6 +74,38 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     loadSettings();
   }, [toast, storageType]);
 
+  // إعداد الاستماع للتغييرات في الوقت الحقيقي
+  useEffect(() => {
+    if (storageType !== 'supabase') return;
+    
+    const channel = supabase
+      .channel('settings-changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'settings' }, 
+        async () => {
+          console.log('تم استلام تحديث للإعدادات من Supabase');
+          const updatedSettings = await getSettingsFromSupabase();
+          if (updatedSettings) {
+            setSettings(updatedSettings);
+            
+            // تحديث التخزين المحلي أيضًا
+            saveCMSSettings(updatedSettings);
+            updateSettings(updatedSettings);
+            
+            toast({
+              title: "تم تحديث الإعدادات",
+              description: "تم تحديث إعدادات النظام تلقائيًا من Supabase",
+            });
+          }
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [storageType, toast]);
+
   // Save settings
   const saveSettings = async () => {
     if (!settings) return;
@@ -74,8 +113,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       setSavingSettings(true);
       
-      if (storageType === 'firebase') {
-        await updateSettingsInFirebase(settings);
+      if (storageType === 'supabase') {
+        await updateSettingsInSupabase(settings);
       } else {
         saveCMSSettings(settings);
         updateSettings(settings);
@@ -86,7 +125,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         description: "تم حفظ إعدادات النظام بنجاح",
       });
     } catch (error) {
-      console.error('Error saving settings:', error);
+      console.error('خطأ في حفظ الإعدادات:', error);
       toast({
         title: "خطأ في الحفظ",
         description: "تعذر حفظ إعدادات النظام، يرجى المحاولة مرة أخرى",
