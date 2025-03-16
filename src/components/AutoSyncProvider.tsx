@@ -13,6 +13,15 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
   const [syncError, setSyncError] = useState<string | null>(null);
   
   useEffect(() => {
+    // تسجيل معلومات بيئة Vercel للتصحيح
+    if (typeof window !== 'undefined' && window.ENV) {
+      console.log('بيئة Vercel:', {
+        skewProtectionEnabled: window.ENV.VERCEL_SKEW_PROTECTION_ENABLED === '1',
+        deploymentId: window.ENV.VERCEL_DEPLOYMENT_ID || 'غير متوفر',
+        environment: window.ENV.VERCEL_ENV || 'development'
+      });
+    }
+    
     // محاولة المزامنة مع bladi-info.com أو bladitv.lovable.app أولاً
     const performInitialBladiSync = async () => {
       console.log('جاري محاولة المزامنة مع مواقع Bladi Info...');

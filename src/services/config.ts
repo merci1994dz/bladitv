@@ -1,6 +1,26 @@
 
 // إعدادات التطبيق
 
+// إعدادات Vercel
+declare global {
+  interface Window {
+    ENV?: {
+      VERCEL_SKEW_PROTECTION_ENABLED?: string;
+      VERCEL_DEPLOYMENT_ID?: string;
+      VERCEL_ENV?: string;
+    };
+  }
+}
+
+// تهيئة بيئة Vercel (سيتم تعبئتها من خلال نص الصفحة المستضافة على Vercel)
+if (typeof window !== 'undefined' && !window.ENV) {
+  window.ENV = {
+    VERCEL_SKEW_PROTECTION_ENABLED: '0',
+    VERCEL_DEPLOYMENT_ID: '',
+    VERCEL_ENV: 'development'
+  };
+}
+
 // مفاتيح التخزين المحلي
 export const STORAGE_KEYS = {
   // مفاتيح التخزين المحلي للبيانات
@@ -87,6 +107,7 @@ export const REMOTE_CONFIG = {
   CHECK_INTERVAL: 60 * 60 * 1000, // ساعة واحدة
   DEFAULT_URL: '', // الرابط الافتراضي للمزامنة
   MULTI_DEVICE_SYNC: true, // مزامنة متعددة الأجهزة
+  USE_SKEW_PROTECTION: true, // استخدام حماية التزامن من Vercel
 };
 
 // بيانات الإصدار

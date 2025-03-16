@@ -20,15 +20,26 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
       ? `${remoteUrl}&${cacheParam}` 
       : `${remoteUrl}?${cacheParam}`;
     
+    // إضافة حماية التزامن Vercel Skew Protection
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    };
+    
+    // إضافة رأس معرف النشر إذا كانت حماية التزامن مُفعلة
+    if (typeof window !== 'undefined' && window.ENV && window.ENV.VERCEL_SKEW_PROTECTION_ENABLED === '1') {
+      if (window.ENV.VERCEL_DEPLOYMENT_ID) {
+        headers['x-deployment-id'] = window.ENV.VERCEL_DEPLOYMENT_ID;
+        console.log('تم تفعيل حماية التزامن Vercel Skew Protection');
+      }
+    }
+    
     console.log(`جاري تحميل البيانات من: ${urlWithCache}`);
     const response = await fetch(urlWithCache, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      },
+      headers,
       cache: 'no-store'
     });
     

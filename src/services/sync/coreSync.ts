@@ -6,6 +6,16 @@ import { syncWithRemoteSource, syncWithBladiInfo } from './remoteSync';
 import { syncWithLocalData } from './local';
 import { isSyncLocked, setSyncLock, releaseSyncLock, addToSyncQueue } from './syncLock';
 
+// استرجاع معلمات حماية التزامن من Vercel
+const getSkewProtectionParams = (): string => {
+  if (typeof window !== 'undefined' && window.ENV && 
+      window.ENV.VERCEL_SKEW_PROTECTION_ENABLED === '1' && 
+      window.ENV.VERCEL_DEPLOYMENT_ID) {
+    return `dpl=${window.ENV.VERCEL_DEPLOYMENT_ID}`;
+  }
+  return '';
+};
+
 // Main sync function - محسنة مع آلية قفل آمنة ومعالجة الطوابير
 export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
   // إذا كانت المزامنة قيد التنفيذ، إضافة الطلب إلى الطابور
@@ -23,8 +33,10 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
   try {
     console.log('بدء عملية المزامنة، الوضع الإجباري =', forceRefresh);
     
-    // إضافة معامل لمنع التخزين المؤقت (cache-busting)
+    // إضافة معامل لمنع التخزين المؤقت (cache-busting) مع دعم حماية التزامن
+    const skewParam = getSkewProtectionParams();
     const cacheBuster = `?_=${Date.now()}&nocache=${Math.random().toString(36).substring(2, 15)}`;
+    const fullCacheBuster = skewParam ? `${cacheBuster}&${skewParam}` : cacheBuster;
     
     // محاولة المزامنة مع مواقع Bladi Info أولاً
     const bladiInfoResult = await syncWithBladiInfo(forceRefresh);
@@ -36,10 +48,10 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     const remoteConfig = getRemoteConfig();
     if (REMOTE_CONFIG.ENABLED && remoteConfig && remoteConfig.url) {
       try {
-        // إضافة معامل كسر التخزين المؤقت للرابط
+        // إضافة معامل كسر التخزين المؤقت للرابط مع دعم حماية التزامن
         const urlWithCacheBuster = remoteConfig.url.includes('?') 
-          ? `${remoteConfig.url}&_=${Date.now()}&nocache=${Math.random().toString(36).substring(2, 15)}` 
-          : `${remoteConfig.url}${cacheBuster}`;
+          ? `${remoteConfig.url}&_=${Date.now()}&nocache=${Math.random().toString(36).substring(2, 15)}${skewParam ? `&${skewParam}` : ''}` 
+          : `${remoteConfig.url}${fullCacheBuster}`;
           
         const result = await syncWithRemoteSource(urlWithCacheBuster, forceRefresh);
         return result;
