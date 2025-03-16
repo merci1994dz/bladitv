@@ -1,8 +1,9 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Channel, Country, Category } from '@/types';
 import { STORAGE_KEYS } from '../config';
 import { Json } from '@/integrations/supabase/types';
-import { StreamingLink as ExternalStreamingLink } from '@/types/externalStreaming';
+import { StreamingLink } from '@/types/externalStreaming';
 
 // Interfaces to match Supabase schema columns with our app models
 interface SupabaseChannel {
@@ -16,9 +17,6 @@ interface SupabaseChannel {
   name: string;
   streamurl: string;
 }
-
-// Import StreamingLink directly instead of redefining it
-type StreamingLink = ExternalStreamingLink;
 
 // Converter functions to map between our app models and Supabase schema
 const toChannel = (supabaseChannel: SupabaseChannel): Channel => ({
@@ -83,7 +81,16 @@ export const getChannelsFromSupabase = async (): Promise<Channel[]> => {
 // إضافة قناة جديدة إلى Supabase
 export const addChannelToSupabase = async (channel: Omit<Channel, 'id'>): Promise<Channel> => {
   try {
+    // تحضير كائن القناة للإرسال إلى Supabase
     const supabaseChannel = toSupabaseChannel(channel);
+    
+    // تأكد من أن externalLinks موجود ومنسق بشكل صحيح
+    if (!channel.externalLinks) {
+      channel.externalLinks = [];
+    }
+    
+    console.log('إضافة قناة جديدة:', channel);
+    
     const { data, error } = await supabase
       .from('channels')
       .insert(supabaseChannel)
@@ -95,7 +102,18 @@ export const addChannelToSupabase = async (channel: Omit<Channel, 'id'>): Promis
       throw error;
     }
     
-    return toChannel(data as SupabaseChannel);
+    const newChannel = toChannel(data as SupabaseChannel);
+    console.log('تمت إضافة القناة بنجاح:', newChannel);
+    
+    // تحديث التخزين المحلي
+    const storedData = localStorage.getItem(STORAGE_KEYS.CHANNELS);
+    if (storedData) {
+      const channels = JSON.parse(storedData) as Channel[];
+      channels.push(newChannel);
+      localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
+    }
+    
+    return newChannel;
   } catch (error) {
     console.error('خطأ في إضافة القناة إلى Supabase:', error);
     throw error;
@@ -118,7 +136,20 @@ export const updateChannelInSupabase = async (channel: Channel): Promise<Channel
       throw error;
     }
     
-    return toChannel(data as SupabaseChannel);
+    const updatedChannel = toChannel(data as SupabaseChannel);
+    
+    // تحديث التخزين المحلي
+    const storedData = localStorage.getItem(STORAGE_KEYS.CHANNELS);
+    if (storedData) {
+      const channels = JSON.parse(storedData) as Channel[];
+      const index = channels.findIndex(c => c.id === channel.id);
+      if (index !== -1) {
+        channels[index] = updatedChannel;
+        localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
+      }
+    }
+    
+    return updatedChannel;
   } catch (error) {
     console.error('خطأ في تحديث القناة في Supabase:', error);
     throw error;
@@ -136,6 +167,14 @@ export const deleteChannelFromSupabase = async (channelId: string): Promise<bool
     if (error) {
       console.error('خطأ في حذف القناة من Supabase:', error);
       throw error;
+    }
+    
+    // تحديث التخزين المحلي
+    const storedData = localStorage.getItem(STORAGE_KEYS.CHANNELS);
+    if (storedData) {
+      const channels = JSON.parse(storedData) as Channel[];
+      const updatedChannels = channels.filter(c => c.id !== channelId);
+      localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(updatedChannels));
     }
     
     return true;
@@ -157,6 +196,9 @@ export const subscribeToChannelsChanges = (callback: (channels: Channel[]) => vo
         if (data) {
           const channels = (data as SupabaseChannel[]).map(toChannel);
           callback(channels);
+          
+          // تحديث التخزين المحلي
+          localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
         }
       }
     )
