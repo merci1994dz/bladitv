@@ -5,7 +5,7 @@ import { toast } from '@/hooks/use-toast';
 // حالة القفل
 let syncLocked = false;
 let syncLockTimestamp = 0;
-const LOCK_TIMEOUT = 60000; // 60 ثانية كحد أقصى للقفل
+const LOCK_TIMEOUT = 30000; // تقليل المهلة إلى 30 ثانية
 const syncQueue: (() => Promise<boolean>)[] = [];
 
 // التحقق مما إذا كانت المزامنة مقفلة
@@ -72,7 +72,16 @@ const processNextQueueItem = async (): Promise<void> => {
   setSyncLock();
   
   try {
-    await nextSync();
+    // إضافة مهلة زمنية داخلية للتأكد من عدم تعليق المزامنة إلى ما لا نهاية
+    const timeoutPromise = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        console.warn('تجاوز الوقت المحدد لمعالجة طابور المزامنة، إلغاء العملية');
+        resolve(false);
+      }, LOCK_TIMEOUT - 1000); // استخدام مهلة أقل بقليل من مهلة القفل
+    });
+    
+    // استخدام Promise.race لتجنب التعليق
+    await Promise.race([nextSync(), timeoutPromise]);
   } catch (error) {
     console.error('خطأ أثناء معالجة طابور المزامنة:', error);
     
@@ -92,12 +101,12 @@ const processNextQueueItem = async (): Promise<void> => {
   }
 };
 
-// التحقق الدوري من انتهاء مهلة القفل
+// التحقق الدوري من انتهاء مهلة القفل بشكل أكثر تكرارًا
 if (typeof window !== 'undefined') {
   setInterval(() => {
     if (syncLocked && Date.now() - syncLockTimestamp > LOCK_TIMEOUT) {
       console.warn('تم اكتشاف قفل معلق، تحرير القفل تلقائيًا');
       releaseSyncLock();
     }
-  }, 30000); // التحقق كل 30 ثانية
+  }, 15000); // التحقق كل 15 ثانية
 }

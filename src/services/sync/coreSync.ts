@@ -43,7 +43,7 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
       setTimeout(() => {
         console.warn('تم تجاوز الوقت المخصص للمزامنة');
         resolve(false);
-      }, 30000); // 30 ثانية كحد أقصى
+      }, 20000); // تقليل المهلة إلى 20 ثانية
     });
     
     // محاولة المزامنة مع مواقع Bladi Info أولاً
@@ -70,12 +70,21 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
           }
         }
         
-        // إذا لم يكن هناك مصدر خارجي أو فشلت المزامنة، استخدم البيانات المحلية
+        // استخدام البيانات المحلية كحل أخير
+        console.log('فشلت المزامنة مع المصادر الخارجية، استخدام البيانات المحلية');
         const result = await syncWithLocalData(forceRefresh);
         return result;
       } catch (error) {
         console.error('خطأ أثناء المزامنة:', error);
-        return false;
+        
+        // محاولة استخدام البيانات المحلية في حالة الفشل
+        try {
+          console.log('محاولة استخدام البيانات المحلية بعد فشل المزامنة الخارجية');
+          return await syncWithLocalData(false);
+        } catch (localError) {
+          console.error('فشل في استخدام البيانات المحلية:', localError);
+          return false;
+        }
       }
     })();
     
@@ -85,7 +94,14 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     
   } catch (error) {
     console.error('خطأ غير متوقع أثناء المزامنة:', error);
-    return false;
+    
+    // محاولة استخدام البيانات المحلية في حالة الخطأ
+    try {
+      return await syncWithLocalData(false);
+    } catch (e) {
+      console.error('فشل الرجوع للبيانات المحلية:', e);
+      return false;
+    }
   } finally {
     // تحرير قفل المزامنة دائمًا حتى في حالة الخطأ
     releaseSyncLock();

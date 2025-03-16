@@ -7,7 +7,7 @@ import { validateRemoteData } from './remoteValidation';
 import { updateRemoteConfigLastSync } from './remote';
 
 /**
- * Synchronize with remote source
+ * Synchronize with remote source - محسنة للتعامل مع أخطاء الشبكة والمهل الزمنية
  */
 export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = false): Promise<boolean> => {
   try {
@@ -36,9 +36,9 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
       }
     }
     
-    // إضافة مهلة زمنية للطلب
+    // إضافة مهلة زمنية للطلب - تقليلها إلى 10 ثوانٍ
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 ثانية كحد أقصى
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     
     try {
       console.log(`جاري تحميل البيانات من: ${urlWithCache}`);
@@ -46,7 +46,9 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
         method: 'GET',
         headers,
         cache: 'no-store',
-        signal: controller.signal
+        signal: controller.signal,
+        mode: 'cors',     // إضافة وضع CORS
+        credentials: 'omit' // تجنب إرسال الكوكيز
       });
       
       clearTimeout(timeoutId);
@@ -62,55 +64,39 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
         throw new Error('البيانات المستلمة غير صالحة');
       }
       
-      // تحديث البيانات في الذاكرة
-      if (Array.isArray(data.channels)) {
-        console.log(`تم استلام ${data.channels.length} قناة من المصدر الخارجي`);
-        
-        // حفظ القنوات الحالية للرجوع إليها في حالة الخطأ
-        const previousChannels = [...channels];
-        
-        try {
+      // حفظ نسخة احتياطية من البيانات الحالية قبل تحديثها
+      const backupData = {
+        channels: [...channels],
+        countries: [...countries],
+        categories: [...categories]
+      };
+      
+      try {
+        // تحديث البيانات في الذاكرة
+        if (Array.isArray(data.channels)) {
+          console.log(`تم استلام ${data.channels.length} قناة من المصدر الخارجي`);
+          
           // مسح القنوات الحالية وإضافة القنوات الجديدة
           channels.length = 0;
           channels.push(...data.channels);
           
-          // حفظ في مخزن محلي مع معالجة حدود التخزين
+          // حفظ في مخزن محلي
           try {
-            const channelsJson = JSON.stringify(data.channels);
-            localStorage.setItem(STORAGE_KEYS.CHANNELS, channelsJson);
+            localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(data.channels));
             console.log(`تم تحديث ${channels.length} قناة بنجاح`);
           } catch (storageError) {
             console.error('خطأ في تخزين القنوات محليًا:', storageError);
             
-            // محاولة تخزين أقل عدد من القنوات في حالة تجاوز حدود التخزين
-            if (data.channels.length > 100 && (storageError instanceof DOMException) && 
-                (storageError.name === 'QuotaExceededError' || storageError.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
-              console.warn('تجاوز حد التخزين، سيتم تخزين عدد أقل من القنوات');
-              try {
-                const reducedChannels = data.channels.slice(0, 100);
-                localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(reducedChannels));
-                console.log('تم تخزين 100 قناة فقط بسبب قيود التخزين');
-              } catch (e) {
-                console.error('فشل في تخزين عدد مخفض من القنوات:', e);
-              }
-            }
+            // استرجاع البيانات الاحتياطية في حالة الفشل
+            channels.length = 0;
+            channels.push(...backupData.channels);
+            throw storageError;
           }
-        } catch (channelError) {
-          console.error('خطأ في تحديث القنوات:', channelError);
-          // استعادة القنوات السابقة في حالة الخطأ
-          channels.length = 0;
-          channels.push(...previousChannels);
-          throw channelError;
         }
-      }
-      
-      if (Array.isArray(data.countries)) {
-        console.log(`تم استلام ${data.countries.length} دولة من المصدر الخارجي`);
         
-        // حفظ الدول الحالية للرجوع إليها في حالة الخطأ
-        const previousCountries = [...countries];
-        
-        try {
+        if (Array.isArray(data.countries)) {
+          console.log(`تم استلام ${data.countries.length} دولة من المصدر الخارجي`);
+          
           // مسح الدول الحالية وإضافة الدول الجديدة
           countries.length = 0;
           countries.push(...data.countries);
@@ -120,23 +106,17 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
             console.log(`تم تحديث ${countries.length} دولة بنجاح`);
           } catch (storageError) {
             console.error('خطأ في تخزين الدول محليًا:', storageError);
+            
+            // استرجاع البيانات الاحتياطية في حالة الفشل
+            countries.length = 0;
+            countries.push(...backupData.countries);
+            throw storageError;
           }
-        } catch (countryError) {
-          console.error('خطأ في تحديث الدول:', countryError);
-          // استعادة الدول السابقة في حالة الخطأ
-          countries.length = 0;
-          countries.push(...previousCountries);
-          throw countryError;
         }
-      }
-      
-      if (Array.isArray(data.categories)) {
-        console.log(`تم استلام ${data.categories.length} فئة من المصدر الخارجي`);
         
-        // حفظ الفئات الحالية للرجوع إليها في حالة الخطأ
-        const previousCategories = [...categories];
-        
-        try {
+        if (Array.isArray(data.categories)) {
+          console.log(`تم استلام ${data.categories.length} فئة من المصدر الخارجي`);
+          
           // مسح الفئات الحالية وإضافة الفئات الجديدة
           categories.length = 0;
           categories.push(...data.categories);
@@ -146,44 +126,56 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
             console.log(`تم تحديث ${categories.length} فئة بنجاح`);
           } catch (storageError) {
             console.error('خطأ في تخزين الفئات محليًا:', storageError);
+            
+            // استرجاع البيانات الاحتياطية في حالة الفشل
+            categories.length = 0;
+            categories.push(...backupData.categories);
+            throw storageError;
           }
-        } catch (categoryError) {
-          console.error('خطأ في تحديث الفئات:', categoryError);
-          // استعادة الفئات السابقة في حالة الخطأ
-          categories.length = 0;
-          categories.push(...previousCategories);
-          throw categoryError;
         }
+        
+        // تحديث وقت آخر مزامنة
+        updateLastSyncTime();
+        updateRemoteConfigLastSync(remoteUrl);
+        
+        // وضع علامات إضافية للتحديث
+        const timestamp = Date.now().toString();
+        try {
+          localStorage.setItem('channels_last_updated', timestamp);
+          localStorage.setItem('bladi_info_update', timestamp);
+          localStorage.setItem('force_refresh', 'true');
+          localStorage.setItem('nocache_version', timestamp);
+        } catch (e) {
+          console.error('خطأ في تخزين بيانات الطابع الزمني:', e);
+        }
+        
+        console.log('تمت المزامنة بنجاح مع المصدر الخارجي');
+        
+        // إطلاق حدث تحديث البيانات
+        try {
+          const event = new CustomEvent('data_updated', {
+            detail: { source: 'remote', timestamp }
+          });
+          window.dispatchEvent(event);
+        } catch (eventError) {
+          console.error('خطأ في إطلاق حدث التحديث:', eventError);
+        }
+        
+        return true;
+      } catch (updateError) {
+        console.error('خطأ في تحديث البيانات:', updateError);
+        
+        // استعادة البيانات الاحتياطية في حالة الفشل
+        channels.length = 0;
+        countries.length = 0;
+        categories.length = 0;
+        
+        channels.push(...backupData.channels);
+        countries.push(...backupData.countries);
+        categories.push(...backupData.categories);
+        
+        throw updateError;
       }
-      
-      // تحديث وقت آخر مزامنة
-      updateLastSyncTime();
-      updateRemoteConfigLastSync(remoteUrl);
-      
-      // وضع علامات إضافية للتحديث
-      const timestamp = Date.now().toString();
-      try {
-        localStorage.setItem('channels_last_updated', timestamp);
-        localStorage.setItem('bladi_info_update', timestamp);
-        localStorage.setItem('force_refresh', 'true');
-        localStorage.setItem('nocache_version', timestamp);
-      } catch (e) {
-        console.error('خطأ في تخزين بيانات الطابع الزمني:', e);
-      }
-      
-      console.log('تمت المزامنة بنجاح مع المصدر الخارجي');
-      
-      // إطلاق حدث تحديث البيانات
-      try {
-        const event = new CustomEvent('data_updated', {
-          detail: { source: 'remote', timestamp }
-        });
-        window.dispatchEvent(event);
-      } catch (eventError) {
-        console.error('خطأ في إطلاق حدث التحديث:', eventError);
-      }
-      
-      return true;
       
     } catch (fetchError) {
       clearTimeout(timeoutId);
@@ -205,12 +197,14 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
   }
 };
 
-// تنفيذ المزامنة مع Bladi Info
+// تنفيذ المزامنة مع Bladi Info - مع تحسين إدارة الأخطاء
 export const syncWithBladiInfo = async (forceRefresh = false): Promise<boolean> => {
   const urls = [
-    'https://bladi-info.com/api/channels.json',
-    'https://bladitv.lovable.app/api/channels.json'
+    'https://bladitv.lovable.app/api/channels.json', // ترتيب المصادر المفضلة من الأفضل للأسوأ
+    'https://bladi-info.com/api/channels.json'
   ];
+  
+  let lastError: Error | null = null;
   
   for (const url of urls) {
     try {
@@ -232,9 +226,10 @@ export const syncWithBladiInfo = async (forceRefresh = false): Promise<boolean> 
       }
     } catch (error) {
       console.error(`فشلت المزامنة مع ${url}:`, error);
+      lastError = error as Error;
     }
   }
   
-  console.error('فشلت جميع محاولات المزامنة مع المصادر الخارجية');
+  console.error('فشلت جميع محاولات المزامنة مع المصادر الخارجية', lastError);
   return false;
 };
