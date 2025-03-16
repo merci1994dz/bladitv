@@ -21,7 +21,9 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
     'Cache-Control': 'no-cache, no-store, must-revalidate',
     'Pragma': 'no-cache',
     'Expires': '0',
-    'X-Requested-With': 'XMLHttpRequest'
+    'X-Requested-With': 'XMLHttpRequest',
+    'Origin': window.location.origin,
+    'Referer': window.location.origin
   };
   
   // إضافة رأس معرف النشر إذا كانت حماية التزامن مُفعلة
@@ -32,15 +34,15 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
     }
   }
   
-  // إضافة مهلة زمنية للطلب - 10 ثوانٍ
+  // إضافة مهلة زمنية للطلب - زيادة إلى 30 ثانية
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
   
   try {
     console.log(`جاري تحميل البيانات من: ${urlWithCache}`);
     
     // محاولة الاتصال عدة مرات في حالة الفشل
-    let retries = 3;
+    let retries = 5; // زيادة عدد المحاولات
     let lastError;
     
     while (retries > 0) {
@@ -55,7 +57,8 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
         });
         
         if (!response.ok) {
-          throw new Error(`فشل في تحميل البيانات: ${response.status} ${response.statusText}`);
+          const statusText = await response.text();
+          throw new Error(`فشل في تحميل البيانات: ${response.status} ${response.statusText} - ${statusText}`);
         }
         
         const data = await response.json();
@@ -68,13 +71,15 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
         clearTimeout(timeoutId);
         return data;
       } catch (error) {
-        console.warn(`فشلت المحاولة ${4 - retries}/3 للاتصال بـ ${remoteUrl}:`, error);
+        console.warn(`فشلت المحاولة ${6 - retries}/5 للاتصال بـ ${remoteUrl}:`, error);
         lastError = error;
         retries--;
         
         if (retries > 0) {
-          // الانتظار قبل المحاولة مرة أخرى (زيادة وقت الانتظار مع كل محاولة)
-          await new Promise(resolve => setTimeout(resolve, (4 - retries) * 1000));
+          // الانتظار قبل المحاولة مرة أخرى (زيادة وقت الانتظار مع كل محاولة مع إضافة عشوائية)
+          const backoffTime = (6 - retries) * 1500 + Math.random() * 1000;
+          console.log(`الانتظار ${backoffTime}ms قبل المحاولة التالية...`);
+          await new Promise(resolve => setTimeout(resolve, backoffTime));
         }
       }
     }
@@ -112,14 +117,19 @@ export const getSkewProtectionParams = (): string => {
 export const isRemoteUrlAccessible = async (url: string): Promise<boolean> => {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // زيادة المهلة إلى 10 ثواني
     
     const response = await fetch(url, {
       method: 'HEAD',
       cache: 'no-store',
       signal: controller.signal,
       mode: 'cors',
-      credentials: 'omit'
+      credentials: 'omit',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     });
     
     clearTimeout(timeoutId);

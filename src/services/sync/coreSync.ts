@@ -5,6 +5,7 @@ import { getRemoteConfig } from './remote';
 import { syncWithRemoteSource, syncWithBladiInfo, getSkewProtectionParams, checkBladiInfoAvailability } from './remoteSync';
 import { syncWithLocalData } from './local';
 import { isSyncLocked, setSyncLock, releaseSyncLock, addToSyncQueue } from './syncLock';
+import { setSyncActive } from './status';
 
 // Main sync function - محسنة مع آلية قفل آمنة ومعالجة الطوابير
 export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
@@ -19,6 +20,7 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
   // وضع قفل المزامنة
   setSyncLock();
   setIsSyncing(true);
+  setSyncActive(true);
   
   try {
     console.log('بدء عملية المزامنة، الوضع الإجباري =', forceRefresh);
@@ -28,18 +30,21 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     const cacheBuster = `?_=${Date.now()}&nocache=${Math.random().toString(36).substring(2, 15)}`;
     const fullCacheBuster = skewParam ? `${cacheBuster}&${skewParam}` : cacheBuster;
     
-    // تحديد مهلة زمنية للمزامنة لمنع التعليق إلى ما لا نهاية
+    // تحديد مهلة زمنية للمزامنة لمنع التعليق إلى ما لا نهاية - زيادة إلى 60 ثانية
     const timeoutPromise = new Promise<boolean>((resolve) => {
       setTimeout(() => {
         console.warn('تم تجاوز الوقت المخصص للمزامنة');
         resolve(false);
-      }, 30000); // زيادة المهلة إلى 30 ثانية
+      }, 60000); // زيادة المهلة إلى 60 ثانية
     });
     
     // التحقق من وجود مصدر متاح
+    console.log('التحقق من وجود مصدر متاح للمزامنة...');
     const availableSource = await checkBladiInfoAvailability();
     if (availableSource) {
-      console.log(`استخدام المصدر المتاح: ${availableSource}`);
+      console.log(`تم العثور على مصدر متاح: ${availableSource}`);
+    } else {
+      console.warn('لم يتم العثور على أي مصدر متاح، سيتم استخدام الخطة البديلة');
     }
     
     // محاولة المزامنة مع مواقع Bladi Info أولاً
@@ -48,26 +53,32 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
         // محاولة المزامنة مع المصدر المتاح مباشرة إذا وجد
         if (availableSource) {
           try {
+            console.log(`محاولة المزامنة مع المصدر المتاح: ${availableSource}`);
             const directResult = await syncWithRemoteSource(availableSource, forceRefresh);
             if (directResult) {
               console.log(`تمت المزامنة بنجاح مع المصدر المتاح: ${availableSource}`);
               return true;
             }
+            console.warn(`فشلت المزامنة مع المصدر المتاح ${availableSource}`);
           } catch (error) {
             console.error(`فشلت المزامنة مع المصدر المتاح ${availableSource}:`, error);
           }
         }
         
         // محاولة المزامنة مع جميع مصادر Bladi Info
+        console.log('محاولة المزامنة مع جميع مصادر Bladi Info...');
         const bladiInfoResult = await syncWithBladiInfo(forceRefresh);
         if (bladiInfoResult) {
+          console.log('تمت المزامنة بنجاح مع مصادر Bladi Info');
           return true;
         }
+        console.warn('فشلت المزامنة مع جميع مصادر Bladi Info');
         
         // التحقق من وجود تكوين خارجي
         const remoteConfig = getRemoteConfig();
         if (REMOTE_CONFIG.ENABLED && remoteConfig && remoteConfig.url) {
           try {
+            console.log(`محاولة المزامنة مع المصدر المحفوظ: ${remoteConfig.url}`);
             // إضافة معامل كسر التخزين المؤقت للرابط مع دعم حماية التزامن
             const urlWithCacheBuster = remoteConfig.url.includes('?') 
               ? `${remoteConfig.url}&_=${Date.now()}&nocache=${Math.random().toString(36).substring(2, 15)}${skewParam ? `&${skewParam}` : ''}` 
@@ -116,6 +127,7 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     // تحرير قفل المزامنة دائمًا حتى في حالة الخطأ
     releaseSyncLock();
     setIsSyncing(false);
+    setSyncActive(false);
   }
 };
 
@@ -127,7 +139,11 @@ export const performInitialSync = async (): Promise<boolean> => {
     console.log('بدء المزامنة الأولية...');
     const needsSync = isSyncNeeded();
     
+    // تحديد حالة المزامنة على نشطة أثناء المزامنة الأولية
+    setSyncActive(true);
+    
     // التحقق من وجود مصدر متاح
+    console.log('التحقق من وجود مصدر متاح للمزامنة الأولية...');
     const availableSource = await checkBladiInfoAvailability();
     
     if (needsSync) {
@@ -149,6 +165,7 @@ export const performInitialSync = async (): Promise<boolean> => {
       
       // محاولة مزامنة مع مواقع Bladi Info أولاً
       try {
+        console.log('محاولة المزامنة مع مواقع Bladi Info...');
         const bladiResult = await syncWithBladiInfo(false);
         if (bladiResult) {
           console.log('تمت المزامنة بنجاح مع مواقع Bladi Info');
@@ -172,5 +189,8 @@ export const performInitialSync = async (): Promise<boolean> => {
       console.error('فشل الرجوع إلى البيانات المحلية:', e);
       return false;
     }
+  } finally {
+    // إعادة تعيين حالة المزامنة
+    setSyncActive(false);
   }
 };

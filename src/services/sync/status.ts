@@ -12,12 +12,12 @@ export const isSyncInProgress = (): boolean => {
       const syncStatus = JSON.parse(syncStatusRaw);
       const { isActive, timestamp } = syncStatus;
       
-      // تحقق مما إذا كانت المزامنة نشطة ولم تتجاوز 60 ثانية
-      if (isActive && Date.now() - timestamp < 60 * 1000) {
+      // تحقق مما إذا كانت المزامنة نشطة ولم تتجاوز 120 ثانية (زيادة من 60 إلى 120)
+      if (isActive && Date.now() - timestamp < 120 * 1000) {
         return true;
       }
       
-      // إذا تجاوزت 60 ثانية، فمن المحتمل أن تكون المزامنة قد توقفت بشكل غير متوقع
+      // إذا تجاوزت 120 ثانية، فمن المحتمل أن تكون المزامنة قد توقفت بشكل غير متوقع
       if (isActive) {
         // إعادة تعيين الحالة
         localStorage.setItem(STORAGE_KEYS.SYNC_STATUS, JSON.stringify({
@@ -55,25 +55,49 @@ export const checkConnectivityIssues = async (): Promise<{ hasInternet: boolean,
   // التحقق من وجود اتصال بالإنترنت
   const hasInternet = navigator.onLine;
   
-  // التحقق من القدرة على الوصول إلى الخادم
+  // التحقق من القدرة على الوصول إلى الخادم مع زيادة المهلة
   let hasServerAccess = false;
   
   if (hasInternet) {
     try {
-      // محاولة الوصول إلى الخادم الرئيسي باستخدام طلب بسيط
+      // محاولة الوصول إلى الخادم الرئيسي باستخدام طلب بسيط مع زيادة المهلة إلى 10 ثواني
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       
-      const response = await fetch('https://bladitv.lovable.app/ping', {
-        method: 'HEAD',
-        signal: controller.signal,
-        cache: 'no-store'
-      });
+      // تجربة المواقع المختلفة
+      const urls = [
+        'https://bladitv.lovable.app/ping',
+        'https://bladi-info.com/ping',
+        'https://bladiinfo-api.vercel.app/ping',
+        'https://bladiinfo-backup.netlify.app/ping'
+      ];
+      
+      // محاولة الاتصال بالمواقع المختلفة حتى ينجح أحدها
+      for (const url of urls) {
+        try {
+          const response = await fetch(url, {
+            method: 'HEAD',
+            signal: controller.signal,
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            }
+          });
+          
+          if (response.ok) {
+            hasServerAccess = true;
+            break;
+          }
+        } catch (e) {
+          // استمر في المحاولة مع المصدر التالي
+          console.warn(`تعذر الوصول إلى ${url}:`, e);
+        }
+      }
       
       clearTimeout(timeoutId);
-      hasServerAccess = response.ok;
     } catch (error) {
-      console.warn('تعذر الوصول إلى الخادم الرئيسي:', error);
+      console.warn('تعذر الوصول إلى جميع خوادم المزامنة:', error);
       hasServerAccess = false;
     }
   }
