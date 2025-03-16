@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getCMSSettings, saveCMSSettings, updateSettings } from '@/services/cms';
-import { getSettingsFromFirebase, updateSettingsInFirebase } from '@/services/firebase/cmsService';
+import { getSettingsFromFirebase, updateSettingsInFirebase } from '@/services/firebase/cms/settings';
 import { CMSSettings as CMSSettingsType } from '@/services/cms/types';
 
 const CMSSettings: React.FC = () => {
