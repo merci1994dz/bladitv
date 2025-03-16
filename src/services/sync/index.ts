@@ -39,6 +39,13 @@ export {
   forceAppReloadForAllUsers
 } from './settingsSync';
 
+// Export from sync.ts (new simplified API)
+export {
+  syncChannels,
+  forceUpdateChannels,
+  useSyncHelper
+} from './sync';
+
 // Export the core sync functions
 export {
   syncAllData,
@@ -64,3 +71,4 @@ export {
 
 // تنفيذ المزامنة الأولية عند تحميل الوحدة
 performInitialSync().catch(console.error);
+

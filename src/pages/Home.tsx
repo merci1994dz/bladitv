@@ -1,76 +1,170 @@
 
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getCountries, getRecentlyWatchedChannels } from '@/services/api';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import LoadingSpinner from '@/components/ui/loading-spinner';
-import ErrorMessage from '@/components/ui/error-message';
+import { useQuery } from '@tanstack/react-query';
+import { getChannels, getCategories, getRecentlyWatchedChannels } from '@/services/api';
+import { syncWithBladiInfo } from '@/services/sync';
+import ChannelsList from '@/components/channel/ChannelsList';
 import HomeHeader from '@/components/header/HomeHeader';
-import CountriesList from '@/components/country/CountriesList';
 import RecentlyWatchedChannels from '@/components/recently-watched/RecentlyWatchedChannels';
-import { Channel } from '@/types';
+import AdvancedSearch from '@/components/search/AdvancedSearch';
+import LoadingIndicator from '@/components/LoadingIndicator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Search, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const Home: React.FC = () => {
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [isSyncing, setIsSyncing] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const { 
-    data: countries,
-    isLoading: isLoadingCountries,
-    error: countriesError
+    data: channels,
+    isLoading: isLoadingChannels,
+    refetch: refetchChannels
   } = useQuery({
-    queryKey: ['countries'],
-    queryFn: getCountries,
+    queryKey: ['channels'],
+    queryFn: getChannels,
   });
 
-  const handleCountryClick = (countryId: string) => {
-    navigate(`/country/${countryId}`);
+  const { 
+    data: categories,
+    isLoading: isLoadingCategories
+  } = useQuery({
+    queryKey: ['categories'],
+    queryFn: getCategories,
+  });
+
+  const { 
+    data: recentlyWatched,
+    isLoading: isLoadingRecent
+  } = useQuery({
+    queryKey: ['recentlyWatched'],
+    queryFn: getRecentlyWatchedChannels,
+  });
+
+  // تحديث صفحة البحث
+  const handleOpenSearch = () => {
+    navigate('/search');
   };
 
-  const handleChannelClick = (channel: Channel) => {
-    // هنا يمكن إضافة منطق لمعالجة النقر على القناة
-    // إما تشغيلها مباشرة أو الانتقال إلى صفحة القناة
-    toast({
-      title: "فتح القناة",
-      description: `جاري فتح قناة ${channel.name}`,
-      duration: 2000,
-    });
+  // مزامنة القنوات مع مصادر BLADI
+  const handleSync = async () => {
+    setIsSyncing(true);
     
-    // يمكننا الانتقال إلى صفحة البلد التي تنتمي إليها القناة
-    if (channel.country) {
-      navigate(`/country/${channel.country}`, { state: { selectedChannelId: channel.id } });
+    try {
+      toast({
+        title: "جاري المزامنة",
+        description: "جاري جلب أحدث القنوات من المصادر الخارجية..."
+      });
+      
+      const result = await syncWithBladiInfo(true);
+      
+      if (result) {
+        toast({
+          title: "تمت المزامنة بنجاح",
+          description: "تم تحديث القنوات بنجاح"
+        });
+        
+        // إعادة تحميل القنوات
+        await refetchChannels();
+      } else {
+        toast({
+          title: "تعذرت المزامنة",
+          description: "لم يتم العثور على تحديثات جديدة",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("خطأ في المزامنة:", error);
+      toast({
+        title: "خطأ في المزامنة",
+        description: "تعذر الاتصال بمصادر البيانات الخارجية",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSyncing(false);
     }
   };
 
-  if (isLoadingCountries) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner />
-      </div>
-    );
-  }
+  const filteredChannels = channels?.filter(channel => {
+    if (selectedCategory === 'all') return true;
+    return channel.category === selectedCategory;
+  }) || [];
 
-  if (countriesError) {
+  // عرض مؤشر التحميل أثناء تحميل البيانات
+  if (isLoadingChannels || isLoadingCategories) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <ErrorMessage />
+      <div className="container mx-auto px-4 py-8">
+        <HomeHeader />
+        <div className="flex justify-center items-center min-h-[50vh]">
+          <LoadingIndicator size="large" text="جاري تحميل القنوات..." />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="pb-24 min-h-screen bg-gradient-to-b from-background to-muted/10">
+    <div className="container mx-auto px-4 py-4 pb-20">
       <HomeHeader />
       
-      {/* إضافة قسم القنوات المشاهدة مؤخراً */}
-      <RecentlyWatchedChannels onChannelClick={handleChannelClick} />
+      <div className="mb-4">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold">جميع القنوات</h1>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSync}
+              disabled={isSyncing}
+              className="flex items-center gap-1"
+            >
+              <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span>تحديث</span>
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleOpenSearch}
+              className="flex items-center gap-1"
+            >
+              <Search className="h-4 w-4" />
+              <span>بحث متقدم</span>
+            </Button>
+          </div>
+        </div>
+        
+        <AdvancedSearch className="mb-6" />
+      </div>
+      
+      {/* القنوات المشاهدة مؤخرًا */}
+      {recentlyWatched && recentlyWatched.length > 0 && (
+        <div className="mb-8">
+          <RecentlyWatchedChannels channels={recentlyWatched} isLoading={isLoadingRecent} />
+        </div>
+      )}
 
-      <CountriesList 
-        countries={countries} 
-        activeCountry={null} 
-        onCountryClick={handleCountryClick} 
-      />
+      {/* تبويبات الفئات */}
+      <Tabs defaultValue="all" value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
+        <TabsList className="mb-4 flex flex-wrap h-auto py-1 px-1 gap-1">
+          <TabsTrigger value="all" className="rounded-md">جميع القنوات</TabsTrigger>
+          {categories?.map((category) => (
+            <TabsTrigger 
+              key={category.id} 
+              value={category.id}
+              className="rounded-md"
+            >
+              {category.name}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        
+        <TabsContent value={selectedCategory} className="mt-0">
+          <ChannelsList channels={filteredChannels} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

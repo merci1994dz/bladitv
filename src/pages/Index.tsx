@@ -2,11 +2,17 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tv, Globe, History, Settings, Heart } from 'lucide-react';
+import { Tv, Globe, History, Settings, Heart, Search, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { syncChannels } from '@/services/sync';
+import { useToast } from '@/hooks/use-toast';
+import ThemeToggle from '@/components/ThemeToggle';
+import LoadingIndicator from '@/components/LoadingIndicator';
 
 const Index = () => {
   const [isHosted, setIsHosted] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const { toast } = useToast();
   
   useEffect(() => {
     // التحقق مما إذا كان التطبيق مستضافًا
@@ -20,14 +26,75 @@ const Index = () => {
     });
   }, []);
 
+  // مزامنة القنوات
+  const handleSyncChannels = async () => {
+    setIsSyncing(true);
+    
+    try {
+      toast({
+        title: "جاري المزامنة",
+        description: "جاري تحديث القنوات من المصادر الخارجية..."
+      });
+      
+      const result = await syncChannels(true);
+      
+      if (result) {
+        toast({
+          title: "تمت المزامنة بنجاح",
+          description: "تم تحديث القنوات بنجاح، يمكنك الآن تصفح القنوات المحدثة"
+        });
+      } else {
+        toast({
+          title: "تعذرت المزامنة",
+          description: "لم يتم العثور على تحديثات جديدة أو فشل الاتصال بالمصادر",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("خطأ في المزامنة:", error);
+      toast({
+        title: "خطأ في المزامنة",
+        description: "تعذر الاتصال بمصادر البيانات الخارجية",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/10 to-background">
       <div className="container mx-auto py-10 px-4">
+        <div className="flex justify-end mb-4">
+          <ThemeToggle />
+        </div>
+        
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold text-primary mb-4">IPTV Streaming</h1>
+          <h1 className="text-4xl font-bold text-primary mb-4">BLADI IPTV</h1>
           <p className="text-xl text-gray-600 dark:text-gray-400">
             شاهد قنواتك المفضلة مباشرة بجودة عالية
           </p>
+          
+          <div className="mt-4 flex justify-center">
+            <Button 
+              onClick={handleSyncChannels}
+              disabled={isSyncing}
+              className="flex items-center gap-2"
+            >
+              {isSyncing ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span>جاري المزامنة...</span>
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4" />
+                  <span>تحديث القنوات</span>
+                </>
+              )}
+            </Button>
+          </div>
+          
           {isHosted && (
             <div className="mt-2 text-sm text-green-600 dark:text-green-400">
               تم استضافة التطبيق بنجاح!
@@ -81,6 +148,21 @@ const Index = () => {
             </Card>
           </Link>
           
+          {/* البحث المتقدم - جديد */}
+          <Link to="/advanced">
+            <Card className="h-full hover:border-primary/50 transition-all cursor-pointer">
+              <CardHeader className="text-center pb-2">
+                <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                  <Search className="w-8 h-8 text-primary" />
+                </div>
+                <CardTitle>البحث المتقدم</CardTitle>
+              </CardHeader>
+              <CardContent className="text-center text-gray-500 dark:text-gray-400">
+                ابحث عن القنوات باستخدام فلاتر متقدمة
+              </CardContent>
+            </Card>
+          </Link>
+          
           {/* المشاهدات الأخيرة */}
           <Link to="/history">
             <Card className="h-full hover:border-primary/50 transition-all cursor-pointer">
@@ -127,9 +209,15 @@ const Index = () => {
           </Link>
         </div>
         
+        {isSyncing && (
+          <div className="mt-8 flex justify-center">
+            <LoadingIndicator size="medium" text="جاري تحديث القنوات، يرجى الانتظار..." />
+          </div>
+        )}
+        
         <div className="mt-12 text-center">
           <p className="text-gray-500 dark:text-gray-400 mb-4">
-            تم تطوير هذا التطبيق للعمل على استضافة Namecheap بشكل مثالي
+            تم تطوير هذا التطبيق ليعمل على جميع منصات الاستضافة بشكل مثالي
           </p>
           
           {isHosted ? (

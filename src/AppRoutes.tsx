@@ -13,17 +13,21 @@ import NotFound from './pages/NotFound';
 import SplashScreen from './pages/SplashScreen';
 import BackupPage from './pages/Backup';
 import UserSettings from './pages/UserSettings';
+import Advanced from './pages/Advanced'; // صفحة البحث المتقدم الجديدة
 import Navigation from './components/Navigation';
+import Index from './pages/Index';
 
 // تعريف المسارات مع تعديل مسار الصفحة الرئيسية
 const routes = {
-  splash: '/',
+  splash: '/splash',
+  index: '/',
   home: '/home',
   favorites: '/favorites',
   countries: '/countries',
   country: '/country/:countryId',
   categories: '/categories',
   search: '/search',
+  advanced: '/advanced', // مسار البحث المتقدم الجديد
   admin: '/admin',
   settings: '/settings',
   remoteConfig: '/remote-config',
@@ -38,6 +42,7 @@ const pagesWithNavigation = [
   routes.country,
   routes.categories,
   routes.search,
+  routes.advanced,
   routes.settings,
   routes.admin,
 ];
@@ -47,6 +52,7 @@ const AppRoutes: React.FC = () => {
   return (
     <Routes>
       <Route path={routes.splash} element={<SplashScreen />} />
+      <Route path={routes.index} element={<Index />} />
       
       {/* الصفحات مع شريط التنقل */}
       <Route path={routes.home} element={
@@ -82,6 +88,12 @@ const AppRoutes: React.FC = () => {
       <Route path={routes.search} element={
         <>
           <Search />
+          <Navigation />
+        </>
+      } />
+      <Route path={routes.advanced} element={
+        <>
+          <Advanced />
           <Navigation />
         </>
       } />
