@@ -7,22 +7,26 @@ import { History, Clock } from 'lucide-react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 interface RecentlyWatchedChannelsProps {
-  onChannelClick: (channel: Channel) => void;
+  channels: Channel[];
+  isLoading: boolean;
+  onChannelClick?: (channel: Channel) => void;
 }
 
-const RecentlyWatchedChannels: React.FC<RecentlyWatchedChannelsProps> = ({ onChannelClick }) => {
-  const { 
-    data: recentChannels,
-    isLoading 
-  } = useQuery({
-    queryKey: ['recentlyWatched'],
-    queryFn: getRecentlyWatchedChannels,
-    staleTime: 5 * 60 * 1000 // 5 minutes
-  });
-
-  if (isLoading || !recentChannels || recentChannels.length === 0) {
+const RecentlyWatchedChannels: React.FC<RecentlyWatchedChannelsProps> = ({ 
+  channels, 
+  isLoading,
+  onChannelClick 
+}) => {
+  if (isLoading || !channels || channels.length === 0) {
     return null;
   }
+
+  // Handle channel click with optional callback
+  const handleChannelClick = (channel: Channel) => {
+    if (onChannelClick) {
+      onChannelClick(channel);
+    }
+  };
 
   return (
     <section className="mb-6 px-4">
@@ -36,11 +40,11 @@ const RecentlyWatchedChannels: React.FC<RecentlyWatchedChannelsProps> = ({ onCha
         
         <ScrollArea className="w-full whitespace-nowrap">
           <div className="flex space-x-4 space-x-reverse pb-2">
-            {recentChannels.map((channel) => (
+            {channels.map((channel) => (
               <div 
                 key={channel.id} 
                 className="w-28 shrink-0 transition-all hover:scale-105 cursor-pointer"
-                onClick={() => onChannelClick(channel)}
+                onClick={() => handleChannelClick(channel)}
               >
                 <div className="relative aspect-square overflow-hidden rounded-lg border border-border/50 shadow-md bg-card">
                   <img 

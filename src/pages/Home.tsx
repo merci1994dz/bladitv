@@ -2,8 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { getChannels, getCategories, getRecentlyWatchedChannels } from '@/services/api';
+import { getChannels, getCategories, getCountries, getRecentlyWatchedChannels } from '@/services/api';
 import { syncWithBladiInfo } from '@/services/sync';
+import { playChannel, toggleFavoriteChannel } from '@/services/channelService';
+import { Channel } from '@/types';
 import ChannelsList from '@/components/channel/ChannelsList';
 import HomeHeader from '@/components/header/HomeHeader';
 import RecentlyWatchedChannels from '@/components/recently-watched/RecentlyWatchedChannels';
@@ -37,6 +39,14 @@ const Home: React.FC = () => {
     queryFn: getCategories,
   });
 
+  const {
+    data: countries,
+    isLoading: isLoadingCountries
+  } = useQuery({
+    queryKey: ['countries'],
+    queryFn: getCountries,
+  });
+
   const { 
     data: recentlyWatched,
     isLoading: isLoadingRecent
@@ -47,7 +57,7 @@ const Home: React.FC = () => {
 
   // تحديث صفحة البحث
   const handleOpenSearch = () => {
-    navigate('/search');
+    navigate('/advanced');
   };
 
   // مزامنة القنوات مع مصادر BLADI
@@ -87,6 +97,16 @@ const Home: React.FC = () => {
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  // Handle playing a channel
+  const handlePlayChannel = (channel: Channel) => {
+    playChannel(channel.id).catch(console.error);
+  };
+
+  // Handle toggling a channel as favorite
+  const handleToggleFavorite = (channelId: string) => {
+    toggleFavoriteChannel(channelId).catch(console.error);
   };
 
   const filteredChannels = channels?.filter(channel => {
@@ -142,7 +162,11 @@ const Home: React.FC = () => {
       {/* القنوات المشاهدة مؤخرًا */}
       {recentlyWatched && recentlyWatched.length > 0 && (
         <div className="mb-8">
-          <RecentlyWatchedChannels channels={recentlyWatched} isLoading={isLoadingRecent} />
+          <RecentlyWatchedChannels 
+            channels={recentlyWatched} 
+            isLoading={isLoadingRecent}
+            onChannelClick={handlePlayChannel} 
+          />
         </div>
       )}
 
@@ -162,7 +186,14 @@ const Home: React.FC = () => {
         </TabsList>
         
         <TabsContent value={selectedCategory} className="mt-0">
-          <ChannelsList channels={filteredChannels} />
+          <ChannelsList 
+            channels={filteredChannels}
+            countries={countries || []}
+            activeCountry={null}
+            isLoading={false}
+            onPlayChannel={handlePlayChannel}
+            onToggleFavorite={handleToggleFavorite}
+          />
         </TabsContent>
       </Tabs>
     </div>

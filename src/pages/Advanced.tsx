@@ -2,14 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { channelService } from '@/services/api';
+import { getChannels, getCategories, getCountries } from '@/services/api';
 import { Channel } from '@/types';
 import AdvancedSearch from '@/components/search/AdvancedSearch';
 import LoadingIndicator from '@/components/LoadingIndicator';
 import ChannelsList from '@/components/channel/ChannelsList';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Filter, ListFilter } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { playChannel, toggleFavoriteChannel } from '@/services/channelService';
 
 const AdvancedSearchPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -27,17 +28,17 @@ const AdvancedSearchPage: React.FC = () => {
     error
   } = useQuery({
     queryKey: ['channels'],
-    queryFn: channelService.getChannels
+    queryFn: getChannels
   });
   
   const { data: categories } = useQuery({
     queryKey: ['categories'],
-    queryFn: () => import('@/services/api').then(api => api.getCategories())
+    queryFn: getCategories
   });
   
   const { data: countries } = useQuery({
     queryKey: ['countries'],
-    queryFn: () => import('@/services/api').then(api => api.getCountries())
+    queryFn: getCountries
   });
   
   // تحديث الأسماء عند تغيير البيانات
@@ -75,6 +76,16 @@ const AdvancedSearchPage: React.FC = () => {
     
     setFilteredChannels(result);
   }, [allChannels, query, category, country]);
+  
+  // Handle playing a channel
+  const handlePlayChannel = (channel: Channel) => {
+    playChannel(channel.id).catch(console.error);
+  };
+  
+  // Handle toggling a channel as favorite
+  const handleToggleFavorite = (channelId: string) => {
+    toggleFavoriteChannel(channelId).catch(console.error);
+  };
   
   // إنشاء عنوان مناسب بناءً على معايير البحث
   const getTitle = () => {
@@ -152,7 +163,14 @@ const AdvancedSearchPage: React.FC = () => {
           <LoadingIndicator size="large" text="جاري تحميل القنوات..." />
         </div>
       ) : filteredChannels.length > 0 ? (
-        <ChannelsList channels={filteredChannels} />
+        <ChannelsList 
+          channels={filteredChannels} 
+          countries={countries || []} 
+          activeCountry={null}
+          isLoading={false}
+          onPlayChannel={handlePlayChannel}
+          onToggleFavorite={handleToggleFavorite}
+        />
       ) : (
         <Card className="border-dashed border-muted">
           <CardContent className="flex flex-col items-center justify-center py-10">
