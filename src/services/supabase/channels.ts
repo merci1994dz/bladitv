@@ -2,6 +2,44 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Channel, Country, Category } from '@/types';
 import { STORAGE_KEYS } from '../config';
+import { Json } from '@/integrations/supabase/types';
+
+// Interfaces to match Supabase schema columns with our app models
+interface SupabaseChannel {
+  category: string;
+  country: string;
+  externallinks: Json | null;
+  id: string;
+  isfavorite: boolean | null;
+  lastwatched: string | null;
+  logo: string;
+  name: string;
+  streamurl: string;
+}
+
+// Converter functions to map between our app models and Supabase schema
+const toChannel = (supabaseChannel: SupabaseChannel): Channel => ({
+  id: supabaseChannel.id,
+  name: supabaseChannel.name,
+  logo: supabaseChannel.logo,
+  streamUrl: supabaseChannel.streamurl,
+  category: supabaseChannel.category,
+  country: supabaseChannel.country,
+  isFavorite: supabaseChannel.isfavorite || false,
+  lastWatched: supabaseChannel.lastwatched,
+  externalLinks: supabaseChannel.externallinks as any || []
+});
+
+const toSupabaseChannel = (channel: Omit<Channel, 'id'> | Channel): Omit<SupabaseChannel, 'id'> => ({
+  name: channel.name,
+  logo: channel.logo,
+  streamurl: channel.streamUrl,
+  category: channel.category,
+  country: channel.country,
+  isfavorite: channel.isFavorite,
+  lastwatched: channel.lastWatched,
+  externallinks: channel.externalLinks as Json
+});
 
 // جلب قائمة القنوات من Supabase
 export const getChannelsFromSupabase = async (): Promise<Channel[]> => {
@@ -15,14 +53,17 @@ export const getChannelsFromSupabase = async (): Promise<Channel[]> => {
       throw error;
     }
     
+    // Convert Supabase data to our Channel model
+    const channels = (data as SupabaseChannel[]).map(toChannel);
+    
     // حفظ البيانات في التخزين المحلي كنسخة احتياطية
     try {
-      localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(data));
+      localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
     } catch (e) {
       console.warn('لم يتم حفظ البيانات في التخزين المحلي:', e);
     }
     
-    return data as Channel[];
+    return channels;
   } catch (error) {
     console.error('خطأ في جلب القنوات من Supabase:', error);
     
@@ -39,9 +80,10 @@ export const getChannelsFromSupabase = async (): Promise<Channel[]> => {
 // إضافة قناة جديدة إلى Supabase
 export const addChannelToSupabase = async (channel: Omit<Channel, 'id'>): Promise<Channel> => {
   try {
+    const supabaseChannel = toSupabaseChannel(channel);
     const { data, error } = await supabase
       .from('channels')
-      .insert(channel)
+      .insert(supabaseChannel)
       .select()
       .single();
     
@@ -50,7 +92,7 @@ export const addChannelToSupabase = async (channel: Omit<Channel, 'id'>): Promis
       throw error;
     }
     
-    return data as Channel;
+    return toChannel(data as SupabaseChannel);
   } catch (error) {
     console.error('خطأ في إضافة القناة إلى Supabase:', error);
     throw error;
@@ -60,9 +102,10 @@ export const addChannelToSupabase = async (channel: Omit<Channel, 'id'>): Promis
 // تحديث قناة في Supabase
 export const updateChannelInSupabase = async (channel: Channel): Promise<Channel> => {
   try {
+    const supabaseChannel = toSupabaseChannel(channel);
     const { data, error } = await supabase
       .from('channels')
-      .update(channel)
+      .update(supabaseChannel)
       .eq('id', channel.id)
       .select()
       .single();
@@ -72,7 +115,7 @@ export const updateChannelInSupabase = async (channel: Channel): Promise<Channel
       throw error;
     }
     
-    return data as Channel;
+    return toChannel(data as SupabaseChannel);
   } catch (error) {
     console.error('خطأ في تحديث القناة في Supabase:', error);
     throw error;
@@ -109,7 +152,8 @@ export const subscribeToChannelsChanges = (callback: (channels: Channel[]) => vo
         // استرجاع البيانات المحدثة
         const { data } = await supabase.from('channels').select('*');
         if (data) {
-          callback(data as Channel[]);
+          const channels = (data as SupabaseChannel[]).map(toChannel);
+          callback(channels);
         }
       }
     )

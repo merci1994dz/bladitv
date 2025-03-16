@@ -5,6 +5,32 @@ import { channels, countries, categories, setIsSyncing } from '../dataStore';
 import { STORAGE_KEYS } from '../config';
 import { updateLastSyncTime } from './config';
 
+// Types to map Supabase schema to our app models
+interface SupabaseChannel {
+  category: string;
+  country: string;
+  externallinks: any;
+  id: string;
+  isfavorite: boolean | null;
+  lastwatched: string | null;
+  logo: string;
+  name: string;
+  streamurl: string;
+}
+
+// Converter functions
+const toChannel = (sc: SupabaseChannel): Channel => ({
+  id: sc.id,
+  name: sc.name,
+  logo: sc.logo,
+  streamUrl: sc.streamurl,
+  category: sc.category,
+  country: sc.country,
+  isFavorite: sc.isfavorite || false,
+  lastWatched: sc.lastwatched,
+  externalLinks: sc.externallinks || []
+});
+
 // مزامنة البيانات من Supabase
 export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> => {
   try {
@@ -25,10 +51,10 @@ export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> =
     // تحديث البيانات في الذاكرة
     if (channelsData.data && channelsData.data.length > 0) {
       channels.length = 0;
-      channels.push(...channelsData.data as Channel[]);
+      channels.push(...(channelsData.data as SupabaseChannel[]).map(toChannel));
       
       try {
-        localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channelsData.data));
+        localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
       } catch (e) {
         console.warn('لم يتم حفظ القنوات في التخزين المحلي:', e);
       }
@@ -84,7 +110,7 @@ export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> =
 export const initializeSupabaseTables = async (): Promise<boolean> => {
   try {
     // تحقق مما إذا كانت الجداول موجودة بالفعل
-    const { data: channels, error: channelsError } = await supabase
+    const { data: channelsData, error: channelsError } = await supabase
       .from('channels')
       .select('count', { count: 'exact', head: true });
     
@@ -99,7 +125,7 @@ export const initializeSupabaseTables = async (): Promise<boolean> => {
     }
     
     // تحميل البيانات المخزنة محليًا إلى Supabase إذا كانت الجداول فارغة
-    if (channels && channels.count === 0) {
+    if (channelsData && channelsData.count === 0) {
       const storedChannels = localStorage.getItem(STORAGE_KEYS.CHANNELS);
       const storedCountries = localStorage.getItem(STORAGE_KEYS.COUNTRIES);
       const storedCategories = localStorage.getItem(STORAGE_KEYS.CATEGORIES);

@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getLastSyncTime, syncWithSupabase, isSyncInProgress, forceDataRefresh } from '@/services/sync';
+import { getLastSyncTime, isSyncInProgress, forceDataRefresh } from '@/services/sync';
+import { syncWithSupabase } from '@/services/sync/supabaseSync';
 import { Clock, CloudOff, RefreshCw, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';

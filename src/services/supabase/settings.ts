@@ -2,6 +2,56 @@
 import { supabase } from '@/integrations/supabase/client';
 import { CMSSettings } from '../cms/types';
 
+// Type mapping for Supabase settings table
+interface SupabaseSettings {
+  defaultlayout: string;
+  featuredchannelslimit: number;
+  hideemptycategories: boolean;
+  id: string;
+  language: string;
+  logo: string;
+  recentlywatchedlimit: number;
+  showcategoriesonhome: boolean;
+  showcountriesonhome: boolean;
+  showfeaturedchannelsonhome: boolean;
+  showrecentlywatchedonhome: boolean;
+  sitename: string;
+  theme: string;
+}
+
+// Convert between our app model and Supabase schema
+const toCMSSettings = (supabaseSettings: SupabaseSettings): CMSSettings => ({
+  siteName: supabaseSettings.sitename,
+  logo: supabaseSettings.logo,
+  defaultLayout: supabaseSettings.defaultlayout,
+  theme: supabaseSettings.theme as any,
+  featuredChannelsLimit: supabaseSettings.featuredchannelslimit,
+  recentlyWatchedLimit: supabaseSettings.recentlywatchedlimit,
+  showCategoriesOnHome: supabaseSettings.showcategoriesonhome,
+  showCountriesOnHome: supabaseSettings.showcountriesonhome,
+  showFeaturedChannelsOnHome: supabaseSettings.showfeaturedchannelsonhome,
+  showRecentlyWatchedOnHome: supabaseSettings.showrecentlywatchedonhome,
+  hideEmptyCategories: supabaseSettings.hideemptycategories,
+  language: supabaseSettings.language,
+  id: supabaseSettings.id
+});
+
+const toSupabaseSettings = (settings: CMSSettings): Omit<SupabaseSettings, 'id'> & { id: string } => ({
+  sitename: settings.siteName,
+  logo: settings.logo,
+  defaultlayout: settings.defaultLayout,
+  theme: settings.theme,
+  featuredchannelslimit: settings.featuredChannelsLimit,
+  recentlywatchedlimit: settings.recentlyWatchedLimit,
+  showcategoriesonhome: settings.showCategoriesOnHome,
+  showcountriesonhome: settings.showCountriesOnHome,
+  showfeaturedchannelsonhome: settings.showFeaturedChannelsOnHome,
+  showrecentlywatchedonhome: settings.showRecentlyWatchedOnHome,
+  hideemptycategories: settings.hideEmptyCategories,
+  language: settings.language,
+  id: settings.id || 'main-settings'
+});
+
 // جلب إعدادات CMS من Supabase
 export const getSettingsFromSupabase = async (): Promise<CMSSettings | null> => {
   try {
@@ -20,7 +70,7 @@ export const getSettingsFromSupabase = async (): Promise<CMSSettings | null> => 
       return null;
     }
     
-    return data as unknown as CMSSettings;
+    return toCMSSettings(data as SupabaseSettings);
   } catch (error) {
     console.error('خطأ في جلب الإعدادات من Supabase:', error);
     throw error;
@@ -37,11 +87,13 @@ export const updateSettingsInSupabase = async (settings: CMSSettings): Promise<C
       .eq('id', 'main-settings')
       .maybeSingle();
     
+    const supabaseSettings = toSupabaseSettings(settings);
+    
     if (existingSettings) {
       // تحديث الإعدادات الموجودة
       const { data, error } = await supabase
         .from('settings')
-        .update({ ...settings })
+        .update(supabaseSettings)
         .eq('id', 'main-settings')
         .select()
         .single();
@@ -51,12 +103,12 @@ export const updateSettingsInSupabase = async (settings: CMSSettings): Promise<C
         throw error;
       }
       
-      return data as unknown as CMSSettings;
+      return toCMSSettings(data as SupabaseSettings);
     } else {
       // إنشاء إعدادات جديدة
       const { data, error } = await supabase
         .from('settings')
-        .insert([{ id: 'main-settings', ...settings }])
+        .insert(supabaseSettings)
         .select()
         .single();
       
@@ -65,7 +117,7 @@ export const updateSettingsInSupabase = async (settings: CMSSettings): Promise<C
         throw error;
       }
       
-      return data as unknown as CMSSettings;
+      return toCMSSettings(data as SupabaseSettings);
     }
   } catch (error) {
     console.error('خطأ في تحديث الإعدادات في Supabase:', error);

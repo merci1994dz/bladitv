@@ -14,11 +14,11 @@ const SettingsHeader: React.FC = () => {
         <p className="text-muted-foreground">تخصيص إعدادات الموقع ونظام إدارة المحتوى</p>
       </div>
       <div className="flex items-center space-x-2 space-x-reverse">
-        <Label htmlFor="storage-type">تخزين في Firebase</Label>
+        <Label htmlFor="storage-type">تخزين في Supabase</Label>
         <Switch
           id="storage-type"
-          checked={storageType === 'firebase'}
-          onCheckedChange={(checked) => setStorageType(checked ? 'firebase' : 'local')}
+          checked={storageType === 'supabase'}
+          onCheckedChange={(checked) => setStorageType(checked ? 'supabase' : 'local')}
         />
       </div>
     </div>
