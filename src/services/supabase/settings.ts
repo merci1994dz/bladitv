@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { CMSSettings } from '../cms/types';
 
@@ -29,6 +30,9 @@ const toCMSSettings = (supabaseSettings: SupabaseSettings): CMSSettings => ({
   recentlyWatchedLimit: supabaseSettings.recentlywatchedlimit,
   showCategoriesOnHome: supabaseSettings.showcategoriesonhome,
   showCountriesOnHome: supabaseSettings.showcountriesonhome,
+  showFeaturedChannelsOnHome: supabaseSettings.showfeaturedchannelsonhome,
+  showRecentlyWatchedOnHome: supabaseSettings.showrecentlywatchedonhome,
+  hideEmptyCategories: supabaseSettings.hideemptycategories,
   customCss: undefined,
   customJs: undefined,
   analyticEnabled: supabaseSettings.analyticenabled || false,

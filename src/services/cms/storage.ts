@@ -18,6 +18,11 @@ const defaultSettings: CMSSettings = {
   recentlyWatchedLimit: 6,
   showCategoriesOnHome: true,
   showCountriesOnHome: true,
+  showFeaturedChannelsOnHome: true,
+  showRecentlyWatchedOnHome: true,
+  hideEmptyCategories: true,
+  customCss: undefined,
+  customJs: undefined,
   analyticEnabled: false,
   language: 'ar'
 };
