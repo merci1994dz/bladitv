@@ -7,4 +7,5 @@ export * from './operations/channelMutations';
 export * from './realtime/channelRealtime';
 
 // تصدير الأنواع والمحولات
-export { SupabaseChannel, toChannel, toSupabaseChannel } from './types/channelTypes';
+export type { SupabaseChannel } from './types/channelTypes';
+export { toChannel, toSupabaseChannel } from './types/channelTypes';
