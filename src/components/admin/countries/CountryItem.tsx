@@ -4,14 +4,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { updateCountry, deleteCountry } from '@/services/api';
 import { AdminCountry, Country } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Pencil, Trash, Save, X } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Pencil, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
 } from "@/components/ui/card";
 import { 
+  Alert
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import CountryEditForm from './CountryEditForm';
 
 interface CountryItemProps {
   country: AdminCountry;
@@ -83,51 +84,12 @@ const CountryItem: React.FC<CountryItemProps> = ({
     <Card key={country.id}>
       <CardContent className="p-4">
         {country.isEditing ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">اسم البلد</label>
-                <Input
-                  value={country.name}
-                  onChange={(e) => onUpdateField(country.id, 'name', e.target.value)}
-                  dir="rtl"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">رمز العلم (اموجي)</label>
-                <Input
-                  value={country.flag}
-                  onChange={(e) => onUpdateField(country.id, 'flag', e.target.value)}
-                  dir="ltr"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">صورة البلد (رابط)</label>
-                <Input
-                  value={country.image}
-                  onChange={(e) => onUpdateField(country.id, 'image', e.target.value)}
-                  dir="ltr"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => onToggleEdit(country.id)}
-              >
-                <X className="h-4 w-4 ml-1" />
-                <span>إلغاء</span>
-              </Button>
-              <Button 
-                size="sm" 
-                onClick={saveCountryChanges}
-              >
-                <Save className="h-4 w-4 ml-1" />
-                <span>حفظ</span>
-              </Button>
-            </div>
-          </div>
+          <CountryEditForm 
+            country={country}
+            onToggleEdit={onToggleEdit}
+            onUpdateField={onUpdateField}
+            onSave={saveCountryChanges}
+          />
         ) : (
           <div className="flex items-center">
             <div className="flex-shrink-0 ml-4 text-5xl">
