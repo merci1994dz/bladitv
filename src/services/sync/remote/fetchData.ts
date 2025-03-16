@@ -20,7 +20,8 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
     'Accept': 'application/json',
     'Cache-Control': 'no-cache, no-store, must-revalidate',
     'Pragma': 'no-cache',
-    'Expires': '0'
+    'Expires': '0',
+    'X-Requested-With': 'XMLHttpRequest'
   };
   
   // إضافة رأس معرف النشر إذا كانت حماية التزامن مُفعلة
@@ -31,35 +32,57 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
     }
   }
   
-  // إضافة مهلة زمنية للطلب - 8 ثوانٍ
+  // إضافة مهلة زمنية للطلب - 10 ثوانٍ
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
   
   try {
     console.log(`جاري تحميل البيانات من: ${urlWithCache}`);
-    const response = await fetch(urlWithCache, {
-      method: 'GET',
-      headers,
-      cache: 'no-store',
-      signal: controller.signal,
-      mode: 'cors',
-      credentials: 'omit'
-    });
     
+    // محاولة الاتصال عدة مرات في حالة الفشل
+    let retries = 3;
+    let lastError;
+    
+    while (retries > 0) {
+      try {
+        const response = await fetch(urlWithCache, {
+          method: 'GET',
+          headers,
+          cache: 'no-store',
+          signal: controller.signal,
+          mode: 'cors',
+          credentials: 'omit'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`فشل في تحميل البيانات: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        // التحقق من صحة البيانات
+        if (!validateRemoteData(data)) {
+          throw new Error('البيانات المستلمة غير صالحة');
+        }
+        
+        clearTimeout(timeoutId);
+        return data;
+      } catch (error) {
+        console.warn(`فشلت المحاولة ${4 - retries}/3 للاتصال بـ ${remoteUrl}:`, error);
+        lastError = error;
+        retries--;
+        
+        if (retries > 0) {
+          // الانتظار قبل المحاولة مرة أخرى (زيادة وقت الانتظار مع كل محاولة)
+          await new Promise(resolve => setTimeout(resolve, (4 - retries) * 1000));
+        }
+      }
+    }
+    
+    // إذا فشلت جميع المحاولات
     clearTimeout(timeoutId);
+    throw lastError || new Error('فشلت جميع محاولات الاتصال بالمصدر الخارجي');
     
-    if (!response.ok) {
-      throw new Error(`فشل في تحميل البيانات: ${response.status} ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    
-    // التحقق من صحة البيانات
-    if (!validateRemoteData(data)) {
-      throw new Error('البيانات المستلمة غير صالحة');
-    }
-    
-    return data;
   } catch (error) {
     clearTimeout(timeoutId);
     
@@ -81,4 +104,28 @@ export const getSkewProtectionParams = (): string => {
     return `dpl=${window.ENV.VERCEL_DEPLOYMENT_ID}`;
   }
   return '';
+};
+
+/**
+ * فحص إذا كان بإمكاننا الوصول إلى رابط خارجي عن طريق طلب HEAD
+ */
+export const isRemoteUrlAccessible = async (url: string): Promise<boolean> => {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const response = await fetch(url, {
+      method: 'HEAD',
+      cache: 'no-store',
+      signal: controller.signal,
+      mode: 'cors',
+      credentials: 'omit'
+    });
+    
+    clearTimeout(timeoutId);
+    return response.ok;
+  } catch (error) {
+    console.warn(`تعذر الوصول إلى ${url}:`, error);
+    return false;
+  }
 };

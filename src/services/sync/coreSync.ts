@@ -1,7 +1,8 @@
+
 import { REMOTE_CONFIG, STORAGE_KEYS } from '../config';
 import { setIsSyncing } from '../dataStore';
 import { getRemoteConfig } from './remote';
-import { syncWithRemoteSource, syncWithBladiInfo, getSkewProtectionParams } from './remoteSync';
+import { syncWithRemoteSource, syncWithBladiInfo, getSkewProtectionParams, checkBladiInfoAvailability } from './remoteSync';
 import { syncWithLocalData } from './local';
 import { isSyncLocked, setSyncLock, releaseSyncLock, addToSyncQueue } from './syncLock';
 
@@ -32,12 +33,32 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
       setTimeout(() => {
         console.warn('تم تجاوز الوقت المخصص للمزامنة');
         resolve(false);
-      }, 20000); // تقليل المهلة إلى 20 ثانية
+      }, 30000); // زيادة المهلة إلى 30 ثانية
     });
+    
+    // التحقق من وجود مصدر متاح
+    const availableSource = await checkBladiInfoAvailability();
+    if (availableSource) {
+      console.log(`استخدام المصدر المتاح: ${availableSource}`);
+    }
     
     // محاولة المزامنة مع مواقع Bladi Info أولاً
     const syncPromise = (async () => {
       try {
+        // محاولة المزامنة مع المصدر المتاح مباشرة إذا وجد
+        if (availableSource) {
+          try {
+            const directResult = await syncWithRemoteSource(availableSource, forceRefresh);
+            if (directResult) {
+              console.log(`تمت المزامنة بنجاح مع المصدر المتاح: ${availableSource}`);
+              return true;
+            }
+          } catch (error) {
+            console.error(`فشلت المزامنة مع المصدر المتاح ${availableSource}:`, error);
+          }
+        }
+        
+        // محاولة المزامنة مع جميع مصادر Bladi Info
         const bladiInfoResult = await syncWithBladiInfo(forceRefresh);
         if (bladiInfoResult) {
           return true;
@@ -106,8 +127,26 @@ export const performInitialSync = async (): Promise<boolean> => {
     console.log('بدء المزامنة الأولية...');
     const needsSync = isSyncNeeded();
     
+    // التحقق من وجود مصدر متاح
+    const availableSource = await checkBladiInfoAvailability();
+    
     if (needsSync) {
       console.log('التطبيق يحتاج إلى مزامنة البيانات');
+      
+      // محاولة المزامنة مع المصدر المتاح مباشرة إذا وجد
+      if (availableSource) {
+        try {
+          console.log(`محاولة المزامنة مع المصدر المتاح: ${availableSource}`);
+          const directResult = await syncWithRemoteSource(availableSource, false);
+          if (directResult) {
+            console.log(`تمت المزامنة بنجاح مع المصدر المتاح: ${availableSource}`);
+            return true;
+          }
+        } catch (error) {
+          console.error(`فشلت المزامنة مع المصدر المتاح ${availableSource}:`, error);
+        }
+      }
+      
       // محاولة مزامنة مع مواقع Bladi Info أولاً
       try {
         const bladiResult = await syncWithBladiInfo(false);

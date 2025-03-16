@@ -1,14 +1,15 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getLastSyncTime, isSyncInProgress, forceDataRefresh } from '@/services/sync';
+import { getLastSyncTime, isSyncInProgress, forceDataRefresh, checkBladiInfoAvailability } from '@/services/sync';
 import { syncWithSupabase } from '@/services/sync/supabaseSync';
-import { Clock, CloudOff, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Clock, CloudOff, RefreshCw, AlertTriangle, Globe, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 interface SyncStatusProps {
   isAdmin?: boolean;
@@ -17,6 +18,7 @@ interface SyncStatusProps {
 const SyncStatus: React.FC<SyncStatusProps> = ({ isAdmin = false }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [availableSource, setAvailableSource] = useState<string | null>(null);
   
   // جلب وقت آخر مزامنة
   const { data: lastSync, refetch: refetchLastSync } = useQuery({
@@ -25,15 +27,38 @@ const SyncStatus: React.FC<SyncStatusProps> = ({ isAdmin = false }) => {
     refetchInterval: 60000, // إعادة الفحص كل دقيقة للتأكد من حداثة البيانات
   });
 
+  // التحقق من المصادر المتاحة
+  useEffect(() => {
+    const checkAvailableSources = async () => {
+      try {
+        const source = await checkBladiInfoAvailability();
+        setAvailableSource(source);
+      } catch (error) {
+        console.error('خطأ في التحقق من المصادر المتاحة:', error);
+      }
+    };
+    
+    checkAvailableSources();
+    
+    // إعادة الفحص كل 5 دقائق
+    const interval = setInterval(checkAvailableSources, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
   // تشغيل المزامنة مع Supabase
   const { mutate: runSync, isPending: isSyncing } = useMutation({
-    mutationFn: () => syncWithSupabase(false),
+    mutationFn: () => syncWithSupabase(true),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lastSync'] });
       queryClient.invalidateQueries({ queryKey: ['channels'] });
       queryClient.invalidateQueries({ queryKey: ['countries'] });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       refetchLastSync();
+      
+      // إعادة التحقق من المصادر المتاحة بعد المزامنة
+      checkBladiInfoAvailability().then(setAvailableSource);
+      
       toast({
         title: "تمت المزامنة",
         description: "تم تحديث البيانات بنجاح من Supabase",
@@ -57,6 +82,9 @@ const SyncStatus: React.FC<SyncStatusProps> = ({ isAdmin = false }) => {
         title: "تم إعادة التحميل القسري",
         description: "تم مسح ذاكرة التخزين المؤقت وإعادة تحميل البيانات",
       });
+      
+      // إعادة التحقق من المصادر المتاحة بعد التحميل القسري
+      checkBladiInfoAvailability().then(setAvailableSource);
     },
     onError: (error) => {
       toast({
@@ -116,6 +144,21 @@ const SyncStatus: React.FC<SyncStatusProps> = ({ isAdmin = false }) => {
           <Clock className="w-3 h-3" />
         )}
         <span>آخر تحديث: {timeAgo}</span>
+        
+        {/* عرض حالة المصدر المتاح */}
+        {availableSource && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="outline" className="flex items-center gap-1 h-5 text-[10px] px-1 text-green-600 border-green-200 bg-green-50">
+                <Check className="w-2 h-2" />
+                <span>متصل</span>
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>متصل بمصدر البيانات: {availableSource}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
         
         {/* زر التحديث مع Supabase */}
         <Tooltip>

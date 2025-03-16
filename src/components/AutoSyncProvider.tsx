@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { syncWithSupabase, setupRealtimeSync, initializeSupabaseTables } from '@/services/sync/supabaseSync';
+import { checkBladiInfoAvailability } from '@/services/sync/remote/syncOperations';
 import { useToast } from '@/hooks/use-toast';
 
 interface AutoSyncProviderProps {
@@ -10,6 +11,7 @@ interface AutoSyncProviderProps {
 const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
   const { toast } = useToast();
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [availableSource, setAvailableSource] = useState<string | null>(null);
   
   useEffect(() => {
     // تهيئة جداول Supabase وتحميل البيانات الأولية
@@ -18,6 +20,21 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
         await initializeSupabaseTables();
       } catch (error) {
         console.error('خطأ في تهيئة Supabase:', error);
+      }
+    };
+    
+    // التحقق من توفر أي من روابط Bladi Info
+    const checkSourceAvailability = async () => {
+      try {
+        const availableUrl = await checkBladiInfoAvailability();
+        setAvailableSource(availableUrl);
+        if (availableUrl) {
+          console.log(`وجدنا مصدر بيانات متاح: ${availableUrl}`);
+        } else {
+          console.warn('لم نتمكن من العثور على أي مصدر بيانات متاح');
+        }
+      } catch (error) {
+        console.error('خطأ في التحقق من توفر المصادر:', error);
       }
     };
     
@@ -39,16 +56,26 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
       }
     };
     
+    // تنفيذ الوظائف بالترتيب المناسب
+    const initialize = async () => {
+      await checkSourceAvailability();
+      await initializeSupabase();
+      await performInitialSync();
+    };
+    
     // تأخير المزامنة الأولية لمنع التعارض مع التهيئة الأولية
     const initialSyncTimeout = setTimeout(() => {
       console.log('بدء المزامنة الأولية في AutoSyncProvider');
-      initializeSupabase().then(performInitialSync);
+      initialize();
     }, 3000);
     
     // إعداد مزامنة تلقائية كل 5 دقائق
     const syncInterval = setInterval(() => {
       console.log('تنفيذ المزامنة الدورية مع Supabase');
       syncWithSupabase(false);
+      
+      // إعادة التحقق من المصادر المتاحة كل فترة
+      checkSourceAvailability();
     }, 5 * 60 * 1000);
     
     // إعداد مستمع لحالة الاتصال بالإنترنت
@@ -59,6 +86,9 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
         duration: 3000,
       });
       syncWithSupabase(false);
+      
+      // إعادة التحقق من المصادر المتاحة عند استعادة الاتصال
+      checkSourceAvailability();
     };
     
     window.addEventListener('online', handleOnline);
@@ -101,6 +131,13 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
       return () => clearTimeout(errorTimeout);
     }
   }, [syncError, toast]);
+  
+  // عرض معلومات عن المصدر المتاح إذا تم العثور عليه (للتطوير فقط)
+  useEffect(() => {
+    if (availableSource && process.env.NODE_ENV === 'development') {
+      console.log(`المصدر المتاح للبيانات: ${availableSource}`);
+    }
+  }, [availableSource]);
   
   return <>{children}</>;
 };

@@ -4,6 +4,16 @@
  */
 
 // Re-export from the modular files
-export { syncWithRemoteSource, syncWithBladiInfo } from './remote/syncOperations';
-export { fetchRemoteData, getSkewProtectionParams } from './remote/fetchData';
+export { 
+  syncWithRemoteSource, 
+  syncWithBladiInfo, 
+  checkBladiInfoAvailability 
+} from './remote/syncOperations';
+
+export { 
+  fetchRemoteData, 
+  getSkewProtectionParams, 
+  isRemoteUrlAccessible 
+} from './remote/fetchData';
+
 export { storeRemoteData } from './remote/storeData';
