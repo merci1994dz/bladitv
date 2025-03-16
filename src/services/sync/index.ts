@@ -1,4 +1,3 @@
-
 // Main export file for sync functionality
 import { isSyncing, setIsSyncing } from '../dataStore';
 import { syncAllData, performInitialSync } from './coreSync';
@@ -14,11 +13,13 @@ import { isSyncInProgress } from './status';
 export { 
   getRemoteConfig, 
   setRemoteConfig,
-  syncWithRemoteSource
 } from './remote';
 
 // Export from remoteSync.ts
-export { syncWithBladiInfo } from './remoteSync';
+export { 
+  syncWithBladiInfo,
+  syncWithRemoteSource
+} from './remoteSync';
 
 // Export from local.ts
 export { 
@@ -71,4 +72,3 @@ export {
 
 // تنفيذ المزامنة الأولية عند تحميل الوحدة
 performInitialSync().catch(console.error);
-

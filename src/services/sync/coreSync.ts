@@ -1,20 +1,9 @@
-
 import { REMOTE_CONFIG, STORAGE_KEYS } from '../config';
 import { setIsSyncing } from '../dataStore';
 import { getRemoteConfig } from './remote';
-import { syncWithRemoteSource, syncWithBladiInfo } from './remoteSync';
+import { syncWithRemoteSource, syncWithBladiInfo, getSkewProtectionParams } from './remoteSync';
 import { syncWithLocalData } from './local';
 import { isSyncLocked, setSyncLock, releaseSyncLock, addToSyncQueue } from './syncLock';
-
-// استرجاع معلمات حماية التزامن من Vercel
-const getSkewProtectionParams = (): string => {
-  if (typeof window !== 'undefined' && window.ENV && 
-      window.ENV.VERCEL_SKEW_PROTECTION_ENABLED === '1' && 
-      window.ENV.VERCEL_DEPLOYMENT_ID) {
-    return `dpl=${window.ENV.VERCEL_DEPLOYMENT_ID}`;
-  }
-  return '';
-};
 
 // Main sync function - محسنة مع آلية قفل آمنة ومعالجة الطوابير
 export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
