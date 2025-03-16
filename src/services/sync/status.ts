@@ -110,7 +110,7 @@ export const checkConnectivityIssues = async (): Promise<{ hasInternet: boolean,
  */
 export const getSyncStatus = (): { lastSync: string | null; isActive: boolean; } => {
   try {
-    const lastSync = localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
+    const lastSync = localStorage.getItem(STORAGE_KEYS.LAST_SYNC_TIME) || localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
     const isActive = isSyncInProgress();
     
     return { lastSync, isActive };

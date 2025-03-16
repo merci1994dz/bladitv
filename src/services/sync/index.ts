@@ -8,7 +8,7 @@ import {
   verifyUpdatesPropagation, 
   forceBroadcastToAllBrowsers 
 } from './publishOperations';
-import { isSyncInProgress } from './status';
+import { isSyncInProgress, setSyncActive, checkConnectivityIssues, getSyncStatus } from './status';
 
 // Export from remote.ts
 export { 
@@ -22,7 +22,7 @@ export {
   syncWithRemoteSource
 } from './remoteSync';
 
-// Export checkBladiInfoAvailability function - this was missing
+// Export checkBladiInfoAvailability function
 export { checkBladiInfoAvailability } from './remote/syncOperations';
 
 // Export from local.ts
@@ -71,7 +71,10 @@ export {
 
 // Export status functions
 export {
-  isSyncInProgress
+  isSyncInProgress,
+  setSyncActive,
+  checkConnectivityIssues,
+  getSyncStatus
 };
 
 // تنفيذ المزامنة الأولية عند تحميل الوحدة
