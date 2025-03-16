@@ -2,7 +2,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { HomeIcon, ArrowLeft, RefreshCw } from "lucide-react";
+import { HomeIcon, ArrowLeft, RefreshCw, Settings } from "lucide-react";
 import ErrorMessage from "@/components/ui/error-message";
 
 const NotFound = () => {
@@ -28,6 +28,14 @@ const NotFound = () => {
     window.location.reload();
   };
 
+  const handleGoToAdmin = () => {
+    navigate("/admin");
+  };
+
+  const handleGoToCMS = () => {
+    navigate("/cms-admin");
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/30 p-4">
       <div className="max-w-md w-full text-center">
@@ -46,6 +54,34 @@ const NotFound = () => {
               <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
                 إذا كنت تحاول الوصول إلى لوحة المشرف، يرجى التأكد من أنك مسجل الدخول أو تجربة التنقل من الصفحة الرئيسية.
               </p>
+              <div className="mt-3 flex justify-center">
+                <Button 
+                  variant="outline" 
+                  onClick={handleGoToAdmin}
+                  className="flex items-center gap-2 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400"
+                >
+                  <Settings className="h-4 w-4" />
+                  <span>الذهاب للوحة المشرف</span>
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {location.pathname.includes('/cms') && (
+            <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-md border border-emerald-200 dark:border-emerald-800 mb-6">
+              <p className="text-sm text-emerald-700 dark:text-emerald-400 font-medium">
+                إذا كنت تحاول الوصول إلى نظام إدارة المحتوى، يرجى التأكد من أنك مسجل الدخول أو تجربة التنقل من لوحة المشرف.
+              </p>
+              <div className="mt-3 flex justify-center">
+                <Button 
+                  variant="outline" 
+                  onClick={handleGoToCMS}
+                  className="flex items-center gap-2 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400"
+                >
+                  <Settings className="h-4 w-4" />
+                  <span>نظام إدارة المحتوى</span>
+                </Button>
+              </div>
             </div>
           )}
         </div>

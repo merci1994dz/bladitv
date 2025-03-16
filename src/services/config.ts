@@ -45,6 +45,13 @@ export const STORAGE_KEYS = {
   REMOTE_ADMIN_CONFIG: 'tv_remote_config',
   LAST_SYNC_TIME: 'last_sync_time',
   LAST_SYNC: 'last_sync', // Adding this key for backward compatibility
+  
+  // إعدادات CMS الجديدة
+  CMS_SETTINGS: 'cms_settings',
+  CMS_USERS: 'cms_users',
+  CMS_LAYOUTS: 'cms_layouts',
+  CMS_CONTENT_BLOCKS: 'cms_content_blocks',
+  CMS_SCHEDULES: 'cms_schedules'
 };
 
 // إعدادات مشغل الفيديو
@@ -108,6 +115,33 @@ export const REMOTE_CONFIG = {
   DEFAULT_URL: '', // الرابط الافتراضي للمزامنة
   MULTI_DEVICE_SYNC: true, // مزامنة متعددة الأجهزة
   USE_SKEW_PROTECTION: true, // استخدام حماية التزامن من Vercel
+};
+
+// إعدادات نظام إدارة المحتوى (CMS)
+export const CMS_CONFIG = {
+  ENABLED: true,
+  LAYOUTS: {
+    DEFAULT: 'grid',
+    AVAILABLE: ['grid', 'list', 'carousel', 'featured']
+  },
+  CONTENT_TYPES: {
+    CHANNEL: 'channel',
+    CATEGORY: 'category',
+    COUNTRY: 'country',
+    CUSTOM_BLOCK: 'custom_block'
+  },
+  ROLES: {
+    ADMIN: 'admin',
+    EDITOR: 'editor',
+    VIEWER: 'viewer'
+  },
+  PERMISSIONS: {
+    CREATE: 'create',
+    READ: 'read',
+    UPDATE: 'update',
+    DELETE: 'delete',
+    PUBLISH: 'publish'
+  }
 };
 
 // بيانات الإصدار
