@@ -1,8 +1,13 @@
-import { useLocation } from "react-router-dom";
+
+import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { HomeIcon, ArrowLeft, RefreshCw } from "lucide-react";
+import ErrorMessage from "@/components/ui/error-message";
 
 const NotFound = () => {
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     console.error(
@@ -11,14 +16,59 @@ const NotFound = () => {
     );
   }, [location.pathname]);
 
+  const handleGoBack = () => {
+    navigate(-1);
+  };
+
+  const handleGoHome = () => {
+    navigate("/");
+  };
+
+  const handleRefresh = () => {
+    window.location.reload();
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">404</h1>
-        <p className="text-xl text-gray-600 mb-4">Oops! Page not found</p>
-        <a href="/" className="text-blue-500 hover:text-blue-700 underline">
-          Return to Home
-        </a>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/30 p-4">
+      <div className="max-w-md w-full text-center">
+        <div className="mb-6">
+          <h1 className="text-8xl font-bold text-primary mb-2">404</h1>
+          <p className="text-2xl font-medium text-foreground mb-1">صفحة غير موجودة</p>
+          <p className="text-muted-foreground mb-6">
+            عذراً، الصفحة التي تبحث عنها غير موجودة أو تم نقلها.
+          </p>
+          <p className="text-xs text-muted-foreground mb-8 px-4">
+            المسار: <span dir="ltr" className="font-mono">{location.pathname}</span>
+          </p>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Button 
+            variant="outline" 
+            onClick={handleGoBack}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>العودة</span>
+          </Button>
+          
+          <Button 
+            onClick={handleGoHome}
+            className="flex items-center gap-2"
+          >
+            <HomeIcon className="h-4 w-4" />
+            <span>الصفحة الرئيسية</span>
+          </Button>
+          
+          <Button 
+            variant="secondary" 
+            onClick={handleRefresh}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span>تحديث</span>
+          </Button>
+        </div>
       </div>
     </div>
   );
