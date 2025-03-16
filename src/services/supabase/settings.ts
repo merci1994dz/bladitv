@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { CMSSettings } from '../cms/types';
 
@@ -17,6 +16,7 @@ interface SupabaseSettings {
   showrecentlywatchedonhome: boolean;
   sitename: string;
   theme: string;
+  analyticenabled?: boolean;
 }
 
 // Convert between our app model and Supabase schema
@@ -29,11 +29,10 @@ const toCMSSettings = (supabaseSettings: SupabaseSettings): CMSSettings => ({
   recentlyWatchedLimit: supabaseSettings.recentlywatchedlimit,
   showCategoriesOnHome: supabaseSettings.showcategoriesonhome,
   showCountriesOnHome: supabaseSettings.showcountriesonhome,
-  showFeaturedChannelsOnHome: supabaseSettings.showfeaturedchannelsonhome,
-  showRecentlyWatchedOnHome: supabaseSettings.showrecentlywatchedonhome,
-  hideEmptyCategories: supabaseSettings.hideemptycategories,
-  language: supabaseSettings.language,
-  id: supabaseSettings.id
+  customCss: undefined,
+  customJs: undefined,
+  analyticEnabled: supabaseSettings.analyticenabled || false,
+  language: supabaseSettings.language
 });
 
 const toSupabaseSettings = (settings: CMSSettings): Omit<SupabaseSettings, 'id'> & { id: string } => ({
@@ -45,11 +44,12 @@ const toSupabaseSettings = (settings: CMSSettings): Omit<SupabaseSettings, 'id'>
   recentlywatchedlimit: settings.recentlyWatchedLimit,
   showcategoriesonhome: settings.showCategoriesOnHome,
   showcountriesonhome: settings.showCountriesOnHome,
-  showfeaturedchannelsonhome: settings.showFeaturedChannelsOnHome,
-  showrecentlywatchedonhome: settings.showRecentlyWatchedOnHome,
-  hideemptycategories: settings.hideEmptyCategories,
+  showfeaturedchannelsonhome: true,
+  showrecentlywatchedonhome: true,
+  hideemptycategories: true,
   language: settings.language,
-  id: settings.id || 'main-settings'
+  analyticenabled: settings.analyticEnabled,
+  id: 'main-settings'
 });
 
 // جلب إعدادات CMS من Supabase

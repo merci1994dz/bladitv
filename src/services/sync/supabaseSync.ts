@@ -4,6 +4,7 @@ import { Channel, Country, Category } from '@/types';
 import { channels, countries, categories, setIsSyncing } from '../dataStore';
 import { STORAGE_KEYS } from '../config';
 import { updateLastSyncTime } from './config';
+import { Json } from '@/integrations/supabase/types';
 
 // Types to map Supabase schema to our app models
 interface SupabaseChannel {
@@ -125,7 +126,9 @@ export const initializeSupabaseTables = async (): Promise<boolean> => {
     }
     
     // تحميل البيانات المخزنة محليًا إلى Supabase إذا كانت الجداول فارغة
-    if (channelsData && channelsData.count === 0) {
+    // Access count correctly based on Supabase's return type
+    const countValue = typeof channelsData === 'object' && channelsData !== null ? (channelsData as any).count : 0;
+    if (countValue === 0) {
       const storedChannels = localStorage.getItem(STORAGE_KEYS.CHANNELS);
       const storedCountries = localStorage.getItem(STORAGE_KEYS.COUNTRIES);
       const storedCategories = localStorage.getItem(STORAGE_KEYS.CATEGORIES);

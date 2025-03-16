@@ -66,8 +66,12 @@ export interface CMSSettings {
   recentlyWatchedLimit: number;
   showCategoriesOnHome: boolean;
   showCountriesOnHome: boolean;
+  showFeaturedChannelsOnHome: boolean;
+  showRecentlyWatchedOnHome: boolean;
+  hideEmptyCategories: boolean;
   customCss?: string;
   customJs?: string;
   analyticEnabled: boolean;
   language: string;
+  id?: string;
 }

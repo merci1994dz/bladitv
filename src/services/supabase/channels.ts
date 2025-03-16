@@ -1,6 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { Channel, Country, Category } from '@/types';
+import { Channel, Country, Category, StreamingLink } from '@/types';
 import { STORAGE_KEYS } from '../config';
 import { Json } from '@/integrations/supabase/types';
 
@@ -27,7 +26,7 @@ const toChannel = (supabaseChannel: SupabaseChannel): Channel => ({
   country: supabaseChannel.country,
   isFavorite: supabaseChannel.isfavorite || false,
   lastWatched: supabaseChannel.lastwatched,
-  externalLinks: supabaseChannel.externallinks as any || []
+  externalLinks: supabaseChannel.externallinks as StreamingLink[] || []
 });
 
 const toSupabaseChannel = (channel: Omit<Channel, 'id'> | Channel): Omit<SupabaseChannel, 'id'> => ({
@@ -38,7 +37,7 @@ const toSupabaseChannel = (channel: Omit<Channel, 'id'> | Channel): Omit<Supabas
   country: channel.country,
   isfavorite: channel.isFavorite,
   lastwatched: channel.lastWatched,
-  externallinks: channel.externalLinks as Json
+  externallinks: channel.externalLinks as unknown as Json
 });
 
 // جلب قائمة القنوات من Supabase
