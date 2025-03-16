@@ -38,36 +38,56 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     const cacheBuster = `?_=${Date.now()}&nocache=${Math.random().toString(36).substring(2, 15)}`;
     const fullCacheBuster = skewParam ? `${cacheBuster}&${skewParam}` : cacheBuster;
     
-    // محاولة المزامنة مع مواقع Bladi Info أولاً
-    const bladiInfoResult = await syncWithBladiInfo(forceRefresh);
-    if (bladiInfoResult) {
-      return true;
-    }
+    // تحديد مهلة زمنية للمزامنة لمنع التعليق إلى ما لا نهاية
+    const timeoutPromise = new Promise<boolean>((resolve) => {
+      setTimeout(() => {
+        console.warn('تم تجاوز الوقت المخصص للمزامنة');
+        resolve(false);
+      }, 30000); // 30 ثانية كحد أقصى
+    });
     
-    // التحقق من وجود تكوين خارجي
-    const remoteConfig = getRemoteConfig();
-    if (REMOTE_CONFIG.ENABLED && remoteConfig && remoteConfig.url) {
+    // محاولة المزامنة مع مواقع Bladi Info أولاً
+    const syncPromise = (async () => {
       try {
-        // إضافة معامل كسر التخزين المؤقت للرابط مع دعم حماية التزامن
-        const urlWithCacheBuster = remoteConfig.url.includes('?') 
-          ? `${remoteConfig.url}&_=${Date.now()}&nocache=${Math.random().toString(36).substring(2, 15)}${skewParam ? `&${skewParam}` : ''}` 
-          : `${remoteConfig.url}${fullCacheBuster}`;
-          
-        const result = await syncWithRemoteSource(urlWithCacheBuster, forceRefresh);
+        const bladiInfoResult = await syncWithBladiInfo(forceRefresh);
+        if (bladiInfoResult) {
+          return true;
+        }
+        
+        // التحقق من وجود تكوين خارجي
+        const remoteConfig = getRemoteConfig();
+        if (REMOTE_CONFIG.ENABLED && remoteConfig && remoteConfig.url) {
+          try {
+            // إضافة معامل كسر التخزين المؤقت للرابط مع دعم حماية التزامن
+            const urlWithCacheBuster = remoteConfig.url.includes('?') 
+              ? `${remoteConfig.url}&_=${Date.now()}&nocache=${Math.random().toString(36).substring(2, 15)}${skewParam ? `&${skewParam}` : ''}` 
+              : `${remoteConfig.url}${fullCacheBuster}`;
+              
+            const result = await syncWithRemoteSource(urlWithCacheBuster, forceRefresh);
+            return result;
+          } catch (error) {
+            console.error('خطأ في المزامنة مع المصدر الخارجي المحفوظ:', error);
+          }
+        }
+        
+        // إذا لم يكن هناك مصدر خارجي أو فشلت المزامنة، استخدم البيانات المحلية
+        const result = await syncWithLocalData(forceRefresh);
         return result;
       } catch (error) {
-        console.error('خطأ في المزامنة مع المصدر الخارجي المحفوظ:', error);
+        console.error('خطأ أثناء المزامنة:', error);
+        return false;
       }
-    }
+    })();
     
-    // إذا لم يكن هناك مصدر خارجي أو فشلت المزامنة، استخدم البيانات المحلية
-    const result = await syncWithLocalData(forceRefresh);
+    // تنفيذ المزامنة مع مهلة زمنية
+    const result = await Promise.race([syncPromise, timeoutPromise]);
     return result;
+    
   } catch (error) {
-    console.error('خطأ أثناء المزامنة:', error);
+    console.error('خطأ غير متوقع أثناء المزامنة:', error);
     return false;
   } finally {
-    // تحرير قفل المزامنة
+    // تحرير قفل المزامنة دائمًا حتى في حالة الخطأ
     releaseSyncLock();
     setIsSyncing(false);
   }
@@ -99,6 +119,14 @@ export const performInitialSync = async (): Promise<boolean> => {
     return await syncAllData();
   } catch (error) {
     console.error('فشلت المزامنة الأولية:', error);
-    return false;
+    
+    // في حالة الفشل، استخدم البيانات المحلية على أي حال
+    try {
+      await syncWithLocalData(false);
+      return true;
+    } catch (e) {
+      console.error('فشل الرجوع إلى البيانات المحلية:', e);
+      return false;
+    }
   }
 };
