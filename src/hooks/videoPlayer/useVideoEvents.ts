@@ -41,7 +41,7 @@ export function useVideoEvents({
     console.log("إعداد الفيديو للقناة:", channel.name, "محاولة:", retryCount);
     
     if (!channel?.streamUrl) {
-      setError('عنوان بث القناة غير متوفر');
+      setError('عنوان بث القناة غير متوفر، يرجى التحقق من مصادر البيانات');
       setIsLoading(false);
       return;
     }
@@ -61,13 +61,13 @@ export function useVideoEvents({
         if (handlePlaybackError()) {
           toast({
             title: "تأخر في التحميل",
-            description: "جاري محاولة إعادة الاتصال...",
+            description: "يتم استخدام البيانات المحلية، جاري إعادة المحاولة...",
             duration: 3000,
           });
         }
       }
-    }, 15000); // 15 ثانية كحد أقصى للتحميل
-
+    }, 10000); // تقليل المهلة إلى 10 ثوانٍ
+    
     // دالة الإعداد
     const setupVideo = () => {
       try {
@@ -75,8 +75,6 @@ export function useVideoEvents({
         if (videoRef.current) {
           try {
             videoRef.current.pause();
-            
-            // حماية من الأخطاء المحتملة أثناء تنظيف المصدر
             if (videoRef.current.src !== channel.streamUrl) {
               videoRef.current.src = '';
               videoRef.current.load();
@@ -94,9 +92,8 @@ export function useVideoEvents({
           }
         }, 200);
       } catch (error) {
-        // معالجة أي أخطاء غير متوقعة
         console.error("خطأ غير متوقع في إعداد الفيديو:", error);
-        setError('حدث خطأ غير متوقع أثناء تحميل الفيديو');
+        setError('حدث خطأ غير متوقع أثناء تحميل الفيديو، جاري استخدام البيانات المحلية');
         setIsLoading(false);
       }
     };

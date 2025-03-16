@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, RefreshCw, Wifi, HelpCircle } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Wifi, HelpCircle, DatabaseIcon } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface VideoErrorProps {
@@ -19,7 +19,8 @@ const VideoError: React.FC<VideoErrorProps> = ({ error, onRetry, streamUrl }) =>
       message: error,
       url: streamUrl ? `${streamUrl.substring(0, 30)}...` : 'غير متوفر',
       browser: navigator.userAgent,
-      time: new Date().toLocaleTimeString()
+      time: new Date().toLocaleTimeString(),
+      networkState: typeof window !== 'undefined' && navigator.onLine ? 'متصل' : 'غير متصل'
     };
     
     toast({
@@ -41,8 +42,10 @@ const VideoError: React.FC<VideoErrorProps> = ({ error, onRetry, streamUrl }) =>
       return "تأكد من اتصالك بالإنترنت واختر 'إعادة المحاولة'";
     } else if (error.includes('انقر للتشغيل') || error.includes('التشغيل التلقائي')) {
       return "انقر على زر التشغيل للبدء";
-    } else if (error.includes('تعذر تشغيل البث بعد عدة محاولات')) {
+    } else if (error.includes('تعذر تشغيل البث')) {
       return "جرب تغيير مصدر البث أو العودة لاحقًا";
+    } else if (error.includes('مصادر البيانات') || error.includes('قاعدة البيانات')) {
+      return "يوجد مشكلة في الاتصال بمصادر البيانات، يتم استخدام البيانات المحلية";
     }
     return "حاول مرة أخرى أو اختر قناة مختلفة";
   };
@@ -51,13 +54,23 @@ const VideoError: React.FC<VideoErrorProps> = ({ error, onRetry, streamUrl }) =>
   const ErrorIcon = () => {
     if (error.includes('اتصال') || error.includes('شبكة') || error.includes('تحميل')) {
       return <Wifi className="h-8 w-8 text-red-500 mb-2" />;
+    } else if (error.includes('بيانات') || error.includes('مصادر')) {
+      return <DatabaseIcon className="h-8 w-8 text-amber-500 mb-2" />;
     }
     return <AlertTriangle className="h-8 w-8 text-red-500 mb-2" />;
   };
 
+  // تحديد نوع الخلفية بناءً على الخطأ
+  const getBackgroundStyle = () => {
+    if (error.includes('بيانات') || error.includes('مصادر')) {
+      return "bg-black/80 border-amber-500/20";
+    }
+    return "bg-black/90 border-red-500/20";
+  };
+
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center z-40 bg-black/80">
-      <div className="bg-black/90 rounded-xl p-4 flex flex-col items-center justify-center max-w-sm mx-auto border border-red-500/20">
+      <div className={`rounded-xl p-4 flex flex-col items-center justify-center max-w-sm mx-auto border ${getBackgroundStyle()}`}>
         <ErrorIcon />
         
         <h3 className="text-white text-lg font-bold mb-1">خطأ في التشغيل</h3>
