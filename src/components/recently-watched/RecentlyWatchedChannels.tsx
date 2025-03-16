@@ -59,7 +59,10 @@ const RecentlyWatchedChannels: React.FC<RecentlyWatchedChannelsProps> = ({
                     <div className="flex items-center">
                       <Clock className="w-3 h-3 text-white opacity-70 mr-1" />
                       <span className="text-xs text-white truncate">
-                        {new Date(channel.lastWatched || Date.now()).toLocaleTimeString('ar-SA', {
+                        {channel.lastWatched ? new Date(channel.lastWatched).toLocaleTimeString('ar-SA', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        }) : new Date().toLocaleTimeString('ar-SA', {
                           hour: '2-digit',
                           minute: '2-digit',
                         })}
