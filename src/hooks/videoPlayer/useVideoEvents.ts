@@ -4,6 +4,7 @@ import { VideoRef } from './useVideoSetup';
 import { Channel } from '@/types';
 import { useVideoLoadHandler } from './useVideoLoadHandler';
 import { useVideoEventListeners } from './useVideoEventListeners';
+import { toast } from '@/hooks/use-toast';
 
 export function useVideoEvents({
   videoRef,
@@ -35,9 +36,15 @@ export function useVideoEvents({
     handlePlaybackError
   });
 
-  // تأثير محسّن لإعداد الفيديو - تم تحسينه لتوافق أفضل ومنع فقدان مصادر البث
+  // تأثير محسّن لإعداد الفيديو مع حماية ضد الأخطاء
   useEffect(() => {
     console.log("إعداد الفيديو للقناة:", channel.name, "محاولة:", retryCount);
+    
+    if (!channel?.streamUrl) {
+      setError('عنوان بث القناة غير متوفر');
+      setIsLoading(false);
+      return;
+    }
     
     // إعادة تعيين الحالات
     setError(null);
@@ -45,31 +52,53 @@ export function useVideoEvents({
     
     // معرّف المؤقت
     let timeoutId: number | undefined;
+    let loadTimeoutId: number | undefined;
     
-    // دالة الإعداد
-    const setupVideo = () => {
-      // تنظيف أي مصدر فيديو موجود
-      if (videoRef.current) {
-        try {
-          videoRef.current.pause();
-          
-          // لا نقوم بإزالة السمة src مباشرة لتجنب مشاكل في بعض المتصفحات
-          if (videoRef.current.src !== channel.streamUrl) {
-            videoRef.current.src = '';
-            videoRef.current.load();
-          }
-        } catch (e) {
-          console.error("خطأ في تنظيف الفيديو:", e);
+    // إضافة مهلة زمنية للتحميل
+    loadTimeoutId = window.setTimeout(() => {
+      if (videoRef.current && videoRef.current.readyState === 0) {
+        console.warn("تجاوز مهلة تحميل الفيديو - محاولة إعادة التحميل");
+        if (handlePlaybackError()) {
+          toast({
+            title: "تأخر في التحميل",
+            description: "جاري محاولة إعادة الاتصال...",
+            duration: 3000,
+          });
         }
       }
-      
-      // تهيئة تشغيل الفيديو بعد تأخير قصير
-      timeoutId = window.setTimeout(() => {
+    }, 15000); // 15 ثانية كحد أقصى للتحميل
+
+    // دالة الإعداد
+    const setupVideo = () => {
+      try {
+        // تنظيف أي مصدر فيديو موجود
         if (videoRef.current) {
-          console.log("تهيئة تشغيل الفيديو بعد التأخير");
-          initializeVideoPlayback(videoRef, channel, setIsLoading, setError);
+          try {
+            videoRef.current.pause();
+            
+            // حماية من الأخطاء المحتملة أثناء تنظيف المصدر
+            if (videoRef.current.src !== channel.streamUrl) {
+              videoRef.current.src = '';
+              videoRef.current.load();
+            }
+          } catch (e) {
+            console.error("خطأ في تنظيف الفيديو:", e);
+          }
         }
-      }, 200);
+        
+        // تهيئة تشغيل الفيديو بعد تأخير قصير
+        timeoutId = window.setTimeout(() => {
+          if (videoRef.current) {
+            console.log("تهيئة تشغيل الفيديو بعد التأخير");
+            initializeVideoPlayback(videoRef, channel, setIsLoading, setError);
+          }
+        }, 200);
+      } catch (error) {
+        // معالجة أي أخطاء غير متوقعة
+        console.error("خطأ غير متوقع في إعداد الفيديو:", error);
+        setError('حدث خطأ غير متوقع أثناء تحميل الفيديو');
+        setIsLoading(false);
+      }
     };
     
     // تنفيذ الإعداد
@@ -77,8 +106,13 @@ export function useVideoEvents({
     
     // وظيفة التنظيف
     return () => {
+      // تنظيف المؤقتات
       if (timeoutId !== undefined) {
         clearTimeout(timeoutId);
+      }
+      
+      if (loadTimeoutId !== undefined) {
+        clearTimeout(loadTimeoutId);
       }
       
       if (videoRef.current) {
@@ -101,5 +135,5 @@ export function useVideoEvents({
         }
       }
     };
-  }, [channel.streamUrl, retryCount]);
+  }, [channel, channel.streamUrl, retryCount]);
 }

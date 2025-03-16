@@ -5,6 +5,7 @@ import { useVideoRetry } from './useVideoRetry';
 import { useVideoControl } from './useVideoControl';
 import { useVideoEvents } from './useVideoEvents';
 import { useEffect, useRef, useState } from 'react';
+import { toast } from '@/hooks/use-toast';
 
 interface UseVideoPlaybackProps {
   channel: Channel;
@@ -24,8 +25,9 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
   // إنشاء مرجع لتتبع القناة الحالية
   const currentChannelRef = useRef(channel);
   
-  // إضافة حالة لتتبع اكتمال التحميل
+  // إضافة حالة لتتبع اكتمال التحميل وحالة الاتصال
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [connectionAttempts, setConnectionAttempts] = useState(0);
   
   // إعداد عناصر التحكم في تشغيل الفيديو
   const {
@@ -62,6 +64,14 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
       setIsLoading(true);
       setError(null);
       setIsVideoReady(false);
+      setConnectionAttempts(0);
+      
+      // عرض إشعار بتغيير القناة
+      toast({
+        title: `جاري تشغيل ${channel?.name}`,
+        description: "يتم تحميل البث...",
+        duration: 3000,
+      });
       
       // إعادة تحميل الفيديو مع تأخير صغير
       setTimeout(() => {
@@ -70,7 +80,7 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
             // إيقاف التشغيل أولاً
             videoRef.current.pause();
             // تنظيف وتهيئة عناصر الفيديو
-            videoRef.current.src = '';
+            videoRef.current.removeAttribute('src');
             videoRef.current.load();
           } catch (e) {
             console.error("خطأ في إعادة تحميل الفيديو:", e);
@@ -105,7 +115,25 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
             // لا نعتبر هذا خطأ - قد يحتاج المستخدم إلى التفاعل
             if (err.name === 'NotAllowedError') {
               console.log("التشغيل التلقائي ممنوع، بانتظار تفاعل المستخدم");
-              // لا نضع رسالة خطأ هنا
+              setError('انقر للتشغيل');
+              
+              // محاولة بديلة مع كتم الصوت
+              try {
+                videoElement.muted = true;
+                videoElement.play().then(() => {
+                  // إضافة مستمع للنقر لإلغاء كتم الصوت
+                  const unmuteOnClick = () => {
+                    videoElement.muted = false;
+                    setError(null);
+                    document.body.removeEventListener('click', unmuteOnClick);
+                  };
+                  document.body.addEventListener('click', unmuteOnClick, { once: true });
+                }).catch(e => {
+                  console.log("فشلت محاولة التشغيل الصامت:", e);
+                });
+              } catch (e) {
+                console.error("خطأ في محاولة التشغيل الصامت:", e);
+              }
             }
           });
       }
@@ -132,6 +160,39 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
       }
     };
     
+    // معالج جديد للتعامل مع أخطاء تحميل البث
+    const handleLoadError = () => {
+      setConnectionAttempts(prev => {
+        const newCount = prev + 1;
+        console.log(`محاولة اتصال ${newCount}`);
+        
+        if (newCount >= 3 && !isVideoReady) {
+          setError("تعذر الاتصال بخادم البث");
+        }
+        
+        return newCount;
+      });
+    };
+    
+    // إضافة مؤقت للتحقق من نجاح الاتصال
+    const connectionTimeout = setTimeout(() => {
+      if (!isVideoReady && videoElement && videoElement.readyState < 3) {
+        console.warn("تجاوز مهلة الاتصال - إعادة تحميل تلقائية");
+        handleLoadError();
+        
+        if (connectionAttempts < 2) {
+          // إعادة تحميل الفيديو تلقائيًا
+          if (videoElement) {
+            try {
+              videoElement.load();
+            } catch (e) {
+              console.error("خطأ في إعادة تحميل الفيديو:", e);
+            }
+          }
+        }
+      }
+    }, 8000);
+    
     if (videoElement) {
       videoElement.addEventListener('canplay', handleCanPlay);
       videoElement.addEventListener('loadeddata', handleLoadedData);
@@ -141,9 +202,14 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
         videoElement.removeEventListener('canplay', handleCanPlay);
         videoElement.removeEventListener('loadeddata', handleLoadedData);
         videoElement.removeEventListener('progress', handleProgress);
+        clearTimeout(connectionTimeout);
       };
     }
-  }, [videoRef, setIsLoading, setIsPlaying, isMobile]);
+    
+    return () => {
+      clearTimeout(connectionTimeout);
+    };
+  }, [videoRef, setIsLoading, setIsPlaying, isMobile, isLoading, isVideoReady, connectionAttempts]);
 
   // إعداد مستمعي أحداث الفيديو الأساسية
   useVideoEvents({
@@ -169,10 +235,11 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
         isLoading,
         isVideoReady,
         retryCount,
+        connectionAttempts,
         error: error || "لا يوجد خطأ"
       });
     }
-  }, [channel, isMobile, isPlaying, isLoading, isVideoReady, error, retryCount]);
+  }, [channel, isMobile, isPlaying, isLoading, isVideoReady, error, retryCount, connectionAttempts]);
 
   return {
     videoRef,

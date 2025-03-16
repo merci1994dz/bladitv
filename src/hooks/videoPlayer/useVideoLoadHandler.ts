@@ -20,6 +20,15 @@ export function useVideoLoadHandler() {
     
     console.log('تهيئة الفيديو للقناة:', channel.name);
     
+    // إضافة مؤقت للتحكم في مهلة التحميل
+    const loadTimeout = setTimeout(() => {
+      if (videoRef.current && videoRef.current.readyState < 3) {
+        console.warn('تجاوز مهلة تحميل الفيديو');
+        setError('استغرق تحميل الفيديو وقتًا طويلاً، حاول مرة أخرى');
+        setIsLoading(false);
+      }
+    }, 20000); // 20 ثانية كحد أقصى للتحميل
+    
     try {
       // تنظيف مشغل الفيديو بشكل كامل
       videoRef.current.pause();
@@ -31,15 +40,25 @@ export function useVideoLoadHandler() {
       videoRef.current.onloadeddata = null;
       videoRef.current.onprogress = null;
       
+      // تعيين معالج للأخطاء مباشرة قبل البدء
+      videoRef.current.onerror = (e) => {
+        clearTimeout(loadTimeout);
+        console.error("خطأ مبكر في تحميل الفيديو", e, videoRef.current?.error);
+        const errorMsg = videoRef.current?.error?.message || 'خطأ غير معروف في التحميل';
+        setError(`فشل في تحميل الفيديو: ${errorMsg}`);
+        setIsLoading(false);
+      };
+      
       // إزالة السمات الحالية
       videoRef.current.removeAttribute('src');
       videoRef.current.load();
       
       // تعيين بعض السمات الأساسية
       videoRef.current.playsInline = true;
-      videoRef.current.autoplay = true; // تمكين التشغيل التلقائي للمحاولة
+      videoRef.current.autoplay = true;
       videoRef.current.muted = false;
       videoRef.current.volume = 1.0;
+      videoRef.current.preload = "auto"; // تحميل البيانات بشكل مسبق
       
       // إضافة سمات إضافية للتوافق الأفضل
       videoRef.current.setAttribute('playsinline', '');
@@ -47,45 +66,70 @@ export function useVideoLoadHandler() {
       videoRef.current.setAttribute('x5-playsinline', '');
       videoRef.current.crossOrigin = 'anonymous';
       
-      // إعداد المصدر وإضافة معالجات الأحداث
+      // إضافة معالجات الأحداث قبل تعيين المصدر
+      videoRef.current.oncanplay = () => {
+        clearTimeout(loadTimeout);
+        console.log("يمكن تشغيل الفيديو الآن");
+        setIsLoading(false);
+      };
+      
+      videoRef.current.onloadeddata = () => {
+        clearTimeout(loadTimeout);
+        console.log("تم تحميل بيانات الفيديو");
+        
+        // تحديث الحالة بعد تأخير قصير للسماح بإكمال التهيئة
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 300);
+      };
+      
+      videoRef.current.onplaying = () => {
+        clearTimeout(loadTimeout);
+        console.log("بدأ تشغيل الفيديو");
+        setIsLoading(false);
+      };
+      
+      // إعادة تعيين معالج الأخطاء مع معلومات مفصلة
+      videoRef.current.onerror = (e) => {
+        clearTimeout(loadTimeout);
+        
+        // معلومات خطأ أكثر تفصيلاً
+        const errorCode = videoRef.current?.error?.code || 0;
+        const errorMsg = videoRef.current?.error?.message || 'خطأ غير معروف';
+        console.error(`خطأ في تحميل الفيديو: رمز الخطأ: ${errorCode}, الرسالة: ${errorMsg}`);
+        
+        // رسائل مخصصة حسب نوع الخطأ
+        let userFriendlyError = "حدث خطأ أثناء تحميل الفيديو";
+        
+        switch (errorCode) {
+          case 1: // MEDIA_ERR_ABORTED
+            userFriendlyError = "تم إلغاء تحميل الفيديو";
+            break;
+          case 2: // MEDIA_ERR_NETWORK
+            userFriendlyError = "حدث خطأ في الشبكة، تحقق من اتصالك بالإنترنت";
+            break;
+          case 3: // MEDIA_ERR_DECODE
+            userFriendlyError = "لا يمكن تشغيل الفيديو، تنسيق غير مدعوم";
+            break;
+          case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
+            userFriendlyError = "مصدر الفيديو غير مدعوم";
+            break;
+        }
+        
+        setError(userFriendlyError);
+        setIsLoading(false);
+      };
+      
+      // إعداد المصدر
       if (setupVideoSource(videoRef.current, channel.streamUrl)) {
         console.log("تم إعداد مصدر الفيديو بنجاح");
         
-        // معالجات الأحداث للتوافق مع مختلف المتصفحات
-        videoRef.current.oncanplay = () => {
-          console.log("يمكن تشغيل الفيديو الآن");
-          setIsLoading(false);
-        };
-        
-        videoRef.current.onloadeddata = () => {
-          console.log("تم تحميل بيانات الفيديو");
-          
-          // تحديث الحالة بعد تأخير قصير للسماح بإكمال التهيئة
-          setTimeout(() => {
-            setIsLoading(false);
-          }, 300);
-        };
-        
-        videoRef.current.onplaying = () => {
-          console.log("بدأ تشغيل الفيديو");
-          setIsLoading(false);
-        };
-        
-        videoRef.current.onerror = (e) => {
-          console.error("خطأ في تحميل الفيديو", e, videoRef.current?.error);
-          
-          // معلومات خطأ أكثر تفصيلاً
-          const errorCode = videoRef.current?.error?.code || 0;
-          const errorMsg = videoRef.current?.error?.message || 'خطأ غير معروف';
-          console.error(`رمز الخطأ: ${errorCode}, الرسالة: ${errorMsg}`);
-          
-          setError(`فشل في تحميل الفيديو: ${errorMsg}`);
-          setIsLoading(false);
-        };
-        
         // محاولة التشغيل مع خيارات بديلة
         setTimeout(() => {
-          if (!videoRef.current) return;
+          if (!videoRef.current) {
+            clearTimeout(loadTimeout);
+            return;
+          }
           
           try {
             // محاولة التشغيل المباشرة
@@ -93,10 +137,11 @@ export function useVideoLoadHandler() {
             
             if (playPromise !== undefined) {
               playPromise.then(() => {
+                clearTimeout(loadTimeout);
                 console.log("تم تشغيل الفيديو بنجاح");
                 setIsLoading(false);
               }).catch(err => {
-                console.error("خطأ في التشغيل:", err.name);
+                console.error("خطأ في التشغيل:", err.name, err.message);
                 
                 // التعامل مع قيود التشغيل التلقائي
                 if (err.name === "NotAllowedError") {
@@ -119,12 +164,14 @@ export function useVideoLoadHandler() {
                           console.log("تم التشغيل الصامت، سيتم إلغاء الكتم لاحقًا");
                           
                           // إلغاء كتم الصوت بعد التفاعل
-                          document.addEventListener('click', function unmute() {
+                          const unmuteOnClick = () => {
                             if (videoRef.current) {
                               videoRef.current.muted = false;
-                              document.removeEventListener('click', unmute);
+                              setError(null);
                             }
-                          }, { once: true });
+                            document.removeEventListener('click', unmuteOnClick);
+                          };
+                          document.addEventListener('click', unmuteOnClick, { once: true });
                         }).catch(e => {
                           console.error("فشل حتى التشغيل الصامت:", e);
                         });
@@ -135,23 +182,42 @@ export function useVideoLoadHandler() {
                   }, 1000);
                 } else {
                   // أخطاء أخرى (مثل الشبكة)
-                  setError('فشل في تشغيل البث، تحقق من اتصالك بالإنترنت');
+                  let errorMessage = 'فشل في تشغيل البث، تحقق من اتصالك بالإنترنت';
+                  
+                  if (err.name === "AbortError") {
+                    errorMessage = 'تم إلغاء تحميل الفيديو، حاول مرة أخرى';
+                  }
+                  
+                  setError(errorMessage);
+                  setIsLoading(false);
                 }
               });
+            } else {
+              console.warn("تعذر بدء التشغيل (play() لم يرجع وعدًا)");
             }
           } catch (e) {
+            clearTimeout(loadTimeout);
             console.error("خطأ عام في التشغيل:", e);
+            setError('حدث خطأ غير متوقع أثناء محاولة تشغيل الفيديو');
+            setIsLoading(false);
           }
-        }, 800); // زيادة التأخير لإعطاء وقت أكبر لتهيئة الفيديو
+        }, 700);
       } else {
+        clearTimeout(loadTimeout);
         setError("فشل في إعداد مصدر الفيديو");
         setIsLoading(false);
       }
     } catch (err) {
+      clearTimeout(loadTimeout);
       console.error("خطأ في تهيئة الفيديو:", err);
       setError("حدث خطأ أثناء تحميل الفيديو");
       setIsLoading(false);
     }
+    
+    // تنظيف المؤقت عند الخروج من الوظيفة
+    return () => {
+      clearTimeout(loadTimeout);
+    };
   };
 
   return { initializeVideoPlayback };
