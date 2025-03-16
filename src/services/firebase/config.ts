@@ -5,14 +5,15 @@ import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 
-// تكوين Firebase (يجب استبدال هذه القيم بقيم مشروعك الخاص)
+// تكوين Firebase من مشروع BladiTV
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AlzaSyDj...SZUnahE1l0",
+  authDomain: "oussamatv-adba3.firebaseapp.com",
+  databaseURL: "https://oussamatv-adba3-default-rtdb.firebaseio.com",
+  projectId: "oussamatv-adba3",
+  storageBucket: "oussamatv-adba3.appspot.com",
+  messagingSenderId: "773751411670",
+  appId: "1:773751411670:android:f9605619ec52f71bca8a77"
 };
 
 // تهيئة تطبيق Firebase
