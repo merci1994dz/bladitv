@@ -40,6 +40,14 @@ const NotFound = () => {
           <p className="text-xs text-muted-foreground mb-8 px-4">
             المسار: <span dir="ltr" className="font-mono">{location.pathname}</span>
           </p>
+          
+          {location.pathname.includes('/admin') && (
+            <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-md border border-amber-200 dark:border-amber-800 mb-6">
+              <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
+                إذا كنت تحاول الوصول إلى لوحة المشرف، يرجى التأكد من أنك مسجل الدخول أو تجربة التنقل من الصفحة الرئيسية.
+              </p>
+            </div>
+          )}
         </div>
         
         <div className="flex flex-col sm:flex-row gap-3 justify-center">

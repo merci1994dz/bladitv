@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from './button';
-import { RefreshCw, AlertTriangle, Home } from 'lucide-react';
+import { RefreshCw, AlertTriangle, Home, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface ErrorMessageProps {
@@ -10,6 +10,7 @@ interface ErrorMessageProps {
   code?: string | number;
   showRefresh?: boolean;
   showHome?: boolean;
+  showBack?: boolean;
   onRetry?: () => void;
 }
 
@@ -19,6 +20,7 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
   code,
   showRefresh = true,
   showHome = true,
+  showBack = true,
   onRetry
 }) => {
   const navigate = useNavigate();
@@ -33,6 +35,10 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
 
   const handleGoHome = () => {
     navigate('/');
+  };
+  
+  const handleGoBack = () => {
+    navigate(-1);
   };
 
   return (
@@ -64,9 +70,20 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({
             </Button>
           )}
           
-          {showHome && (
+          {showBack && (
             <Button 
               variant="outline" 
+              onClick={handleGoBack}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span>العودة</span>
+            </Button>
+          )}
+          
+          {showHome && (
+            <Button 
+              variant="default" 
               onClick={handleGoHome}
               className="flex items-center gap-2"
             >
