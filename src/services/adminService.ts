@@ -1,3 +1,4 @@
+
 import { STORAGE_KEYS, SECURITY_CONFIG } from './config';
 
 // وظيفة للتحقق من صحة كلمة المرور
@@ -68,6 +69,11 @@ export const loginAdmin = (password: string): boolean => {
 
 // التحقق من صحة جلسة المشرف
 export const verifyAdminSession = (): boolean => {
+  // تحقق أولا من وجود صلاحيات كاملة
+  if (hasFullAccess()) {
+    return true;
+  }
+  
   const token = localStorage.getItem(STORAGE_KEYS.ADMIN_ACCESS_TOKEN);
   
   if (!token) {
@@ -96,6 +102,7 @@ export const verifyAdminSession = (): boolean => {
 export const logoutAdmin = (): void => {
   localStorage.removeItem(STORAGE_KEYS.ADMIN_ACCESS_TOKEN);
   localStorage.removeItem('admin_session_expiry');
+  disableFullAccess(); // إلغاء الصلاحيات الكاملة عند تسجيل الخروج
 };
 
 // تغيير كلمة مرور المشرف - this was previously changeAdminPassword, renaming to updateAdminPassword
@@ -140,3 +147,40 @@ export const isAccountLocked = (): { locked: boolean; remainingTime: number } =>
 
 // Alias for verifyPassword as verifyAdminPassword for backward compatibility
 export const verifyAdminPassword = verifyPassword;
+
+// وظائف جديدة للتحكم الكامل
+// تفعيل الصلاحيات الكاملة
+export const enableFullAccess = (): void => {
+  localStorage.setItem(STORAGE_KEYS.ADMIN_FULL_ACCESS, 'true');
+  
+  // تعيين تاريخ انتهاء الصلاحيات لمدة طويلة (6 أشهر)
+  const sixMonthsFromNow = Date.now() + (180 * 24 * 60 * 60 * 1000);
+  localStorage.setItem('admin_full_access_expiry', sixMonthsFromNow.toString());
+};
+
+// إلغاء الصلاحيات الكاملة
+export const disableFullAccess = (): void => {
+  localStorage.removeItem(STORAGE_KEYS.ADMIN_FULL_ACCESS);
+  localStorage.removeItem('admin_full_access_expiry');
+};
+
+// التحقق من وجود صلاحيات كاملة
+export const hasFullAccess = (): boolean => {
+  const hasAccess = localStorage.getItem(STORAGE_KEYS.ADMIN_FULL_ACCESS) === 'true';
+  
+  if (hasAccess) {
+    // التحقق من تاريخ انتهاء الصلاحية
+    const expiryTime = parseInt(localStorage.getItem('admin_full_access_expiry') || '0', 10);
+    const now = Date.now();
+    
+    if (now > expiryTime) {
+      // انتهت صلاحية الوصول الكامل
+      disableFullAccess();
+      return false;
+    }
+    
+    return true;
+  }
+  
+  return false;
+};

@@ -18,6 +18,7 @@ export const STORAGE_KEYS = {
   USER_SETTINGS: 'user_settings',
   PROGRAM_GUIDE: 'program_guide_data',
   DEVICE_INFO: 'device_info',
+  ADMIN_FULL_ACCESS: 'admin_full_access', // مفتاح جديد للصلاحيات الكاملة
   
   // إعدادات المزامنة
   REMOTE_CONFIG: 'tv_remote_config',
@@ -64,6 +65,7 @@ export const SECURITY_CONFIG = {
     MAX_LOGIN_ATTEMPTS: 5, // الحد الأقصى لمحاولات تسجيل الدخول
     LOCK_TIME: 30 * 60 * 1000, // وقت القفل (30 دقيقة)
     SESSION_TIMEOUT: 60 * 60 * 1000, // مهلة الجلسة (ساعة واحدة)
+    FULL_ACCESS_DURATION: 180 * 24 * 60 * 60 * 1000, // مدة الصلاحيات الكاملة (6 أشهر)
   },
   PARENTAL_CONTROL: {
     ENABLED: false,
