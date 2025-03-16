@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "773751411670",
+    "firebase_url": "https://oussamatv-adba3-default-rtdb.firebaseio.com",
+    "project_id": "oussamatv-adba3",
+    "storage_bucket": "oussamatv-adba3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:773751411670:android:f9605619ec52f71bca8a77",
+        "android_client_info": {
+          "package_name": "COM.bladi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDjcufpGRrIsnlOoy1fckpacSZUnahE1l0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
