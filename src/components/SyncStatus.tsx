@@ -1,7 +1,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getLastSyncTime, isSyncInProgress, forceDataRefresh, checkBladiInfoAvailability } from '@/services/sync';
+import { getLastSyncTime, isSyncInProgress, forceDataRefresh } from '@/services/sync';
+import { checkBladiInfoAvailability } from '@/services/sync/remote/syncOperations';
 import { syncWithSupabase } from '@/services/sync/supabaseSync';
 import { Clock, CloudOff, RefreshCw, AlertTriangle, Globe, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';

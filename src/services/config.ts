@@ -45,6 +45,7 @@ export const STORAGE_KEYS = {
   REMOTE_ADMIN_CONFIG: 'tv_remote_config',
   LAST_SYNC_TIME: 'last_sync_time',
   LAST_SYNC: 'last_sync', // Adding this key for backward compatibility
+  SYNC_STATUS: 'sync_status', // إضافة مفتاح حالة المزامنة
   
   // إعدادات CMS الجديدة
   CMS_SETTINGS: 'cms_settings',

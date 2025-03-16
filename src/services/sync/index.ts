@@ -1,3 +1,4 @@
+
 // Main export file for sync functionality
 import { isSyncing, setIsSyncing } from '../dataStore';
 import { syncAllData, performInitialSync } from './coreSync';
@@ -20,6 +21,9 @@ export {
   syncWithBladiInfo,
   syncWithRemoteSource
 } from './remoteSync';
+
+// Export checkBladiInfoAvailability function - this was missing
+export { checkBladiInfoAvailability } from './remote/syncOperations';
 
 // Export from local.ts
 export { 
