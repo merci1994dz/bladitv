@@ -9,7 +9,129 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      categories: {
+        Row: {
+          icon: string
+          id: string
+          name: string
+        }
+        Insert: {
+          icon: string
+          id?: string
+          name: string
+        }
+        Update: {
+          icon?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      channels: {
+        Row: {
+          category: string
+          country: string
+          externallinks: Json | null
+          id: string
+          isfavorite: boolean | null
+          lastwatched: string | null
+          logo: string
+          name: string
+          streamurl: string
+        }
+        Insert: {
+          category: string
+          country: string
+          externallinks?: Json | null
+          id?: string
+          isfavorite?: boolean | null
+          lastwatched?: string | null
+          logo: string
+          name: string
+          streamurl: string
+        }
+        Update: {
+          category?: string
+          country?: string
+          externallinks?: Json | null
+          id?: string
+          isfavorite?: boolean | null
+          lastwatched?: string | null
+          logo?: string
+          name?: string
+          streamurl?: string
+        }
+        Relationships: []
+      }
+      countries: {
+        Row: {
+          flag: string
+          id: string
+          image: string
+          name: string
+        }
+        Insert: {
+          flag: string
+          id?: string
+          image: string
+          name: string
+        }
+        Update: {
+          flag?: string
+          id?: string
+          image?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          defaultlayout: string
+          featuredchannelslimit: number
+          hideemptycategories: boolean
+          id: string
+          language: string
+          logo: string
+          recentlywatchedlimit: number
+          showcategoriesonhome: boolean
+          showcountriesonhome: boolean
+          showfeaturedchannelsonhome: boolean
+          showrecentlywatchedonhome: boolean
+          sitename: string
+          theme: string
+        }
+        Insert: {
+          defaultlayout: string
+          featuredchannelslimit?: number
+          hideemptycategories?: boolean
+          id: string
+          language?: string
+          logo: string
+          recentlywatchedlimit?: number
+          showcategoriesonhome?: boolean
+          showcountriesonhome?: boolean
+          showfeaturedchannelsonhome?: boolean
+          showrecentlywatchedonhome?: boolean
+          sitename: string
+          theme: string
+        }
+        Update: {
+          defaultlayout?: string
+          featuredchannelslimit?: number
+          hideemptycategories?: boolean
+          id?: string
+          language?: string
+          logo?: string
+          recentlywatchedlimit?: number
+          showcategoriesonhome?: boolean
+          showcountriesonhome?: boolean
+          showfeaturedchannelsonhome?: boolean
+          showrecentlywatchedonhome?: boolean
+          sitename?: string
+          theme?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
