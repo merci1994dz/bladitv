@@ -24,9 +24,5 @@
     }
   ],
   "trailingSlash": false,
-  "cleanUrls": true,
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html", "status": 200 }
-  ]
+  "cleanUrls": true
 }
