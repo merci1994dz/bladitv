@@ -1,40 +1,93 @@
 
 import React from 'react';
-import { Tv, Globe, MapPin } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { useDeviceType } from '@/hooks/use-tv';
+import SyncStatus from '../SyncStatus';
+import ConnectivityIndicator from '../sync/ConnectivityIndicator';
+import { syncWithBladiInfo } from '@/services/sync';
+import { useToast } from '@/hooks/use-toast';
 
-const HomeHeader: React.FC = () => {
+interface HomeHeaderProps {
+  isSimple?: boolean;
+}
+
+const HomeHeader: React.FC<HomeHeaderProps> = ({ isSimple = false }) => {
+  const { isTV } = useDeviceType();
+  const { toast } = useToast();
+  
+  const handleConnectivityRefresh = async () => {
+    toast({
+      title: "جاري إعادة المزامنة",
+      description: "جاري فحص المصادر المتاحة وتحديث البيانات...",
+      duration: 3000,
+    });
+    
+    try {
+      const success = await syncWithBladiInfo(true);
+      if (success) {
+        toast({
+          title: "تمت المزامنة بنجاح",
+          description: "تم تحديث البيانات من المصدر المتاح",
+          duration: 3000,
+        });
+      } else {
+        toast({
+          title: "تنبيه",
+          description: "لا يوجد مصادر خارجية متاحة. يتم استخدام البيانات المحلية.",
+          duration: 5000,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "خطأ في المزامنة",
+        description: "حدث خطأ أثناء محاولة المزامنة. يرجى المحاولة مرة أخرى.",
+        duration: 5000,
+        variant: "destructive"
+      });
+    }
+  };
+  
   return (
-    <header className="bg-gradient-to-r from-primary/20 via-primary/15 to-primary/5 py-8 mb-8 shadow-md relative overflow-hidden">
-      {/* Decorative elements */}
-      <div className="absolute top-0 left-0 w-20 h-20 bg-primary/5 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
-      <div className="absolute bottom-0 right-0 w-32 h-32 bg-primary/5 rounded-full translate-x-1/2 translate-y-1/2"></div>
-      
-      <div className="container mx-auto">
-        <div className="flex flex-col items-center justify-center">
-          {/* App Logo with animation */}
-          <div className="flex items-center mb-5 animate-float">
-            <div className="bg-gradient-to-r from-primary to-blue-600 rounded-full p-3 mr-3 shadow-lg transform transition-all hover:scale-105">
-              <Tv className="text-white h-8 w-8" />
-            </div>
-            <h1 className="text-4xl font-bold text-center bg-gradient-to-r from-primary to-blue-700 bg-clip-text text-transparent">
-              بلادي TV
+    <header className="py-4 mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-4">
+          <Link to="/" className="flex items-center gap-2">
+            <h1 className={`font-bold ${isTV ? 'text-3xl' : 'text-2xl'}`}>
+              <span className="text-primary">Bladi</span>
+              <span>TV</span>
             </h1>
-          </div>
+          </Link>
           
-          <div className="flex items-center mt-3 mb-2">
-            <div className="bg-gradient-to-r from-blue-600 to-primary rounded-full p-2 mr-2 shadow-md">
-              <Globe className="text-white h-5 w-5" />
-            </div>
-            <h2 className="text-xl font-semibold text-center text-gray-700 dark:text-gray-300">
-              تصفح حسب البلد
-            </h2>
-          </div>
-          
-          <p className="text-center text-muted-foreground mt-2 text-sm flex items-center gap-1 bg-white/50 dark:bg-gray-800/50 px-4 py-2 rounded-full shadow-sm">
-            <MapPin className="h-4 w-4 text-primary" />
-            اختر البلد لمشاهدة القنوات المتاحة
-          </p>
+          <ConnectivityIndicator 
+            onRefresh={handleConnectivityRefresh}
+            className="hidden md:flex" 
+          />
         </div>
+        
+        {!isSimple && (
+          <div className="flex flex-col md:flex-row items-center gap-4">
+            <SyncStatus />
+            
+            <div className="flex items-center space-x-4 rtl:space-x-reverse">
+              <Link to="/settings">
+                <Button variant="outline" size="sm">
+                  الإعدادات
+                </Button>
+              </Link>
+              
+              <ThemeToggle />
+            </div>
+          </div>
+        )}
+        
+        {/* مؤشر الاتصال للشاشات الصغيرة */}
+        <ConnectivityIndicator 
+          onRefresh={handleConnectivityRefresh}
+          className="md:hidden" 
+        />
       </div>
     </header>
   );

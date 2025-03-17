@@ -9,6 +9,27 @@ import { storeRemoteData } from './storeData';
 import { STORAGE_KEYS } from '../../config';
 import { setSyncActive } from '../status';
 
+// تحسين قائمة المصادر مع خادم احتياطي ودعم CORS
+const BLADI_INFO_SOURCES = [
+  // المصادر الرئيسية
+  'https://bladitv.lovable.app/api/channels.json',
+  'https://bladi-info.com/api/channels.json',
+  
+  // مصادر احتياطية بروتوكول HTTPS
+  'https://bladiinfo-api.vercel.app/api/channels.json',
+  'https://bladiinfo-backup.netlify.app/api/channels.json',
+  
+  // CDN للتغلب على مشاكل CORS
+  'https://cdn.jsdelivr.net/gh/lovable-iq/bladi-info@main/api/channels.json',
+  
+  // نقاط نهاية بديلة تدعم CORS
+  'https://api.jsonbin.io/v3/b/bladiinfo-channels/latest',
+  'https://api.npoint.io/bladiinfo-channels',
+  
+  // نسخة محلية محملة مع التطبيق كخيار أخير
+  '/data/fallback-channels.json'
+];
+
 /**
  * Synchronize with a specific remote source
  */
@@ -19,12 +40,22 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
     // تعيين حالة المزامنة كنشطة
     setSyncActive(true);
     
-    // فحص إمكانية الوصول للرابط أولاً
-    const isAccessible = await isRemoteUrlAccessible(remoteUrl);
-    if (!isAccessible) {
-      console.error(`تعذر الوصول إلى المصدر الخارجي: ${remoteUrl}`);
-      setSyncActive(false);
-      return false;
+    // تحقق مما إذا كان الرابط مصدرًا محليًا (يبدأ بـ /)
+    const isLocalSource = remoteUrl.startsWith('/');
+    
+    // فحص إمكانية الوصول للرابط أولاً (لغير المصادر المحلية)
+    if (!isLocalSource) {
+      try {
+        const isAccessible = await isRemoteUrlAccessible(remoteUrl);
+        if (!isAccessible) {
+          console.error(`تعذر الوصول إلى المصدر الخارجي: ${remoteUrl}`);
+          setSyncActive(false);
+          return false;
+        }
+      } catch (accessError) {
+        console.warn(`خطأ أثناء فحص إمكانية الوصول إلى ${remoteUrl}:`, accessError);
+        // نستمر على أي حال، لنحاول تحميل البيانات
+      }
     }
     
     setIsSyncing(true);
@@ -76,111 +107,103 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
  * تنفيذ المزامنة مع Bladi Info - مع محاولات متعددة
  */
 export const syncWithBladiInfo = async (forceRefresh = false): Promise<boolean> => {
-  const urls = [
-    'https://bladitv.lovable.app/api/channels.json', 
-    'https://bladi-info.com/api/channels.json',
-    'https://bladiinfo-api.vercel.app/api/channels.json', // نسخة احتياطية على Vercel
-    'https://bladiinfo-backup.netlify.app/api/channels.json', // نسخة احتياطية على Netlify
-    'https://cdn.jsdelivr.net/gh/lovable-iq/bladi-info@main/api/channels.json' // نسخة احتياطية على JSDelivr/GitHub
-  ];
-  
-  let successCount = 0;
-  let lastError: Error | null = null;
-  
-  // تعيين حالة المزامنة كنشطة
-  setSyncActive(true);
-  
-  try {
-    // فحص إمكانية الوصول لجميع الروابط أولاً مع زيادة المهلة
-    console.log('التحقق من إمكانية الوصول إلى روابط Bladi Info...');
-    const accessibleUrls = [];
-    
-    for (const url of urls) {
-      try {
-        console.log(`فحص إمكانية الوصول إلى ${url}...`);
-        const isAccessible = await isRemoteUrlAccessible(url);
-        if (isAccessible) {
-          accessibleUrls.push(url);
-          console.log(`الرابط ${url} متاح للوصول ✓`);
-        } else {
-          console.warn(`الرابط ${url} غير متاح للوصول ✗`);
-        }
-      } catch (e) {
-        console.warn(`خطأ عند فحص إمكانية الوصول للرابط ${url}:`, e);
-      }
-    }
-    
-    if (accessibleUrls.length === 0) {
-      console.error('جميع روابط Bladi Info غير متاحة للوصول');
-      return false;
-    }
-    
-    console.log(`تم العثور على ${accessibleUrls.length} رابط متاح للوصول`);
-    
-    // محاولة المزامنة مع الروابط المتاحة فقط
-    for (const url of accessibleUrls) {
-      try {
-        console.log(`محاولة المزامنة مع ${url}`);
-        const result = await syncWithRemoteSource(url, forceRefresh);
-        if (result) {
-          console.log(`تمت المزامنة بنجاح مع ${url}`);
-          // حفظ الرابط الناجح للاستخدام المستقبلي
-          const remoteConfig = {
-            url,
-            lastSync: new Date().toISOString()
-          };
-          try {
-            localStorage.setItem(STORAGE_KEYS.REMOTE_CONFIG, JSON.stringify(remoteConfig));
-          } catch (e) {
-            console.error('خطأ في حفظ تكوين المصدر الخارجي:', e);
-          }
-          successCount++;
-          return true;
-        }
-      } catch (error) {
-        console.error(`فشلت المزامنة مع ${url}:`, error);
-        lastError = error as Error;
-      }
-    }
-    
-    if (successCount === 0) {
-      console.error('فشلت جميع محاولات المزامنة مع المصادر الخارجية', lastError);
-      return false;
-    }
-    
-    return successCount > 0;
-  } finally {
-    setSyncActive(false);
+  // تحقق من توفر مصدر أولاً
+  const availableSource = await checkBladiInfoAvailability();
+  if (availableSource) {
+    console.log(`استخدام المصدر المتاح: ${availableSource}`);
+    return await syncWithRemoteSource(availableSource, forceRefresh);
   }
+  
+  // إذا لم يكن هناك مصدر متاح، جرب جميع المصادر
+  console.log('محاولة الاتصال بجميع مصادر Bladi Info...');
+  
+  for (const url of BLADI_INFO_SOURCES) {
+    console.log(`فحص إمكانية الوصول إلى ${url}...`);
+    
+    try {
+      // نتحقق مما إذا كان المصدر متاحًا وقابلاً للوصول
+      const isLocalSource = url.startsWith('/');
+      const isAccessible = isLocalSource || await isRemoteUrlAccessible(url);
+      
+      if (isAccessible) {
+        console.log(`الرابط ${url} متاح للوصول ✓`);
+        try {
+          // محاولة المزامنة مع هذا المصدر
+          const success = await syncWithRemoteSource(url, forceRefresh);
+          if (success) {
+            console.log(`تمت المزامنة بنجاح مع ${url}`);
+            
+            // تخزين الرابط الناجح للاستخدام في المستقبل
+            try {
+              localStorage.setItem(STORAGE_KEYS.LAST_SUCCESSFUL_SOURCE, url);
+            } catch (e) {
+              // تجاهل أخطاء التخزين
+            }
+            
+            return true;
+          }
+        } catch (syncError) {
+          console.error(`فشلت المزامنة مع ${url}:`, syncError);
+        }
+      } else {
+        console.warn(`الرابط ${url} غير متاح للوصول ✗`);
+      }
+    } catch (error) {
+      console.warn(`خطأ أثناء فحص ${url}:`, error);
+    }
+  }
+  
+  console.error('جميع روابط Bladi Info غير متاحة للوصول');
+  return false;
 };
 
 /**
- * تحقق من توفر أي من روابط Bladi Info
+ * فحص توفر مصادر Bladi Info والعودة بأول مصدر متاح
  */
 export const checkBladiInfoAvailability = async (): Promise<string | null> => {
-  const urls = [
-    'https://bladitv.lovable.app/api/channels.json', 
-    'https://bladi-info.com/api/channels.json',
-    'https://bladiinfo-api.vercel.app/api/channels.json', 
-    'https://bladiinfo-backup.netlify.app/api/channels.json',
-    'https://cdn.jsdelivr.net/gh/lovable-iq/bladi-info@main/api/channels.json'
-  ];
-  
-  // محاولة الوصول لكل رابط مع زيادة المهلة
-  for (const url of urls) {
-    try {
-      console.log(`فحص إمكانية الوصول إلى ${url}...`);
-      const isAccessible = await isRemoteUrlAccessible(url);
+  // أولاً، التحقق من آخر مصدر ناجح
+  try {
+    const lastSuccessfulSource = localStorage.getItem(STORAGE_KEYS.LAST_SUCCESSFUL_SOURCE);
+    if (lastSuccessfulSource) {
+      console.log(`التحقق من آخر مصدر ناجح: ${lastSuccessfulSource}`);
+      const isAccessible = lastSuccessfulSource.startsWith('/') || 
+                          await isRemoteUrlAccessible(lastSuccessfulSource);
+      
       if (isAccessible) {
-        console.log(`الرابط ${url} متاح للوصول ✓`);
+        console.log(`آخر مصدر ناجح لا يزال متاحًا: ${lastSuccessfulSource}`);
+        return lastSuccessfulSource;
+      }
+    }
+  } catch (e) {
+    // تجاهل أخطاء التخزين
+  }
+  
+  // إذا كان آخر مصدر ناجح غير متاح، جرب جميع المصادر
+  for (const url of BLADI_INFO_SOURCES) {
+    try {
+      const isLocalSource = url.startsWith('/');
+      const isAccessible = isLocalSource || await isRemoteUrlAccessible(url);
+      
+      if (isAccessible) {
         return url;
       }
-      console.warn(`الرابط ${url} غير متاح للوصول ✗`);
-    } catch (e) {
-      console.warn(`خطأ عند فحص إمكانية الوصول للرابط ${url}:`, e);
+    } catch (error) {
+      console.warn(`خطأ أثناء فحص ${url}:`, error);
     }
   }
   
-  console.error('لم يتم العثور على أي رابط متاح من Bladi Info');
   return null;
 };
+
+/**
+ * استرجاع معلمات حماية التزامن من Vercel
+ */
+export const getSkewProtectionParams = (): string => {
+  if (typeof window !== 'undefined' && window.ENV && 
+      window.ENV.VERCEL_SKEW_PROTECTION_ENABLED === '1' && 
+      window.ENV.VERCEL_DEPLOYMENT_ID) {
+    return `dpl=${window.ENV.VERCEL_DEPLOYMENT_ID}`;
+  }
+  return '';
+};
+

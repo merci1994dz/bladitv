@@ -9,6 +9,27 @@ import { validateRemoteData } from '../remoteValidation';
  * Fetches data from a remote URL with cache-busting parameters and timeout protection
  */
 export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
+  // التعامل مع المصادر المحلية
+  if (remoteUrl.startsWith('/')) {
+    try {
+      console.log(`تحميل البيانات من ملف محلي: ${remoteUrl}`);
+      const response = await fetch(remoteUrl, {
+        method: 'GET',
+        cache: 'no-store'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`فشل في تحميل الملف المحلي: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error(`خطأ في تحميل الملف المحلي ${remoteUrl}:`, error);
+      throw error;
+    }
+  }
+  
   // إضافة معلمات لتجنب التخزين المؤقت
   const cacheParam = `nocache=${Date.now()}&_=${Math.random().toString(36).substring(2, 15)}`;
   const urlWithCache = remoteUrl.includes('?') 
@@ -22,8 +43,7 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
     'Pragma': 'no-cache',
     'Expires': '0',
     'X-Requested-With': 'XMLHttpRequest',
-    'Origin': window.location.origin,
-    'Referer': window.location.origin
+    'Origin': window.location.origin
   };
   
   // إضافة رأس معرف النشر إذا كانت حماية التزامن مُفعلة
@@ -47,12 +67,12 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
     
     while (retries > 0) {
       try {
-        // إضافة كشف المتصفح لمعالجة متطلبات مختلفة
+        // كشف المتصفح لمعالجة متطلبات مختلفة
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
         const isIE = /*@cc_on!@*/false || !!(document as any).documentMode;
         const isEdge = !isIE && !!(window as any).StyleMedia;
         
-        // تعديل خيارات الطلب بناءً على المتصفح للتوافق الأفضل
+        // تعديل خيارات الطلب بناءً على المتصفح
         const fetchOptions: RequestInit = {
           method: 'GET',
           headers,
@@ -62,15 +82,64 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
           credentials: 'omit'
         };
         
-        // تعديلات لمتصفحات محددة
+        // تكييف خيارات الطلب للمتصفحات المختلفة
         if (isSafari || isIE || isEdge) {
           // في بعض المتصفحات، قد نحتاج لتبسيط الخيارات
           delete fetchOptions.cache;
           
-          // إضافة رؤوس خاصة بالمتصفح
-          headers['X-Browser-Compatibility'] = 'true';
-          
-          console.log('استخدام إعدادات متوافقة لمتصفح Safari/IE/Edge');
+          // نضيف إضافة no-cors mode للمحاولات الأخيرة
+          if (retries <= 2) {
+            fetchOptions.mode = 'no-cors';
+            console.log('استخدام وضع no-cors للمتصفحات المتوافقة');
+          }
+        }
+        
+        // إضافة محاولة بطرق مختلفة حسب عدد المحاولات المتبقية
+        if (retries <= 3) {
+          // في المحاولات الأخيرة، استخدم JSONP للتغلب على قيود CORS
+          try {
+            const jsonpUrl = `${urlWithCache}&callback=bladiInfoCallback`;
+            const jsonpPromise = new Promise((resolve, reject) => {
+              const script = document.createElement('script');
+              script.src = jsonpUrl;
+              
+              // تعريف الدالة التي سيتم استدعاؤها
+              (window as any).bladiInfoCallback = (data: any) => {
+                resolve(data);
+                document.head.removeChild(script);
+                delete (window as any).bladiInfoCallback;
+              };
+              
+              // التعامل مع الخطأ
+              script.onerror = () => {
+                reject(new Error('فشل JSONP'));
+                document.head.removeChild(script);
+                delete (window as any).bladiInfoCallback;
+              };
+              
+              document.head.appendChild(script);
+              
+              // وضع حد زمني للطلب
+              setTimeout(() => {
+                if ((window as any).bladiInfoCallback) {
+                  reject(new Error('انتهت مهلة JSONP'));
+                  document.head.removeChild(script);
+                  delete (window as any).bladiInfoCallback;
+                }
+              }, 10000);
+            });
+            
+            // محاولة JSONP
+            try {
+              const jsonpData = await jsonpPromise;
+              clearTimeout(timeoutId);
+              return jsonpData;
+            } catch (jsonpError) {
+              console.warn('فشلت محاولة JSONP، سنواصل المحاولة بالطرق التقليدية');
+            }
+          } catch (jsonpSetupError) {
+            console.warn('فشل إعداد JSONP', jsonpSetupError);
+          }
         }
         
         const response = await fetch(urlWithCache, fetchOptions);
@@ -132,7 +201,7 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
     
     // فحص أخطاء CORS الشائعة
     if (error.message.includes('CORS') || error.message.includes('Cross-Origin')) {
-      throw new Error('خطأ في سياسات CORS. تحقق من تكوين الخادم للسماح بطلبات من هذا الموقع.');
+      throw new Error('خطأ في سياسات CORS. محاولة استخدام الوضع المتوافق.');
     }
     
     // فحص أخطاء الشبكة الشائعة
@@ -142,18 +211,6 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
     
     throw error;
   }
-};
-
-/**
- * استرجاع معلمات حماية التزامن من Vercel
- */
-export const getSkewProtectionParams = (): string => {
-  if (typeof window !== 'undefined' && window.ENV && 
-      window.ENV.VERCEL_SKEW_PROTECTION_ENABLED === '1' && 
-      window.ENV.VERCEL_DEPLOYMENT_ID) {
-    return `dpl=${window.ENV.VERCEL_DEPLOYMENT_ID}`;
-  }
-  return '';
 };
 
 /**
@@ -169,55 +226,71 @@ export const isRemoteUrlAccessible = async (url: string): Promise<boolean> => {
     const isIE = /*@cc_on!@*/false || !!(document as any).documentMode;
     const isEdge = !isIE && !!(window as any).StyleMedia;
     
-    // تعديل الخيارات للتوافق الأفضل مع المتصفح
-    const fetchOptions: RequestInit = {
-      method: 'HEAD',
-      cache: 'no-store',
-      signal: controller.signal,
-      mode: 'cors',
-      credentials: 'omit',
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
-    };
+    // محاولات متعددة بخيارات مختلفة
+    const fetchMethods = ['HEAD', 'GET'];
+    const fetchModes = ['cors', 'no-cors'];
     
-    if (isSafari || isIE || isEdge) {
-      // تبسيط الخيارات للمتصفحات القديمة
-      delete fetchOptions.cache;
-      // استخدام GET بدلاً من HEAD في بعض الحالات لتحسين التوافق
-      if (isIE) {
-        fetchOptions.method = 'GET';
+    for (const method of fetchMethods) {
+      for (const mode of fetchModes) {
+        try {
+          // إضافة معلمات لمنع التخزين المؤقت
+          const cacheParam = `nocache=${Date.now()}&_=${Math.random().toString(36).substring(2, 15)}`;
+          const urlWithCache = url.includes('?') 
+            ? `${url}&${cacheParam}` 
+            : `${url}?${cacheParam}`;
+          
+          const fetchOptions: RequestInit = {
+            method,
+            signal: controller.signal,
+            mode: mode as RequestMode,
+            credentials: 'omit',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          };
+          
+          // تعديلات لبعض المتصفحات
+          if (isSafari || isIE || isEdge) {
+            delete fetchOptions.cache;
+          }
+          
+          const response = await fetch(urlWithCache, fetchOptions);
+          
+          clearTimeout(timeoutId);
+          
+          // لـ no-cors، لا يمكننا الوصول إلى حالة الاستجابة، لذا نفترض أنها ناجحة إذا لم يتم رفض الوعد
+          if (mode === 'no-cors') {
+            return true;
+          }
+          
+          return response.ok || response.status === 0;
+        } catch (attemptError) {
+          console.warn(`فشلت محاولة الوصول بطريقة ${method} و ${mode} إلى ${url}:`, attemptError);
+          // نستمر في المحاولة التالية
+        }
       }
     }
     
-    // إضافة معلمات لمنع التخزين المؤقت
-    const cacheParam = `nocache=${Date.now()}&_=${Math.random().toString(36).substring(2, 15)}`;
-    const urlWithCache = url.includes('?') 
-      ? `${url}&${cacheParam}` 
-      : `${url}?${cacheParam}`;
-    
-    // محاولة الاتصال مع إعادة المحاولة مرة واحدة في حالة الفشل
+    // محاولة أخيرة باستخدام طريقة مبسطة
     try {
-      const response = await fetch(urlWithCache, fetchOptions);
-      clearTimeout(timeoutId);
-      return response.ok;
-    } catch (firstError) {
-      console.warn(`المحاولة الأولى للوصول إلى ${url} فشلت:`, firstError);
+      const img = new Image();
+      const imgPromise = new Promise<boolean>((resolve) => {
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false);
+      });
       
-      // تعديل الطريقة إلى GET في المحاولة الثانية
-      fetchOptions.method = 'GET';
+      // استخدام صورة صغيرة من الموقع نفسه للتحقق
+      const domain = new URL(url).origin;
+      img.src = `${domain}/favicon.ico?_=${Date.now()}`;
       
-      try {
-        const response = await fetch(urlWithCache, fetchOptions);
-        clearTimeout(timeoutId);
-        return response.ok;
-      } catch (secondError) {
-        clearTimeout(timeoutId);
-        return false;
-      }
+      return await imgPromise;
+    } catch (imgError) {
+      // تجاهل الخطأ، نعود false
     }
+    
+    return false;
   } catch (error) {
     console.warn(`تعذر الوصول إلى ${url}:`, error);
     return false;
