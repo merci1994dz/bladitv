@@ -2,7 +2,7 @@
 import { syncWithBladiInfo } from './remoteSync';
 import { forceDataRefresh } from './forceRefresh';
 import { syncAllData } from './coreSync';
-import { publishChannelsToAllUsers } from './publishOperations';
+import { publishChannelsToAllUsers } from './publish';
 import { useToast } from '@/hooks/use-toast';
 import { getLastSyncTime } from './local';
 

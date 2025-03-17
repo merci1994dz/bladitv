@@ -1,6 +1,6 @@
 
 import { useToast } from '@/hooks/use-toast';
-import { publishChannelsToAllUsers, forceBroadcastToAllBrowsers } from '@/services/sync';
+import { publishChannelsToAllUsers, forceBroadcastToAllBrowsers } from '@/services/sync/publish';
 import { BLADI_INFO_SOURCES } from '@/services/sync/remote/sync/sources';
 
 /**
