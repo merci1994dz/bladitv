@@ -70,7 +70,7 @@ export const forceDataRefresh = async (): Promise<boolean> => {
       } catch (e) {
         // محاولة استخدام طريقة تحديث بديلة
         try {
-          window.location.reload(true);
+          window.location.reload();
         } catch (e2) {
           console.error('فشلت جميع محاولات تحديث الصفحة:', e2);
         }

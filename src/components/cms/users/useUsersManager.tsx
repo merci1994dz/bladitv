@@ -4,6 +4,7 @@ import { CMSUser } from '@/services/cms/types';
 import { useToast } from '@/hooks/use-toast';
 import { publishChannelsToAllUsers } from '@/services/sync';
 import { saveChannelsToStorage } from '@/services/dataStore';
+import { forceDataRefresh } from '@/services/sync/forceRefresh';
 
 // Hook للتعامل مع المستخدمين
 export const useUsersManager = () => {
@@ -19,6 +20,7 @@ export const useUsersManager = () => {
     email: '',
     role: 'viewer',
     active: true,
+    permissions: [] // أضفنا خاصية الصلاحيات المطلوبة
   });
 
   // تحميل المستخدمين من التخزين المحلي
@@ -35,6 +37,7 @@ export const useUsersManager = () => {
           email: 'admin@example.com',
           role: 'admin',
           active: true,
+          permissions: ['create', 'read', 'update', 'delete', 'publish'] // أضفنا صلاحيات للمستخدم الافتراضي
         };
         setUsers([defaultUser]);
         localStorage.setItem('cms_users', JSON.stringify([defaultUser]));
@@ -77,6 +80,7 @@ export const useUsersManager = () => {
         email: '',
         role: 'viewer',
         active: true,
+        permissions: [] // أضفنا خاصية الصلاحيات المطلوبة
       });
       
       setIsAddingUser(false);
@@ -199,6 +203,9 @@ export const useUsersManager = () => {
       
       // نشر القنوات للمستخدمين
       await publishChannelsToAllUsers();
+      
+      // تطبيق تحديث قسري لجميع المتصفحات
+      await forceDataRefresh();
       
       console.log('تم نشر التحديثات لجميع المستخدمين');
     } catch (error) {
