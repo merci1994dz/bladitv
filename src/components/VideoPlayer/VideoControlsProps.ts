@@ -19,5 +19,8 @@ export interface VideoControlsProps {
   duration?: number;
   buffered?: number;
   channel: Channel;
-  onClose?: () => void; // Added onClose as an optional property
+  onClose?: () => void;
+  isTV?: boolean;
+  onShowStreamSources?: () => void;
+  onShowProgramGuide?: () => void;
 }

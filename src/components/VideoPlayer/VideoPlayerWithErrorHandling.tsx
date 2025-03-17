@@ -126,7 +126,7 @@ const VideoPlayerWithErrorHandling: React.FC<VideoPlayerWithErrorHandlingProps> 
           onVolumeChange={handleVolumeChange}
           onSeek={handleSeek}
           onClick={toggleControlsVisibility}
-          onReload={retryPlayback}
+          onReload={handleRetry}
           channel={channel}
           onClose={onClose}
         />

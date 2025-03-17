@@ -5,7 +5,7 @@ import VolumeControls from './controls/VolumeControls';
 import SettingsControls from './controls/SettingsControls';
 import { Channel } from '@/types';
 import { Button } from '../ui/button';
-import { Calendar, ListVideo } from 'lucide-react';
+import { Calendar, ListVideo, X } from 'lucide-react';
 
 export interface VideoControlsProps {
   show: boolean;
@@ -18,12 +18,13 @@ export interface VideoControlsProps {
   onFullscreenToggle: (e: React.MouseEvent) => void;
   onVolumeChange: (value: number) => void;
   onSeek?: (seconds: number) => (e: React.MouseEvent) => void;
-  onClick: (e: React.MouseEvent) => void;
+  onClick?: (e: React.MouseEvent) => void;
   onReload?: (e: React.MouseEvent) => void;
   isTV?: boolean;
   channel?: Channel;
   onShowStreamSources?: () => void;
   onShowProgramGuide?: () => void;
+  onClose?: () => void;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -42,7 +43,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   isTV = false,
   channel,
   onShowStreamSources,
-  onShowProgramGuide
+  onShowProgramGuide,
+  onClose
 }) => {
   const [focusedButton, setFocusedButton] = React.useState<string | null>(null);
 
@@ -128,6 +130,20 @@ const VideoControls: React.FC<VideoControlsProps> = ({
       </div>
 
       <div className="flex items-center space-x-2 rtl:space-x-reverse">
+        {onClose && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full text-white hover:bg-red-500/20 h-9 w-9 backdrop-blur-sm hidden md:flex"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        )}
+
         {onShowStreamSources && (
           <Button
             variant="ghost"
