@@ -88,4 +88,3 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     setSyncActive(false);
   }
 };
-

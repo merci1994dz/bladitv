@@ -84,4 +84,3 @@ export const performInitialSync = async (): Promise<boolean> => {
     setSyncActive(false);
   }
 };
-

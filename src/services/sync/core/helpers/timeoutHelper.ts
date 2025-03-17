@@ -19,4 +19,3 @@ export function createTimeoutPromise(timeout: number): Promise<boolean> {
     }, timeout);
   });
 }
-
