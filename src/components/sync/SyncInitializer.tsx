@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef } from 'react';
-import { setupRealtimeSync, syncWithSupabase } from '@/services/sync/supabaseSync';
+import { syncWithSupabase, setupRealtimeSync } from '@/services/sync/supabase';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { useToast } from '@/hooks/use-toast';
 
