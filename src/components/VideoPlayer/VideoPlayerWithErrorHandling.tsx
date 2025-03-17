@@ -3,7 +3,7 @@
  * مكون مشغل الفيديو مع معالجة متقدمة للأخطاء
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Channel } from '@/types';
 import { useVideoPlayback } from '@/hooks/videoPlayer/useVideoPlayback';
 import { useVideoErrorHandling } from '@/hooks/videoPlayer/useVideoErrorHandling';
@@ -30,6 +30,12 @@ const VideoPlayerWithErrorHandling: React.FC<VideoPlayerWithErrorHandlingProps> 
     retryPlayback: baseRetryPlayback,
     seekVideo
   } = useVideoPlayback({ channel });
+
+  // حالة التحكم بالفيديو
+  const [isMuted, setIsMuted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [currentVolume, setCurrentVolume] = useState(0.8);
+  const [showControls, setShowControls] = useState(true);
 
   // دالة إعادة المحاولة المخصصة لتمريرها إلى مرفق معالجة الأخطاء
   const retryPlayback = useCallback(async () => {
@@ -70,6 +76,27 @@ const VideoPlayerWithErrorHandling: React.FC<VideoPlayerWithErrorHandlingProps> 
     seekVideo(seconds);
   };
 
+  // دوال التحكم الإضافية
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsMuted(!isMuted);
+  };
+
+  const handleVolumeChange = (value: number) => {
+    setCurrentVolume(value);
+  };
+
+  const toggleFullscreenHandler = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsFullscreen(!isFullscreen);
+  };
+
+  // التبديل بين إظهار وإخفاء أدوات التحكم
+  const toggleControlsVisibility = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowControls(!showControls);
+  };
+
   return (
     <div className="relative w-full h-full bg-black rounded-lg overflow-hidden">
       {/* مشغل الفيديو الأساسي */}
@@ -88,10 +115,18 @@ const VideoPlayerWithErrorHandling: React.FC<VideoPlayerWithErrorHandlingProps> 
       {/* عرض أدوات التحكم إذا لم يكن هناك خطأ */}
       {!errorState.hasError && (
         <VideoControls 
+          show={showControls}
           isPlaying={isPlaying}
+          isMuted={isMuted}
+          isFullscreen={isFullscreen}
+          currentVolume={currentVolume}
           onPlayPause={togglePlayPause}
-          onClose={onClose}
+          onMuteToggle={toggleMute}
+          onFullscreenToggle={toggleFullscreenHandler}
+          onVolumeChange={handleVolumeChange}
           onSeek={handleSeek}
+          onClick={toggleControlsVisibility}
+          onReload={retryPlayback}
           channel={channel}
         />
       )}

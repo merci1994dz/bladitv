@@ -12,6 +12,7 @@ export const STORAGE_KEYS = {
   LAST_SYNC: 'tv_last_sync',
   LAST_SYNC_TIME: 'tv_last_sync_time',
   SYNC_STATUS: 'tv_sync_status',
+  SYNC_ERROR: 'tv_sync_error', // Added this key for error storage
   LAST_SUCCESSFUL_SOURCE: 'tv_last_successful_source',
   REMOTE_CONFIG: 'tv_remote_config',
   ADMIN_PASSWORD: 'tv_admin_password',
