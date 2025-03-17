@@ -4,7 +4,7 @@
  */
 import { toast } from "@/hooks/use-toast";
 import { setupVideoSource } from '../useVideoSetup';
-import { setupVideoAttributes } from './videoCleanup';
+import { setupVideoAttributes } from './videoAttributes';
 
 /**
  * معالجة خطأ NotAllowedError - محاولة بديلة للتشغيل
