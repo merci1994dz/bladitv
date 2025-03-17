@@ -7,4 +7,5 @@
 export { fetchRemoteData } from './fetchRemoteData';
 export { isRemoteUrlAccessible } from './accessibilityCheck';
 export { getSkewProtectionParams } from './skewProtection';
+export { loadWithJsonp } from './jsonpFallback';
 
