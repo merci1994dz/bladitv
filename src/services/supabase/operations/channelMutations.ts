@@ -17,9 +17,12 @@ export const addChannelToSupabase = async (channel: Omit<Channel, 'id'>): Promis
     
     console.log('إضافة قناة جديدة:', channel);
     
+    // إنشاء معرف جديد للقناة إذا لم يكن موجودًا
+    const newChannelId = `channel-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    
     const { data, error } = await supabase
       .from('channels')
-      .insert(supabaseChannel)
+      .insert({ ...supabaseChannel, id: newChannelId })
       .select()
       .single();
     
@@ -50,6 +53,9 @@ export const addChannelToSupabase = async (channel: Omit<Channel, 'id'>): Promis
 export const updateChannelInSupabase = async (channel: Channel): Promise<Channel> => {
   try {
     const supabaseChannel = toSupabaseChannel(channel);
+    
+    console.log('تحديث القناة في Supabase:', {id: channel.id, ...supabaseChannel});
+    
     const { data, error } = await supabase
       .from('channels')
       .update(supabaseChannel)
@@ -63,6 +69,7 @@ export const updateChannelInSupabase = async (channel: Channel): Promise<Channel
     }
     
     const updatedChannel = toChannel(data as SupabaseChannel);
+    console.log('تم تحديث القناة بنجاح:', updatedChannel);
     
     // تحديث التخزين المحلي
     const storedData = localStorage.getItem(STORAGE_KEYS.CHANNELS);
@@ -85,6 +92,8 @@ export const updateChannelInSupabase = async (channel: Channel): Promise<Channel
 // حذف قناة من Supabase
 export const deleteChannelFromSupabase = async (channelId: string): Promise<boolean> => {
   try {
+    console.log('حذف القناة من Supabase:', channelId);
+    
     const { error } = await supabase
       .from('channels')
       .delete()
@@ -94,6 +103,8 @@ export const deleteChannelFromSupabase = async (channelId: string): Promise<bool
       console.error('خطأ في حذف القناة من Supabase:', error);
       throw error;
     }
+    
+    console.log('تم حذف القناة بنجاح:', channelId);
     
     // تحديث التخزين المحلي
     const storedData = localStorage.getItem(STORAGE_KEYS.CHANNELS);

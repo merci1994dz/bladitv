@@ -38,19 +38,33 @@ export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> =
     console.log('بدء المزامنة مع Supabase...');
     setIsSyncing(true);
     
-    // جلب البيانات من Supabase
+    // جلب البيانات من Supabase مع إضافة معامل للتخزين المؤقت
+    const cacheBuster = `?_=${Date.now()}`;
+    
     const [channelsData, countriesData, categoriesData] = await Promise.all([
       supabase.from('channels').select('*'),
       supabase.from('countries').select('*'),
       supabase.from('categories').select('*'),
     ]);
     
-    if (channelsData.error || countriesData.error || categoriesData.error) {
-      throw new Error('خطأ في جلب البيانات من Supabase');
+    if (channelsData.error) {
+      console.error('خطأ في جلب القنوات من Supabase:', channelsData.error);
+      throw channelsData.error;
+    }
+    
+    if (countriesData.error) {
+      console.error('خطأ في جلب البلدان من Supabase:', countriesData.error);
+      throw countriesData.error;
+    }
+    
+    if (categoriesData.error) {
+      console.error('خطأ في جلب الفئات من Supabase:', categoriesData.error);
+      throw categoriesData.error;
     }
     
     // تحديث البيانات في الذاكرة
     if (channelsData.data && channelsData.data.length > 0) {
+      console.log(`تم استلام ${channelsData.data.length} قناة من Supabase`);
       channels.length = 0;
       channels.push(...(channelsData.data as SupabaseChannel[]).map(toChannel));
       
@@ -59,9 +73,12 @@ export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> =
       } catch (e) {
         console.warn('لم يتم حفظ القنوات في التخزين المحلي:', e);
       }
+    } else {
+      console.warn('لم يتم استلام أي قنوات من Supabase');
     }
     
     if (countriesData.data && countriesData.data.length > 0) {
+      console.log(`تم استلام ${countriesData.data.length} بلد من Supabase`);
       countries.length = 0;
       countries.push(...countriesData.data as Country[]);
       
@@ -70,9 +87,12 @@ export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> =
       } catch (e) {
         console.warn('لم يتم حفظ البلدان في التخزين المحلي:', e);
       }
+    } else {
+      console.warn('لم يتم استلام أي بلدان من Supabase');
     }
     
     if (categoriesData.data && categoriesData.data.length > 0) {
+      console.log(`تم استلام ${categoriesData.data.length} فئة من Supabase`);
       categories.length = 0;
       categories.push(...categoriesData.data as Category[]);
       
@@ -81,6 +101,8 @@ export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> =
       } catch (e) {
         console.warn('لم يتم حفظ الفئات في التخزين المحلي:', e);
       }
+    } else {
+      console.warn('لم يتم استلام أي فئات من Supabase');
     }
     
     // تحديث وقت آخر مزامنة
@@ -116,36 +138,67 @@ export const initializeSupabaseTables = async (): Promise<boolean> => {
       .select('count', { count: 'exact', head: true });
     
     if (channelsError) {
+      console.error('خطأ في التحقق من وجود جداول Supabase:', channelsError);
       // ربما الجداول غير موجودة بعد
       console.log('جداول Supabase ربما غير موجودة، جاري التهيئة...');
-      
-      // نحن لا نقوم بإنشاء الجداول هنا لأن هذا يتطلب صلاحيات SQL
-      // يجب على المستخدم إنشاء الجداول من خلال واجهة Supabase
-      
       return false;
     }
     
     // تحميل البيانات المخزنة محليًا إلى Supabase إذا كانت الجداول فارغة
-    // Access count correctly based on Supabase's return type
     const countValue = typeof channelsData === 'object' && channelsData !== null ? (channelsData as any).count : 0;
     if (countValue === 0) {
+      console.log('جداول Supabase فارغة، جاري تحميل البيانات المحلية...');
+      
       const storedChannels = localStorage.getItem(STORAGE_KEYS.CHANNELS);
       const storedCountries = localStorage.getItem(STORAGE_KEYS.COUNTRIES);
       const storedCategories = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
       
       if (storedChannels) {
-        await supabase.from('channels').insert(JSON.parse(storedChannels));
+        const parsedChannels = JSON.parse(storedChannels);
+        if (Array.isArray(parsedChannels) && parsedChannels.length > 0) {
+          // تحويل البيانات إلى صيغة Supabase
+          const supabaseChannels = parsedChannels.map(ch => ({
+            id: ch.id,
+            name: ch.name,
+            logo: ch.logo,
+            streamurl: ch.streamUrl,
+            category: ch.category,
+            country: ch.country,
+            isfavorite: ch.isFavorite,
+            lastwatched: ch.lastWatched,
+            externallinks: ch.externalLinks || []
+          }));
+          
+          const { error } = await supabase.from('channels').insert(supabaseChannels);
+          if (error) {
+            console.error('خطأ في تحميل القنوات إلى Supabase:', error);
+          } else {
+            console.log(`تم تحميل ${supabaseChannels.length} قناة إلى Supabase بنجاح`);
+          }
+        }
       }
       
       if (storedCountries) {
-        await supabase.from('countries').insert(JSON.parse(storedCountries));
+        const { error } = await supabase.from('countries').insert(JSON.parse(storedCountries));
+        if (error) {
+          console.error('خطأ في تحميل البلدان إلى Supabase:', error);
+        } else {
+          console.log('تم تحميل البلدان إلى Supabase بنجاح');
+        }
       }
       
       if (storedCategories) {
-        await supabase.from('categories').insert(JSON.parse(storedCategories));
+        const { error } = await supabase.from('categories').insert(JSON.parse(storedCategories));
+        if (error) {
+          console.error('خطأ في تحميل الفئات إلى Supabase:', error);
+        } else {
+          console.log('تم تحميل الفئات إلى Supabase بنجاح');
+        }
       }
       
       console.log('تم تحميل البيانات المحلية إلى Supabase بنجاح');
+    } else {
+      console.log(`جداول Supabase تحتوي على بيانات بالفعل (${countValue} قناة)`);
     }
     
     return true;
@@ -157,18 +210,29 @@ export const initializeSupabaseTables = async (): Promise<boolean> => {
 
 // الاشتراك للتحديثات في الوقت الحقيقي
 export const setupRealtimeSync = () => {
-  const channelsSubscription = supabase
-    .channel('schema-db-changes')
-    .on('postgres_changes', 
-      { event: '*', schema: 'public', table: 'channels' }, 
-      async (payload) => {
-        console.log('تم تلقي تحديث للقنوات في الوقت الحقيقي:', payload);
-        await syncWithSupabase(true);
-      }
-    )
-    .subscribe();
-  
-  return () => {
-    supabase.removeChannel(channelsSubscription);
-  };
+  console.log('إعداد المزامنة في الوقت الحقيقي مع Supabase...');
+  try {
+    const channelsSubscription = supabase
+      .channel('schema-db-changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'channels' }, 
+        async (payload) => {
+          console.log('تم تلقي تحديث للقنوات في الوقت الحقيقي:', payload);
+          await syncWithSupabase(true);
+        }
+      )
+      .subscribe((status) => {
+        console.log('حالة الاشتراك في تحديثات الوقت الحقيقي:', status);
+      });
+    
+    return () => {
+      console.log('إزالة الاشتراك في تحديثات الوقت الحقيقي');
+      supabase.removeChannel(channelsSubscription);
+    };
+  } catch (error) {
+    console.error('خطأ في إعداد المزامنة في الوقت الحقيقي:', error);
+    return () => {
+      // دالة تنظيف فارغة في حالة الخطأ
+    };
+  }
 };
