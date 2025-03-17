@@ -67,7 +67,7 @@ export const addChannel = async (channel: Omit<Channel, 'id'>): Promise<Channel>
   // إنشاء معرف فريد بتنسيق UUID
   const newId = crypto.randomUUID ? 
     crypto.randomUUID() : 
-    `channel-${Date.now().toString()}`;
+    `channel-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 9)}`;
   
   const newChannel: Channel = {
     ...channel,

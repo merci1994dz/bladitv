@@ -1,9 +1,10 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Channel, Country, Category } from '@/types';
 import { channels, countries, categories, setIsSyncing } from '../dataStore';
 import { STORAGE_KEYS } from '../config';
 import { updateLastSyncTime } from './config';
-import { SupabaseChannel, toChannel } from '../supabase/types/channelTypes';
+import { SupabaseChannel, toChannel, toSupabaseChannel } from '../supabase/types/channelTypes';
 
 // مزامنة البيانات من Supabase
 export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> => {
@@ -130,17 +131,22 @@ export const initializeSupabaseTables = async (): Promise<boolean> => {
         const parsedChannels = JSON.parse(storedChannels);
         if (Array.isArray(parsedChannels) && parsedChannels.length > 0) {
           // تحويل البيانات إلى صيغة Supabase
-          const supabaseChannels = parsedChannels.map(ch => ({
-            id: crypto.randomUUID ? crypto.randomUUID() : ch.id,
-            name: ch.name,
-            logo: ch.logo,
-            streamurl: ch.streamUrl,
-            category: ch.category,
-            country: ch.country,
-            isfavorite: ch.isFavorite,
-            lastwatched: ch.lastWatched,
-            externallinks: ch.externalLinks || []
-          }));
+          const supabaseChannels = parsedChannels.map(ch => {
+            // التأكد من أن المعرف بتنسيق UUID صالح
+            const channelId = ch.id.includes('-') ? ch.id : crypto.randomUUID();
+            
+            return {
+              id: channelId,
+              name: ch.name,
+              logo: ch.logo,
+              streamurl: ch.streamUrl,
+              category: ch.category,
+              country: ch.country,
+              isfavorite: ch.isFavorite, // استخدام الاسم بالحروف الصغيرة
+              lastwatched: ch.lastWatched, // استخدام الاسم بالحروف الصغيرة
+              externallinks: ch.externalLinks || []
+            };
+          });
           
           const { error } = await supabase.from('channels').insert(supabaseChannels);
           if (error) {
@@ -152,20 +158,38 @@ export const initializeSupabaseTables = async (): Promise<boolean> => {
       }
       
       if (storedCountries) {
-        const { error } = await supabase.from('countries').insert(JSON.parse(storedCountries));
-        if (error) {
-          console.error('خطأ في تحميل البلدان إلى Supabase:', error);
-        } else {
-          console.log('تم تحميل البلدان إلى Supabase بنجاح');
+        const parsedCountries = JSON.parse(storedCountries);
+        if (Array.isArray(parsedCountries) && parsedCountries.length > 0) {
+          // التأكد من أن المعرفات بتنسيق UUID صالح
+          const supabaseCountries = parsedCountries.map(country => ({
+            ...country,
+            id: country.id.includes('-') ? country.id : crypto.randomUUID()
+          }));
+          
+          const { error } = await supabase.from('countries').insert(supabaseCountries);
+          if (error) {
+            console.error('خطأ في تحميل البلدان إلى Supabase:', error);
+          } else {
+            console.log('تم تحميل البلدان إلى Supabase بنجاح');
+          }
         }
       }
       
       if (storedCategories) {
-        const { error } = await supabase.from('categories').insert(JSON.parse(storedCategories));
-        if (error) {
-          console.error('خطأ في تحميل الفئات إلى Supabase:', error);
-        } else {
-          console.log('تم تحميل الفئات إلى Supabase بنجاح');
+        const parsedCategories = JSON.parse(storedCategories);
+        if (Array.isArray(parsedCategories) && parsedCategories.length > 0) {
+          // التأكد من أن المعرفات بتنسيق UUID صالح
+          const supabaseCategories = parsedCategories.map(category => ({
+            ...category,
+            id: category.id.includes('-') ? category.id : crypto.randomUUID()
+          }));
+          
+          const { error } = await supabase.from('categories').insert(supabaseCategories);
+          if (error) {
+            console.error('خطأ في تحميل الفئات إلى Supabase:', error);
+          } else {
+            console.log('تم تحميل الفئات إلى Supabase بنجاح');
+          }
         }
       }
       
