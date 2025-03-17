@@ -92,7 +92,7 @@ export const forceDataRefresh = async (): Promise<boolean> => {
       } catch (e) {
         // محاولة استخدام طريقة تحديث بديلة
         try {
-          window.location.reload(true); // إجبار إعادة التحميل بدون تخزين مؤقت
+          window.location.reload(); // إجبار إعادة التحميل بدون تخزين مؤقت - removed boolean argument
         } catch (e2) {
           // طريقة أخيرة
           window.location.reload();
