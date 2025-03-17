@@ -6,7 +6,8 @@ import { useCallback } from 'react';
 import { VideoRef, setupVideoSource } from './useVideoSetup';
 import { Channel } from '@/types';
 import { toast } from "@/hooks/use-toast";
-import { cleanupVideoPlayer, setupVideoAttributes } from './utils/videoCleanup';
+import { cleanupVideoPlayer } from './utils/videoCleanup';
+import { setupVideoAttributes } from './utils/videoAttributes';
 import { canRetryNow, getDelayUntilNextRetry } from './utils/retryStrategies';
 import { 
   attemptVideoPlay, 
