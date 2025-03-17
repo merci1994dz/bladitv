@@ -7,7 +7,7 @@ interface VideoAttributes {
   autoplay?: boolean;
   muted?: boolean;
   playsInline?: boolean;
-  preload?: string;
+  preload?: "" | "none" | "metadata" | "auto";
 }
 
 /**
@@ -18,7 +18,7 @@ export function setupVideoAttributes(
   options: VideoAttributes = {}
 ): void {
   // تعيين السمات الافتراضية
-  videoElement.preload = options.preload || 'auto';
+  videoElement.preload = options.preload || "auto";
   videoElement.autoplay = options.autoplay !== undefined ? options.autoplay : true;
   videoElement.muted = options.muted !== undefined ? options.muted : true;
   videoElement.playsInline = options.playsInline !== undefined ? options.playsInline : true;
