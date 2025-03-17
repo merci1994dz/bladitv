@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import ThemeToggle from "@/components/ThemeToggle";
 import { useDeviceType } from '@/hooks/use-tv';
 import SyncStatus from '../SyncStatus';
 import ConnectivityIndicator from '../sync/ConnectivityIndicator';
