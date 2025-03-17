@@ -4,35 +4,35 @@ import { CMSSettings } from '../cms/types';
 
 // Type mapping for Supabase settings table
 interface SupabaseSettings {
-  defaultlayout: string;
-  featuredchannelslimit: number;
-  hideemptycategories: boolean;
+  default_layout: string;
+  featured_channels_limit: number;
+  hide_empty_categories: boolean;
   id: string;
   language: string;
   logo: string;
-  recentlywatchedlimit: number;
-  showcategoriesonhome: boolean;
-  showcountriesonhome: boolean;
-  showfeaturedchannelsonhome: boolean;
-  showrecentlywatchedonhome: boolean;
-  sitename: string;
+  recently_watched_limit: number;
+  show_categories_on_home: boolean;
+  show_countries_on_home: boolean;
+  show_featured_channels_on_home: boolean;
+  show_recently_watched_on_home: boolean;
+  site_name: string;
   theme: string;
   analyticenabled?: boolean;
 }
 
 // Convert between our app model and Supabase schema
 const toCMSSettings = (supabaseSettings: SupabaseSettings): CMSSettings => ({
-  siteName: supabaseSettings.sitename,
+  siteName: supabaseSettings.site_name,
   logo: supabaseSettings.logo,
-  defaultLayout: supabaseSettings.defaultlayout,
+  defaultLayout: supabaseSettings.default_layout,
   theme: supabaseSettings.theme as any,
-  featuredChannelsLimit: supabaseSettings.featuredchannelslimit,
-  recentlyWatchedLimit: supabaseSettings.recentlywatchedlimit,
-  showCategoriesOnHome: supabaseSettings.showcategoriesonhome,
-  showCountriesOnHome: supabaseSettings.showcountriesonhome,
-  showFeaturedChannelsOnHome: supabaseSettings.showfeaturedchannelsonhome,
-  showRecentlyWatchedOnHome: supabaseSettings.showrecentlywatchedonhome,
-  hideEmptyCategories: supabaseSettings.hideemptycategories,
+  featuredChannelsLimit: supabaseSettings.featured_channels_limit,
+  recentlyWatchedLimit: supabaseSettings.recently_watched_limit,
+  showCategoriesOnHome: supabaseSettings.show_categories_on_home,
+  showCountriesOnHome: supabaseSettings.show_countries_on_home,
+  showFeaturedChannelsOnHome: supabaseSettings.show_featured_channels_on_home,
+  showRecentlyWatchedOnHome: supabaseSettings.show_recently_watched_on_home,
+  hideEmptyCategories: supabaseSettings.hide_empty_categories,
   customCss: undefined,
   customJs: undefined,
   analyticEnabled: supabaseSettings.analyticenabled || false,
@@ -40,17 +40,17 @@ const toCMSSettings = (supabaseSettings: SupabaseSettings): CMSSettings => ({
 });
 
 const toSupabaseSettings = (settings: CMSSettings): Omit<SupabaseSettings, 'id'> & { id: string } => ({
-  sitename: settings.siteName,
+  site_name: settings.siteName,
   logo: settings.logo,
-  defaultlayout: settings.defaultLayout,
+  default_layout: settings.defaultLayout,
   theme: settings.theme,
-  featuredchannelslimit: settings.featuredChannelsLimit,
-  recentlywatchedlimit: settings.recentlyWatchedLimit,
-  showcategoriesonhome: settings.showCategoriesOnHome,
-  showcountriesonhome: settings.showCountriesOnHome,
-  showfeaturedchannelsonhome: true,
-  showrecentlywatchedonhome: true,
-  hideemptycategories: true,
+  featured_channels_limit: settings.featuredChannelsLimit,
+  recently_watched_limit: settings.recentlyWatchedLimit,
+  show_categories_on_home: settings.showCategoriesOnHome,
+  show_countries_on_home: settings.showCountriesOnHome,
+  show_featured_channels_on_home: true,
+  show_recently_watched_on_home: true,
+  hide_empty_categories: true,
   language: settings.language,
   analyticenabled: settings.analyticEnabled,
   id: 'main-settings'

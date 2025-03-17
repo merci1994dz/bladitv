@@ -31,35 +31,35 @@ export type Database = {
         Row: {
           category: string
           country: string
-          externallinks: Json | null
+          external_links: Json | null
           id: string
-          isfavorite: boolean | null
-          lastwatched: string | null
+          is_favorite: boolean | null
+          last_watched: string | null
           logo: string
           name: string
-          streamurl: string
+          stream_url: string
         }
         Insert: {
           category: string
           country: string
-          externallinks?: Json | null
+          external_links?: Json | null
           id?: string
-          isfavorite?: boolean | null
-          lastwatched?: string | null
+          is_favorite?: boolean | null
+          last_watched?: string | null
           logo: string
           name: string
-          streamurl: string
+          stream_url: string
         }
         Update: {
           category?: string
           country?: string
-          externallinks?: Json | null
+          external_links?: Json | null
           id?: string
-          isfavorite?: boolean | null
-          lastwatched?: string | null
+          is_favorite?: boolean | null
+          last_watched?: string | null
           logo?: string
           name?: string
-          streamurl?: string
+          stream_url?: string
         }
         Relationships: []
       }
@@ -86,48 +86,48 @@ export type Database = {
       }
       settings: {
         Row: {
-          defaultlayout: string
-          featuredchannelslimit: number
-          hideemptycategories: boolean
+          default_layout: string
+          featured_channels_limit: number
+          hide_empty_categories: boolean
           id: string
           language: string
           logo: string
-          recentlywatchedlimit: number
-          showcategoriesonhome: boolean
-          showcountriesonhome: boolean
-          showfeaturedchannelsonhome: boolean
-          showrecentlywatchedonhome: boolean
-          sitename: string
+          recently_watched_limit: number
+          show_categories_on_home: boolean
+          show_countries_on_home: boolean
+          show_featured_channels_on_home: boolean
+          show_recently_watched_on_home: boolean
+          site_name: string
           theme: string
         }
         Insert: {
-          defaultlayout: string
-          featuredchannelslimit?: number
-          hideemptycategories?: boolean
+          default_layout: string
+          featured_channels_limit?: number
+          hide_empty_categories?: boolean
           id: string
           language?: string
           logo: string
-          recentlywatchedlimit?: number
-          showcategoriesonhome?: boolean
-          showcountriesonhome?: boolean
-          showfeaturedchannelsonhome?: boolean
-          showrecentlywatchedonhome?: boolean
-          sitename: string
+          recently_watched_limit?: number
+          show_categories_on_home?: boolean
+          show_countries_on_home?: boolean
+          show_featured_channels_on_home?: boolean
+          show_recently_watched_on_home?: boolean
+          site_name: string
           theme: string
         }
         Update: {
-          defaultlayout?: string
-          featuredchannelslimit?: number
-          hideemptycategories?: boolean
+          default_layout?: string
+          featured_channels_limit?: number
+          hide_empty_categories?: boolean
           id?: string
           language?: string
           logo?: string
-          recentlywatchedlimit?: number
-          showcategoriesonhome?: boolean
-          showcountriesonhome?: boolean
-          showfeaturedchannelsonhome?: boolean
-          showrecentlywatchedonhome?: boolean
-          sitename?: string
+          recently_watched_limit?: number
+          show_categories_on_home?: boolean
+          show_countries_on_home?: boolean
+          show_featured_channels_on_home?: boolean
+          show_recently_watched_on_home?: boolean
+          site_name?: string
           theme?: string
         }
         Relationships: []

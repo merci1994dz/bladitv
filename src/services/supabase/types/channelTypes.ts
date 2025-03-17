@@ -7,13 +7,13 @@ import { StreamingLink } from '@/types/externalStreaming';
 export interface SupabaseChannel {
   category: string;
   country: string;
-  externallinks: Json | null;
+  external_links: Json | null;
   id: string;
-  isfavorite: boolean | null;  // لاحظ أن الاسم بحروف صغيرة في Supabase
-  lastwatched: string | null;
+  is_favorite: boolean | null;  // تم تحديث الاسم من isfavorite إلى is_favorite
+  last_watched: string | null;  // تم تحديث الاسم من lastwatched إلى last_watched
   logo: string;
   name: string;
-  streamurl: string;
+  stream_url: string;  // تم تحديث الاسم من streamurl إلى stream_url
 }
 
 // دوال التحويل بين نماذج التطبيق ومخطط Supabase
@@ -21,21 +21,21 @@ export const toChannel = (supabaseChannel: SupabaseChannel): Channel => ({
   id: supabaseChannel.id,
   name: supabaseChannel.name,
   logo: supabaseChannel.logo,
-  streamUrl: supabaseChannel.streamurl,
+  streamUrl: supabaseChannel.stream_url,
   category: supabaseChannel.category,
   country: supabaseChannel.country,
-  isFavorite: supabaseChannel.isfavorite || false,
-  lastWatched: supabaseChannel.lastwatched,
-  externalLinks: (supabaseChannel.externallinks as unknown as StreamingLink[]) || []
+  isFavorite: supabaseChannel.is_favorite || false,
+  lastWatched: supabaseChannel.last_watched,
+  externalLinks: (supabaseChannel.external_links as unknown as StreamingLink[]) || []
 });
 
 export const toSupabaseChannel = (channel: Omit<Channel, 'id'> | Channel): Omit<SupabaseChannel, 'id'> => ({
   name: channel.name,
   logo: channel.logo,
-  streamurl: channel.streamUrl,
+  stream_url: channel.streamUrl,
   category: channel.category,
   country: channel.country,
-  isfavorite: channel.isFavorite,  // تحويل من isFavorite (كاملكيس) إلى isfavorite (حروف صغيرة)
-  lastwatched: channel.lastWatched,
-  externallinks: channel.externalLinks as unknown as Json
+  is_favorite: channel.isFavorite,  // تحويل من isFavorite (كاملكيس) إلى is_favorite (snake_case)
+  last_watched: channel.lastWatched,
+  external_links: channel.externalLinks as unknown as Json
 });

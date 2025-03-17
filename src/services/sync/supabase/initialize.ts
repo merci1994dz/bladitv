@@ -61,12 +61,12 @@ const uploadLocalDataToSupabase = async (): Promise<void> => {
           id: channelId,
           name: ch.name,
           logo: ch.logo,
-          streamurl: ch.streamUrl,
+          stream_url: ch.streamUrl,
           category: ch.category,
           country: ch.country,
-          isfavorite: ch.isFavorite, // استخدام الاسم بالحروف الصغيرة
-          lastwatched: ch.lastWatched, // استخدام الاسم بالحروف الصغيرة
-          externallinks: ch.externalLinks || []
+          is_favorite: ch.isFavorite, // تم التحديث من isfavorite إلى is_favorite
+          last_watched: ch.lastWatched, // تم التحديث من lastwatched إلى last_watched
+          external_links: ch.externalLinks || []
         };
       });
       
