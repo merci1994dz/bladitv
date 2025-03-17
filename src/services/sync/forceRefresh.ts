@@ -132,6 +132,6 @@ export const immediateRefresh = (): void => {
     const cacheBuster = `refresh=${timestamp}&nocache=${Date.now()}&t=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`;
     window.location.href = `${baseUrl}?${cacheBuster}`;
   } catch (e) {
-    window.location.reload(true);
+    window.location.reload();
   }
 };
