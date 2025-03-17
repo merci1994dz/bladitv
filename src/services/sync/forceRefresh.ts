@@ -1,7 +1,6 @@
-
 import { syncAllData } from './coreSync';
 import { loadFromLocalStorage } from '../dataStore';
-import { forceBroadcastToAllBrowsers } from './publish'; // Update the import
+import { forceBroadcastToAllBrowsers } from './publish'; // Import directly from publish
 
 /**
  * دالة لإجبار إعادة تحميل البيانات وإعادة مزامنتها لجميع المستخدمين
@@ -79,7 +78,7 @@ export const forceDataRefresh = async (): Promise<boolean> => {
     
     // 6. محاولة بث التحديث لجميع المتصفحات
     // 6. Try broadcasting update to all browsers
-    await forceBroadcastToAllBrowsers(true);
+    await forceBroadcastToAllBrowsers(true); // Pass skipReload as true
     
     // 7. إعادة تحميل الصفحة بعد تأخير كاف
     // 7. Reload page after sufficient delay
