@@ -3,7 +3,7 @@ import { saveChannelsToStorage } from '../../dataStore';
 import { syncAllData } from '../coreSync';
 
 // Function for direct and strong broadcasting to all browsers
-export const forceBroadcastToAllBrowsers = async (skipReload?: boolean): Promise<boolean> => {
+export const forceBroadcastToAllBrowsers = async (skipReload: boolean = false): Promise<boolean> => {
   console.log('بدء النشر القسري والقوي لجميع المتصفحات...');
   
   try {
