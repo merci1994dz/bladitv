@@ -1,121 +1,141 @@
 
 /**
- * فحص إمكانية الوصول إلى نقاط النهاية المختلفة
- * Check accessibility of different endpoints
+ * وظائف للتحقق من إمكانية الوصول إلى نقاط النهاية
+ * Functions to check endpoint accessibility
  */
 
-import { createProgressiveRetryStrategy, retry } from '@/utils/retryStrategy';
 import { EndpointCheckResult } from './types';
+import { cacheConnectivityResult } from './cache';
 
-// العناوين المستخدمة لاختبار الاتصال بالإنترنت والخوادم
-// Endpoints used to test internet connection and server accessibility
-export const CONNECTIVITY_CHECK_ENDPOINTS = [
-  'https://bladitv.lovable.app/ping',
-  'https://bladi-info.com/ping',
-  'https://bladiinfo-api.vercel.app/ping',
-  'https://bladiinfo-backup.netlify.app/ping',
-  'https://cdn.jsdelivr.net/gh/lovable-iq/bladi-info@main/ping'
+/**
+ * قائمة نقاط النهاية الافتراضية للتحقق منها
+ * Default list of endpoints to check
+ */
+const DEFAULT_ENDPOINTS = [
+  'https://google.com',
+  'https://cloudflare.com',
+  'https://microsoft.com'
 ];
 
 /**
- * فحص إمكانية الوصول إلى نقاط النهاية المختلفة بشكل متوازي
- * Check accessibility of different endpoints in parallel
- * with retry attempts and performance statistics
+ * التحقق من إمكانية الوصول إلى نقاط النهاية المحددة
+ * Check accessibility of specified endpoints
+ * 
+ * @param endpoints قائمة URLs للتحقق منها / List of URLs to check
+ * @param timeout مهلة بالمللي ثانية لكل طلب / Timeout in ms for each request
+ * @returns مصفوفة من نتائج الاختبار / Array of test results
  */
-export async function checkEndpointsAccessibility(): Promise<EndpointCheckResult[]> {
-  // إنشاء قائمة بالوعود لفحص كل نقطة نهاية
-  // Create a list of promises to check each endpoint
-  const endpointPromises = CONNECTIVITY_CHECK_ENDPOINTS.map(async (url) => {
+export async function checkEndpointsAccessibility(
+  endpoints: string[] = DEFAULT_ENDPOINTS, 
+  timeout: number = 5000
+): Promise<EndpointCheckResult[]> {
+  console.log('التحقق من إمكانية الوصول إلى نقاط النهاية / Checking endpoints accessibility:', endpoints);
+  
+  try {
+    // إنشاء مصفوفة من وعود لكل نقطة نهاية
+    // Create array of promises for each endpoint
+    const checkPromises = endpoints.map(url => checkSingleEndpoint(url, timeout));
+    
+    // انتظار جميع النتائج (حتى الفاشلة)
+    // Wait for all results (even failed ones)
+    const results = await Promise.all(checkPromises);
+    
+    // حساب معدل النجاح
+    // Calculate success rate
+    const successRate = results.filter(r => r.success).length / results.length;
+    console.log(`معدل النجاح في فحص نقاط النهاية: ${successRate * 100}% / Endpoint check success rate: ${successRate * 100}%`);
+    
+    // تخزين نتائج الاختبار في ذاكرة التخزين المؤقت للجلسة
+    // Cache test results in session storage
+    cacheConnectivityResult({
+      hasInternet: successRate > 0,
+      hasServerAccess: successRate >= 0.5,
+      timestamp: Date.now(),
+      endpoints: results
+    });
+    
+    return results;
+  } catch (error) {
+    console.error('خطأ أثناء التحقق من نقاط النهاية / Error checking endpoints:', error);
+    return endpoints.map(url => ({
+      url,
+      success: false,
+      error: String(error)
+    }));
+  }
+}
+
+/**
+ * التحقق من إمكانية الوصول إلى نقطة نهاية واحدة
+ * Check accessibility of a single endpoint
+ * 
+ * @param url رابط نقطة النهاية / Endpoint URL
+ * @param timeout مهلة بالمللي ثانية / Timeout in ms
+ * @returns نتيجة الاختبار / Test result
+ */
+async function checkSingleEndpoint(url: string, timeout: number): Promise<EndpointCheckResult> {
+  console.log(`التحقق من نقطة النهاية: ${url} / Checking endpoint: ${url}`);
+  
+  try {
+    const startTime = Date.now();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    
     try {
-      // استخدام استراتيجية إعادة المحاولة لكل نقطة نهاية
-      // Use retry strategy for each endpoint
-      return await retry(
-        async () => {
-          const startTime = performance.now();
-          
-          // إنشاء وحدة تحكم بالمهلة الزمنية
-          // Create timeout controller
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 8000);
-          
-          try {
-            // محاولة الاتصال بنقطة النهاية
-            // Try to connect to the endpoint
-            const response = await fetch(url, {
-              method: 'HEAD',
-              signal: controller.signal,
-              cache: 'no-store',
-              mode: 'cors',
-              credentials: 'omit',
-              headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache'
-              }
-            });
-            
-            // إلغاء المهلة الزمنية بعد الاستجابة
-            // Cancel timeout after response
-            clearTimeout(timeoutId);
-            
-            // حساب زمن الاستجابة
-            // Calculate response time
-            const responseTime = Math.round(performance.now() - startTime);
-            
-            // التحقق من نجاح الاستجابة
-            // Check response success
-            return {
-              url,
-              success: response.ok,
-              responseTime
-            };
-          } catch (error) {
-            // إلغاء المهلة الزمنية في حالة حدوث خطأ
-            // Cancel timeout in case of error
-            clearTimeout(timeoutId);
-            
-            // إعادة رمي الخطأ للتعامل معه في إعادة المحاولة
-            // Re-throw error to handle it in retry
-            throw error;
-          }
-        },
-        {
-          ...createProgressiveRetryStrategy(2),
-          onRetry: (error, attempt) => {
-            console.log(`إعادة محاولة الاتصال بـ / Retrying connection to ${url} (${attempt}/2)`);
-          }
-        }
-      );
+      // إرسال طلب HEAD فقط للحصول على الرؤوس (أسرع)
+      // Send HEAD request only to get headers (faster)
+      const response = await fetch(url, {
+        method: 'HEAD',
+        mode: 'no-cors',
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      const endTime = Date.now();
+      const responseTime = endTime - startTime;
+      
+      // أي استجابة تعتبر نجاحًا في وضع no-cors
+      // Any response is considered a success in no-cors mode
+      return {
+        url,
+        success: true,
+        responseTime
+      };
     } catch (error) {
-      // في حالة فشل جميع محاولات إعادة الاتصال، ارجاع فشل للنقطة النهائية
-      // In case all retry attempts fail, return failure for the endpoint
+      clearTimeout(timeoutId);
+      
+      // في حالة انتهاء المهلة أو أي خطأ آخر
+      // In case of timeout or any other error
       return {
         url,
         success: false,
-        error: error instanceof Error ? error.message : String(error)
+        error: String(error)
       };
     }
-  });
-  
-  // انتظار انتهاء جميع الفحوصات
-  // Wait for all checks to complete
-  const results = await Promise.all(endpointPromises);
-  
-  // ترتيب النتائج حسب النجاح ثم حسب سرعة الاستجابة
-  // Sort results by success then by response speed
-  return results.sort((a, b) => {
-    // ترتيب النقاط الناجحة أولاً
-    // Sort successful points first
-    if (a.success && !b.success) return -1;
-    if (!a.success && b.success) return 1;
-    
-    // ثم الترتيب حسب زمن الاستجابة (الأسرع أولاً)
-    // Then sort by response time (fastest first)
-    if (a.success && b.success) {
-      const aTime = a.responseTime || Number.MAX_SAFE_INTEGER;
-      const bTime = b.responseTime || Number.MAX_SAFE_INTEGER;
-      return aTime - bTime;
-    }
-    
-    return 0;
-  });
+  } catch (error) {
+    // في حالة حدوث أي استثناء غير متوقع
+    // In case of any unexpected exception
+    return {
+      url,
+      success: false,
+      error: String(error)
+    };
+  }
 }
+
+/**
+ * حساب متوسط وقت الاستجابة للنقاط الناجحة
+ * Calculate average response time for successful endpoints
+ */
+export function calculateAverageResponseTime(results: EndpointCheckResult[]): number {
+  const successfulResults = results.filter(r => r.success) as Array<EndpointCheckResult & { responseTime: number }>;
+  
+  if (successfulResults.length === 0) {
+    return 0;
+  }
+  
+  const totalTime = successfulResults.reduce((sum, result) => sum + result.responseTime, 0);
+  return totalTime / successfulResults.length;
+}
+
