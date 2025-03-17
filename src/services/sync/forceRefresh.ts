@@ -174,8 +174,9 @@ export const immediateRefresh = (): void => {
   } catch (e) {
     // محاولة طريقة بديلة
     try {
-      // تحديث الرابط المباشر
-      window.location = new URL(window.location.href.split('?')[0] + `?bust=${Date.now()}`);
+      // Fix: Instead of using URL constructor, directly set window.location.href
+      const currentUrl = window.location.href.split('?')[0];
+      window.location.href = `${currentUrl}?bust=${Date.now()}`;
     } catch (e2) {
       // طريقة أخيرة بسيطة
       window.location.reload();
