@@ -8,7 +8,18 @@ import {
   verifyUpdatesPropagation, 
   forceBroadcastToAllBrowsers 
 } from './publishOperations';
-import { isSyncInProgress, setSyncActive, checkConnectivityIssues, getSyncStatus } from './status';
+
+// Export from status modules
+export { 
+  isSyncInProgress, 
+  setSyncActive, 
+  getSyncStatus,
+  setSyncError,
+  clearSyncError,
+  setSyncTimestamp,
+  getLastSyncTime,
+  checkConnectivityIssues
+} from './status';
 
 // Export from remote.ts
 export { 
@@ -27,7 +38,6 @@ export { checkBladiInfoAvailability } from './remote/syncOperations';
 
 // Export from local.ts
 export { 
-  getLastSyncTime, 
   isSyncNeeded,
   syncWithLocalData,
   forceSync,
@@ -67,14 +77,6 @@ export {
   publishChannelsToAllUsers,
   verifyUpdatesPropagation,
   forceBroadcastToAllBrowsers
-};
-
-// Export status functions
-export {
-  isSyncInProgress,
-  setSyncActive,
-  checkConnectivityIssues,
-  getSyncStatus
 };
 
 // تنفيذ المزامنة الأولية عند تحميل الوحدة - استخدام الوظيفة من المسار الجديد

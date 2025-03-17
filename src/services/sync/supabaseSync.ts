@@ -8,7 +8,7 @@ import { initializeSupabaseTables } from './supabase/initialize';
 import { executeRetryableSync } from './core/retryableSync';
 import { handleError } from '@/utils/errorHandling';
 import { syncAllData } from './core/syncOperations';
-import { setSyncTimestamp } from '@/services/sync/status';
+import { setSyncTimestamp } from '@/services/sync/status/timestamp';
 
 /**
  * مزامنة البيانات مع Supabase

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, XCircle, CheckCircle2, Wifi, WifiOff } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { getLastSyncTime } from '@/services/sync/status';
+import { getLastSyncTime } from '@/services/sync/status/timestamp';
 import { toast } from '@/hooks/use-toast';
 import { useSyncMutations } from './sync/useSyncMutations';
 import SyncErrorNotification from './sync/SyncErrorNotification';

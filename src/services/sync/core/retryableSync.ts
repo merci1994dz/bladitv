@@ -5,7 +5,8 @@
 
 import { retry, createProgressiveRetryStrategy } from '@/utils/retryStrategy';
 import { handleError } from '@/utils/errorHandling';
-import { setSyncActive, setSyncError, clearSyncError } from '@/services/sync/status';
+import { setSyncActive } from '@/services/sync/status/syncState';
+import { setSyncError, clearSyncError } from '@/services/sync/status/errorHandling';
 import { setIsSyncing } from '@/services/dataStore';
 import { toast } from '@/hooks/use-toast';
 
