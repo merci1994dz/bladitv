@@ -8,14 +8,16 @@ export interface VideoControlsProps {
   isMuted: boolean;
   isFullscreen: boolean;
   currentVolume: number;
-  onPlayPause: () => void;
-  onMuteToggle: (e: MouseEvent<Element, MouseEvent>) => void;
+  onPlayPause: (e: MouseEvent) => void;
+  onMuteToggle: (e: MouseEvent) => void;
+  onFullscreenToggle: (e: MouseEvent) => void;
   onVolumeChange: (value: number) => void;
-  onFullscreenToggle: () => void;
-  onSeek: (seconds: number) => (e: MouseEvent<Element, MouseEvent>) => void;
-  currentTime: number;
-  duration: number;
-  buffered: number;
+  onSeek?: (seconds: number) => (e: MouseEvent) => void;
+  onClick?: (e: MouseEvent) => void;
+  onReload?: (e: MouseEvent) => void;
+  currentTime?: number;
+  duration?: number;
+  buffered?: number;
   channel: Channel;
-  onClose?: () => void; // Make this optional to maintain compatibility
+  onClose?: () => void; // Added onClose as an optional property
 }

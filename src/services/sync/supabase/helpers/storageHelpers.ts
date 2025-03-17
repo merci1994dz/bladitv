@@ -6,7 +6,7 @@
 
 import { STORAGE_KEYS } from '../../../config';
 import { Channel, Country, Category } from '@/types';
-import { SupabaseChannel, toChannel } from '../../supabase/types/channelTypes';
+import { SupabaseChannel, toChannel } from '@/services/supabase/types/channelTypes';
 
 /**
  * تحديث مخازن البيانات المحلية بالبيانات المستلمة من Supabase
@@ -41,7 +41,7 @@ export const updateLocalStoreWithData = async (
   if (countriesData && countriesData.length > 0) {
     console.log(`تم استلام ${countriesData.length} بلد من Supabase / Received ${countriesData.length} countries from Supabase`);
     countries.length = 0;
-    countries.push(...countriesData);
+    countries.push(...countriesData as Country[]);
     
     try {
       localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(countriesData));
@@ -57,7 +57,7 @@ export const updateLocalStoreWithData = async (
   if (categoriesData && categoriesData.length > 0) {
     console.log(`تم استلام ${categoriesData.length} فئة من Supabase / Received ${categoriesData.length} categories from Supabase`);
     categories.length = 0;
-    categories.push(...categoriesData);
+    categories.push(...categoriesData as Category[]);
     
     try {
       localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categoriesData));
