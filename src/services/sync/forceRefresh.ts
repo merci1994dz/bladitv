@@ -106,7 +106,7 @@ export const forceDataRefresh = async (): Promise<boolean> => {
     
     // محاولة إعادة تحميل الصفحة على أي حال في حالة الفشل
     setTimeout(() => {
-      window.location.reload();
+      window.location.reload(); // تم إزالة المعامل هنا أيضًا
     }, 1000);
     
     return false;
@@ -132,6 +132,6 @@ export const immediateRefresh = (): void => {
     const cacheBuster = `refresh=${timestamp}&nocache=${Date.now()}&t=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`;
     window.location.href = `${baseUrl}?${cacheBuster}`;
   } catch (e) {
-    window.location.reload();
+    window.location.reload(); // تم إزالة المعامل هنا أيضًا
   }
 };
