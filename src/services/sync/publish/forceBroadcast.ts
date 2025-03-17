@@ -59,7 +59,7 @@ export const forceBroadcastToAllBrowsers = async (skipReload: boolean = false): 
             const cacheBuster = `refresh=${updateId}&nocache=${Date.now()}&t=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`;
             window.location.href = `${baseUrl}?${cacheBuster}`;
           } catch (e) {
-            // Fallback to simple reload
+            // Fallback to simple reload - تم إزالة المعامل بما يتوافق مع المتصفحات الحديثة
             window.location.reload();
           }
         }, 1000);
@@ -73,6 +73,7 @@ export const forceBroadcastToAllBrowsers = async (skipReload: boolean = false): 
     // محاولة إجبار إعادة التحميل على أي حال في حالة الفشل إذا لم يتم تخطي إعادة التحميل
     if (!skipReload) {
       try {
+        // تم إزالة المعامل للتوافق مع المتصفحات الحديثة
         window.location.reload();
       } catch (e) {
         console.error('فشل في إعادة تحميل الصفحة:', e);
@@ -107,7 +108,7 @@ export const forcePageRefresh = (delay = 1000): void => {
       const cacheBuster = `refresh=${updateId}&nocache=${Date.now()}&t=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`;
       window.location.href = `${baseUrl}?${cacheBuster}`;
     } catch (e) {
-      // Fallback to simple reload
+      // Fallback to simple reload - تم إزالة المعامل للتوافق مع المتصفحات الحديثة
       window.location.reload();
     }
   }, delay);

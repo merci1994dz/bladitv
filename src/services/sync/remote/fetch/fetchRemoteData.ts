@@ -216,3 +216,4 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
     throw enhanceFetchError(error);
   }
 };
+
