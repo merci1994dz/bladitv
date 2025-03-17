@@ -5,8 +5,8 @@
 import { useState } from 'react';
 import { Channel } from '@/types';
 import { VideoRef } from './useVideoSetup';
-import { useManualRetry } from './useManualRetry';
-import { useAutoRetry } from './useAutoRetry';
+import { useManualRetry } from './retry/useManualRetry';
+import { useAutoRetry } from './retry/useAutoRetry';
 
 interface UseVideoRetryProps { 
   videoRef: VideoRef; 
