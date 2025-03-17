@@ -1,6 +1,7 @@
 
 import { useToast } from '@/hooks/use-toast';
 import { publishChannelsToAllUsers, forceBroadcastToAllBrowsers } from '@/services/sync';
+import { BLADI_INFO_SOURCES } from '@/services/sync/remote/sync/sources';
 
 /**
  * Hook for handling channel synchronization
@@ -53,7 +54,34 @@ export const useChannelsSync = (refetchChannels: () => Promise<any>) => {
     }
   };
   
+  // وظيفة جديدة للحصول على الروابط المرتبطة بالمشروع
+  const getProjectLinks = (): { name: string; url: string; description: string }[] => {
+    return [
+      {
+        name: "بلادي تي في - الموقع الرسمي",
+        url: "https://bladitv.lovable.app",
+        description: "موقع البث الرسمي"
+      },
+      {
+        name: "لوحة الإدارة",
+        url: "/admin",
+        description: "إدارة القنوات والإعدادات"
+      },
+      ...BLADI_INFO_SOURCES.map((source) => ({
+        name: new URL(source).hostname,
+        url: source,
+        description: "مصدر قنوات"
+      })),
+      {
+        name: "اتصل بنا",
+        url: "mailto:bladitvapp@gmail.com",
+        description: "للدعم الفني"
+      }
+    ];
+  };
+  
   return {
-    manualSyncChannels
+    manualSyncChannels,
+    getProjectLinks
   };
 };
