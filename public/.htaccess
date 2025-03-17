@@ -33,6 +33,12 @@
       Header always set Surrogate-Control "no-store"
       Header always set Edge-Control "no-store, no-cache"
       Header always set Vary "*"
+      
+      # إضافة دعم CORS لملفات API
+      Header always set Access-Control-Allow-Origin "*"
+      Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+      Header always set Access-Control-Allow-Headers "*"
+      Header always set Access-Control-Max-Age "1"
     </IfModule>
   </FilesMatch>
   
@@ -66,6 +72,12 @@
       Header always set X-Cache-Control "no-cache"
       Header always set X-Cache-Tags "no-cache, dynamic-content"
       Header always set X-App-Version "%{TIME}e-%{UNIQUE_ID}e"
+      
+      # إضافة دعم CORS كامل
+      Header always set Access-Control-Allow-Origin "*"
+      Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, HEAD"
+      Header always set Access-Control-Allow-Headers "*"
+      Header always set Access-Control-Max-Age "1"
     </IfModule>
     
     # إعادة كتابة الملفات JSON مع إضافة معلمات عشوائية
@@ -89,29 +101,28 @@
       Header always set CDN-Cache-Control "no-cache, no-store"
       Header always set Surrogate-Control "no-store"
       Header always set Edge-Control "no-store, no-cache"
+      
+      # إضافة دعم CORS
+      Header always set Access-Control-Allow-Origin "*"
     </IfModule>
     
-    # إضافة معلمات عشوائية للصفحة الرئيسية
+    # إضافة معلمات عشوائية للصفحة الرئيسية - سنستخدم التحويل بدلًا من إعادة التوجيه
     RewriteCond %{QUERY_STRING} !(.*)timestamp=(.*) [NC]
-    RewriteRule ^index\.html$ index.html?timestamp=%{TIME}e&unique=%{UNIQUE_ID}e&t=%{msec}e [R=302,L,QSA]
+    RewriteRule ^index\.html$ index.html?timestamp=%{TIME}e&unique=%{UNIQUE_ID}e&t=%{msec}e [QSA,L]
   </FilesMatch>
   
-  # السماح بالوصول عبر CORS (مهم لملفات API)
+  # معالجة طلبات OPTIONS لدعم CORS
   <IfModule mod_headers.c>
     Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
-    Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Cache-Control, Pragma, X-Timestamp, X-Visitor-ID, X-Requested-At"
-    
-    # رؤوس إضافية لمنع التخزين المؤقت
-    Header always set X-App-Version "%{TIME}e"
-    Header always set X-Content-Update-Time "%{TIME}e"
-    Header always set X-Cache-Control "no-cache"
-    
-    # معالجة طلبات OPTIONS
-    RewriteEngine On
-    RewriteCond %{REQUEST_METHOD} OPTIONS
-    RewriteRule ^(.*)$ $1 [R=200,L]
+    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, HEAD"
+    Header always set Access-Control-Allow-Headers "*"
+    Header always set Access-Control-Max-Age "1"
   </IfModule>
+  
+  # معالجة طلبات OPTIONS
+  RewriteEngine On
+  RewriteCond %{REQUEST_METHOD} OPTIONS
+  RewriteRule ^(.*)$ $1 [R=200,L]
   
   # رؤوس أمان إضافية
   <IfModule mod_headers.c>
@@ -119,7 +130,6 @@
     Header always set X-XSS-Protection "1; mode=block"
     Header always set X-Frame-Options "SAMEORIGIN"
     Header always set Referrer-Policy "no-referrer-when-downgrade"
-    Header always set Clear-Site-Data "\"cache\", \"cookies\", \"storage\""
   </IfModule>
   
   # منع ملفات JSON من التخزين المؤقت بشكل قوي
@@ -142,7 +152,7 @@
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /index.html [L]
   
-  # إضافة معلمات عشوائية لكل الطلبات
+  # إضافة معلمات عشوائية لكل الطلبات (باستثناء الموارد الثابتة)
   RewriteCond %{QUERY_STRING} !(.*)timestamp=(.*) [NC]
   RewriteCond %{REQUEST_URI} !\.(css|js|png|jpg|gif|svg|woff|woff2|ttf|eot)$ [NC]
   RewriteRule ^(.*)$ $1?timestamp=%{TIME}e&unique=%{UNIQUE_ID}e [QSA,L]
@@ -166,3 +176,13 @@ Options -Indexes
 
 # تعيين الصفحة الافتراضية
 DirectoryIndex index.html
+
+# إعادة كتابة لمنع التخزين المؤقت في ملفات .json مع تغيير المعلمات في كل مرة
+<IfModule mod_headers.c>
+  <FilesMatch "\.json$">
+    Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header always set Pragma "no-cache"
+    Header always set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
+    Header always set Access-Control-Allow-Origin "*"
+  </FilesMatch>
+</IfModule>

@@ -1,275 +1,205 @@
 
 /**
- * دالة لإجبار إعادة تحميل البيانات وإعادة مزامنتها لجميع المستخدمين
- * Function to force data reload and resync for all users
+ * آليات قوية لإجبار تحديث الصفحة ومسح التخزين المؤقت
+ * Strong mechanisms to force page refresh and clear cache
  */
 
-import { syncAllData } from './coreSync';
-import { loadFromLocalStorage } from '../dataStore';
-import { forceBroadcastToAllBrowsers } from './publish';
+import { addCacheBusterToUrl } from '../sync/remote/fetch/retryStrategies';
+import { applyStorageMarkers } from '../sync/remote/fetch/retryStrategies';
 
-export const forceDataRefresh = async (): Promise<boolean> => {
-  console.log('بدء التحديث القسري للبيانات... / Starting forced data refresh...');
-  
+/**
+ * حذف ملفات الكوكيز للموقع
+ * Clear site cookies
+ */
+export const clearSiteCookies = (): boolean => {
   try {
-    // 1. إعادة تحميل البيانات من التخزين المحلي
-    // 1. Reload data from local storage
-    const reloadResult = loadFromLocalStorage();
-    console.log('نتيجة إعادة تحميل البيانات: / Data reload result:', reloadResult);
+    // محاولة مسح الكوكيز عن طريق إعادة تعيينها
+    const cookies = document.cookie.split(";");
     
-    // 2. إضافة مؤشرات للتحديث القسري بطريقة محسنة
-    // 2. Add enhanced indicators for forced update
-    const timestamp = Date.now().toString();
-    
-    // علامات متعددة لزيادة فرص الاكتشاف مع تنوع أكبر
-    // Multiple diverse flags to increase discovery chances
-    const keys = [
-      'force_update',
-      'force_refresh',
-      'force_browser_refresh',
-      'force_reload',
-      'nocache_version',
-      'data_version',
-      'channels_update_by_cms',
-      'bladi_info_update',
-      'bladi_update_version',
-      'channels_last_update',
-      'force_app_reload',
-      'cache_breaker',
-      'app_update_required',
-      'refresh_timestamp',
-      'cache_bust_time',        // مفتاح جديد
-      'content_refresh_signal', // مفتاح جديد
-      'hard_refresh_trigger',   // مفتاح جديد
-      'data_refresh_marker',    // مفتاح جديد
-      'app_reload_marker',      // مفتاح جديد
-      'aggressive_cache_bust',  // مفتاح إضافي جديد
-      'total_cache_clear',      // مفتاح إضافي جديد
-      'clear_page_cache'        // مفتاح إضافي جديد
-    ];
-    
-    // تطبيق جميع العلامات بشكل فوري وبدون تأخير
-    // Apply all flags immediately without delay
-    for (const key of keys) {
-      try {
-        if (key.includes('force') || key.includes('refresh') || key.includes('reload') || key.includes('trigger') || key.includes('clear')) {
-          localStorage.setItem(key, 'true');
-        } else {
-          localStorage.setItem(key, `${timestamp}_${Math.random().toString(36).substring(2, 9)}`);
-        }
-      } catch (e) {
-        console.error('خطأ في تعيين مفتاح التحديث:', key, e);
-      }
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i];
+      const eqPos = cookie.indexOf("=");
+      const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
+      document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
     }
     
-    // تطبيق مباشر على sessionStorage
-    // Direct application to sessionStorage
-    try {
-      const sessionKeys = ['force_reload', 'force_update', 'data_version', 'app_refresh', 'cache_breaker', 'cache_bust_time'];
-      for (const key of sessionKeys) {
-        sessionStorage.setItem(key, key.includes('version') || key.includes('time') ? timestamp : 'true');
-      }
-    } catch (e) {
-      console.error('خطأ في تعيين مفاتيح التحديث في sessionStorage:', e);
-    }
-    
-    // تطبيق على cookies بشكل مباشر
-    // Apply directly to cookies
-    try {
-      const cookieKeys = ['force_reload', 'force_update', 'data_version', 'nocache_version', 'app_refresh', 'cache_bust', 'refresh_signal'];
-      for (const key of cookieKeys) {
-        const value = key.includes('version') || key.includes('bust') || key.includes('signal') ? timestamp : 'true';
-        document.cookie = `${key}=${value}; path=/; max-age=3600; SameSite=Lax`;
-      }
-    } catch (e) {
-      console.error('خطأ في تعيين مفاتيح التحديث في cookies:', e);
-    }
-    
-    // 5. تنفيذ المزامنة القسرية
-    // 5. Execute forced sync
-    await syncAllData(true);
-    
-    // 6. محاولة بث التحديث لجميع المتصفحات
-    // 6. Try broadcasting update to all browsers
-    await forceBroadcastToAllBrowsers(true);
-    
-    // مسح التخزين المؤقت للصفحة قبل إعادة التحميل
-    // Clear page cache before reload
-    try {
-      if ('caches' in window) {
-        caches.keys().then(cacheNames => {
-          cacheNames.forEach(cacheName => {
-            caches.delete(cacheName);
-            console.log('تم مسح التخزين المؤقت:', cacheName);
-          });
-        });
-      }
-    } catch (e) {
-      console.error('خطأ في مسح التخزين المؤقت للصفحة:', e);
-    }
-    
-    // 7. إعادة تحميل الصفحة بعد تأخير كاف مع معلمات قوية لمنع التخزين المؤقت
-    // 7. Reload page after sufficient delay with strong cache busting parameters
-    setTimeout(() => {
-      try {
-        // محاولة تحديث الصفحة مع منع التخزين المؤقت بشكل قوي
-        const baseUrl = window.location.href.split('?')[0].split('#')[0];
-        const cacheBuster = `refresh=${timestamp}&nocache=${Date.now()}&t=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}&v=${Date.now()}&_=${Math.random().toString(36).substring(2, 15)}`;
-        
-        // إضافة معلمات قوية لمنع التخزين المؤقت
-        window.location.href = `${baseUrl}?${cacheBuster}`;
-        
-        // محاولة إجبار المتصفح على تجاهل التخزين المؤقت
-        const meta = document.createElement('meta');
-        meta.httpEquiv = 'Cache-Control';
-        meta.content = 'no-cache, no-store, must-revalidate';
-        document.head.appendChild(meta);
-        
-        const pragmaMeta = document.createElement('meta');
-        pragmaMeta.httpEquiv = 'Pragma';
-        pragmaMeta.content = 'no-cache';
-        document.head.appendChild(pragmaMeta);
-      } catch (e) {
-        console.error('خطأ في إعادة تحميل الصفحة مع منع التخزين المؤقت:', e);
-        
-        // محاولة استخدام طريقة تحديث بديلة
-        try {
-          window.location.reload();
-        } catch (e2) {
-          console.error('خطأ في إعادة تحميل الصفحة بالطريقة البديلة:', e2);
-          
-          // طريقة أخيرة
-          window.location = window.location;
-        }
-      }
-    }, 1000);
-    
+    console.log("تم مسح جميع ملفات الكوكيز");
     return true;
-  } catch (error) {
-    console.error('خطأ في التحديث القسري للبيانات: / Error in forced data refresh:', error);
-    
-    // محاولة إعادة تحميل الصفحة على أي حال في حالة الفشل
-    setTimeout(() => {
-      window.location.reload();
-    }, 1000);
-    
+  } catch (e) {
+    console.error("فشل في مسح ملفات الكوكيز:", e);
     return false;
   }
 };
 
-// دالة جديدة للتحديث الفوري للبيانات والمتصفح بطريقة محسنة
-// New function for immediate data and browser refresh with enhanced method
-export const immediateRefresh = (): void => {
-  console.log('تنفيذ تحديث فوري وإعادة تحميل...');
-  
-  const timestamp = Date.now().toString();
-  const random = Math.random().toString(36).substring(2, 15);
-  
-  // إنشاء علامات متعددة للتأكد من التحديث
-  const refreshMarkers = {
-    'force_browser_refresh': 'true',
-    'nocache_version': timestamp,
-    'data_version': timestamp,
-    'force_update': 'true',
-    'cache_bust_time': timestamp,
-    'hard_refresh_trigger': 'true',
-    'refresh_marker': `${timestamp}_${random}`,
-    'aggressive_cache_bust': 'true', // علامة جديدة
-    'total_cache_clear': 'true',     // علامة جديدة
-    'clear_page_cache': 'true'       // علامة جديدة
-  };
-  
-  // تطبيق جميع العلامات
-  Object.entries(refreshMarkers).forEach(([key, value]) => {
-    try {
-      localStorage.setItem(key, value);
-      sessionStorage.setItem(key, value);
-      document.cookie = `${key}=${value}; path=/; max-age=3600; SameSite=Lax`;
-    } catch (e) {
-      // تجاهل أي أخطاء
-      console.error('خطأ في تعيين مفتاح تحديث:', key, e);
-    }
-  });
-  
-  // مسح التخزين المؤقت للصفحة إذا كان متاحًا
+/**
+ * حذف التخزين المؤقت للخادم المشترك
+ * Clear service worker cache
+ */
+export const clearServiceWorkerCache = async (): Promise<boolean> => {
   try {
-    if ('caches' in window) {
-      caches.keys().then(cacheNames => {
-        cacheNames.forEach(cacheName => {
-          caches.delete(cacheName);
-          console.log('تم مسح التخزين المؤقت:', cacheName);
-        });
-      });
-    }
-  } catch (e) {
-    console.error('خطأ في مسح التخزين المؤقت للصفحة:', e);
-  }
-  
-  // إعادة تحميل الصفحة مع معلمات متنوعة لمنع التخزين المؤقت
-  try {
-    const baseUrl = window.location.href.split('?')[0].split('#')[0];
-    const cacheBuster = `refresh=${timestamp}&nocache=${Date.now()}&t=${Date.now()}&r=${random}&v=${Date.now()}&ts=${new Date().toISOString()}&_=${Math.random().toString(36).substring(2, 15)}`;
-    
-    // إضافة معلمات قوية لمنع التخزين المؤقت
-    window.location.href = `${baseUrl}?${cacheBuster}`;
-    
-    // إضافة عناصر meta لمنع التخزين المؤقت
-    const meta = document.createElement('meta');
-    meta.httpEquiv = 'Cache-Control';
-    meta.content = 'no-cache, no-store, must-revalidate';
-    document.head.appendChild(meta);
-    
-    const pragmaMeta = document.createElement('meta');
-    pragmaMeta.httpEquiv = 'Pragma';
-    pragmaMeta.content = 'no-cache';
-    document.head.appendChild(pragmaMeta);
-  } catch (e) {
-    // محاولة طريقة بديلة
-    try {
-      // استخدام window.location.href مباشرة
-      const currentUrl = window.location.href.split('?')[0];
-      window.location.href = `${currentUrl}?bust=${Date.now()}&r=${Math.random()}`;
-    } catch (e2) {
-      // طريقة أخيرة بسيطة
-      window.location.reload();
-    }
-  }
-};
-
-// إضافة دالة جديدة لمسح التخزين المؤقت للصفحة
-// Add new function to clear page cache
-export const clearPageCache = async (): Promise<boolean> => {
-  try {
-    console.log('محاولة مسح التخزين المؤقت للصفحة...');
-    
-    // مسح التخزين المؤقت للصفحة إذا كان متاحًا
     if ('caches' in window) {
       const cacheNames = await caches.keys();
       await Promise.all(
         cacheNames.map(cacheName => caches.delete(cacheName))
       );
-      console.log('تم مسح كل التخزين المؤقت للصفحة');
+      console.log("تم مسح ذاكرة التخزين المؤقت للخادم المشترك");
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.error("فشل في مسح ذاكرة التخزين المؤقت للخادم المشترك:", e);
+    return false;
+  }
+};
+
+/**
+ * مسح التخزين المؤقت للصفحة
+ * Clear page cache
+ */
+export const clearPageCache = async (): Promise<boolean> => {
+  try {
+    // مسح ذاكرة التخزين المحلي (للبيانات المؤقتة فقط)
+    const keysToPreserve = [
+      'tv_channels', 'tv_countries', 'tv_categories', 
+      'tv_favorites', 'tv_settings', 'tv_recent_channels',
+      'tv_admin_password', 'dark-mode'
+    ];
+    
+    // مسح العناصر التي لا نريد الاحتفاظ بها
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && !keysToPreserve.includes(key) && !key.includes('persist:')) {
+        localStorage.removeItem(key);
+      }
     }
     
-    // إضافة معلمات تحكم في التخزين المؤقت
-    const meta = document.createElement('meta');
-    meta.httpEquiv = 'Cache-Control';
-    meta.content = 'no-cache, no-store, must-revalidate';
-    document.head.appendChild(meta);
+    // إضافة علامات تحديث جديدة
+    applyStorageMarkers();
     
-    const pragmaMeta = document.createElement('meta');
-    pragmaMeta.httpEquiv = 'Pragma';
-    pragmaMeta.content = 'no-cache';
-    document.head.appendChild(pragmaMeta);
+    // مسح ذاكرة الجلسة بالكامل
+    sessionStorage.clear();
     
-    const expiresMeta = document.createElement('meta');
-    expiresMeta.httpEquiv = 'Expires';
-    expiresMeta.content = '0';
-    document.head.appendChild(expiresMeta);
+    // مسح الكوكيز
+    await clearSiteCookies();
+    
+    // مسح ذاكرة الخادم المشترك
+    await clearServiceWorkerCache();
+    
+    console.log("تم مسح ذاكرة التخزين المؤقت للصفحة");
     
     return true;
-  } catch (error) {
-    console.error('خطأ في مسح التخزين المؤقت للصفحة:', error);
+  } catch (e) {
+    console.error("فشل في مسح ذاكرة التخزين المؤقت للصفحة:", e);
+    return false;
+  }
+};
+
+/**
+ * إعادة تحميل الصفحة بشكل فوري مع منع التخزين المؤقت
+ * Reload page immediately with cache prevention
+ */
+export const immediateRefresh = async (): Promise<void> => {
+  try {
+    // مسح ذاكرة التخزين المؤقت قبل إعادة التحميل
+    await clearPageCache();
+    
+    // إضافة علامات تحديث للتخزين المحلي
+    localStorage.setItem('force_browser_refresh', 'true');
+    localStorage.setItem('nocache_version', Date.now().toString());
+    localStorage.setItem('data_version', Date.now().toString());
+    localStorage.setItem('force_update', 'true');
+    localStorage.setItem('cache_bust_time', Date.now().toString());
+    localStorage.setItem('hard_refresh_trigger', 'true');
+    
+    // إنشاء رابط مع معلمات لمنع التخزين المؤقت
+    const currentPath = window.location.pathname;
+    const baseUrl = window.location.origin + currentPath;
+    const cacheBuster = `_nocache=${Date.now()}&_t=${Math.random()}`;
+    const urlWithParams = baseUrl + (baseUrl.includes('?') ? '&' : '?') + cacheBuster;
+    
+    // إعادة تحميل الصفحة بالرابط الجديد
+    console.log("جاري إعادة تحميل الصفحة مع منع التخزين المؤقت:", urlWithParams);
+    window.location.href = urlWithParams;
+  } catch (e) {
+    console.error("فشل في إعادة تحميل الصفحة:", e);
+    // محاولة إعادة التحميل بالطريقة العادية
+    window.location.reload();
+  }
+};
+
+/**
+ * إجبار تحديث البيانات
+ * Force data refresh
+ */
+export const forceDataRefresh = async (): Promise<boolean> => {
+  try {
+    // إضافة علامات تحديث للتخزين المحلي
+    localStorage.setItem('force_browser_refresh', 'true');
+    localStorage.setItem('nocache_version', Date.now().toString());
+    localStorage.setItem('data_version', Date.now().toString());
+    localStorage.setItem('force_update', 'true');
+    localStorage.setItem('cache_bust_time', Date.now().toString());
+    localStorage.setItem('hard_refresh_trigger', 'true');
+    
+    // إطلاق حدث لتحديث المكونات
+    const event = new CustomEvent('force_data_refresh', { 
+      detail: { timestamp: Date.now() } 
+    });
+    window.dispatchEvent(event);
+    
+    // مسح ذاكرة التخزين المؤقت المرتبطة بالبيانات
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (
+        key.includes('last_sync') ||
+        key.includes('cache') ||
+        key.includes('timestamp') ||
+        key.includes('tv_sync_') ||
+        key.includes('connection')
+      )) {
+        localStorage.removeItem(key);
+      }
+    }
+    
+    console.log("تم إجبار تحديث البيانات");
+    return true;
+  } catch (e) {
+    console.error("فشل في إجبار تحديث البيانات:", e);
+    return false;
+  }
+};
+
+/**
+ * حذف جميع بيانات التطبيق وإعادة الضبط
+ * Clear all app data and reset
+ */
+export const resetAppData = async (): Promise<boolean> => {
+  try {
+    // حفظ إعدادات الوضع المظلم
+    const darkMode = localStorage.getItem('dark-mode');
+    
+    // مسح جميع بيانات التخزين المحلي
+    localStorage.clear();
+    
+    // استعادة إعدادات الوضع المظلم إذا كانت موجودة
+    if (darkMode) {
+      localStorage.setItem('dark-mode', darkMode);
+    }
+    
+    // مسح ذاكرة الجلسة
+    sessionStorage.clear();
+    
+    // مسح الكوكيز
+    await clearSiteCookies();
+    
+    // مسح ذاكرة الخادم المشترك
+    await clearServiceWorkerCache();
+    
+    console.log("تم إعادة ضبط جميع بيانات التطبيق");
+    
+    return true;
+  } catch (e) {
+    console.error("فشل في إعادة ضبط بيانات التطبيق:", e);
     return false;
   }
 };

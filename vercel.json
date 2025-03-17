@@ -23,7 +23,10 @@
         { "key": "Surrogate-Control", "value": "no-store" },
         { "key": "Edge-Control", "value": "no-store, no-cache" },
         { "key": "Vary", "value": "*" },
-        { "key": "Age", "value": "0" }
+        { "key": "Age", "value": "0" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "*" }
       ]
     },
     {
@@ -75,7 +78,8 @@
       "dest": "/$1.json",
       "headers": { 
         "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-        "X-Cache-Bust": "${Date.now()}" 
+        "X-Cache-Bust": "${Date.now()}",
+        "Access-Control-Allow-Origin": "*" 
       }
     },
     { "src": "/(.*)", "dest": "/index.html" }
