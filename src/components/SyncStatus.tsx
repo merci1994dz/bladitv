@@ -21,6 +21,7 @@ export function SyncStatus() {
   const [availableSource, setAvailableSource] = useState<string | null>(null);
   const [cacheCleared, setCacheCleared] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [deploymentPlatform, setDeploymentPlatform] = useState<string>('vercel');
   
   // جلب آخر وقت مزامنة
   const { data: lastSync, refetch: refetchLastSync } = useQuery({
@@ -31,6 +32,22 @@ export function SyncStatus() {
 
   // استخدام طلبات المزامنة المتغيرة
   const { runSync, isSyncing, runForceSync, isForceSyncing } = useSyncMutations(refetchLastSync);
+
+  // التحقق من بيئة النشر
+  useEffect(() => {
+    // التحقق من وجود بيئة Vercel
+    if (typeof window !== 'undefined') {
+      if (window.location.hostname.includes('vercel.app')) {
+        setDeploymentPlatform('Vercel');
+      } else if (window.location.hostname.includes('netlify.app')) {
+        setDeploymentPlatform('Netlify');
+      } else if (window.location.hostname.includes('github.io')) {
+        setDeploymentPlatform('GitHub Pages');
+      } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        setDeploymentPlatform('محلي');
+      }
+    }
+  }, []);
 
   // التحقق من مصدر البيانات المتاح عند التحميل
   useEffect(() => {
@@ -45,6 +62,27 @@ export function SyncStatus() {
     
     checkAvailability();
   }, [checkSourceAvailability]);
+
+  // إضافة مؤقت للتحقق الدوري من المزامنة عند النشر على Vercel
+  useEffect(() => {
+    if (deploymentPlatform === 'Vercel') {
+      // تنفيذ مزامنة أولية بعد التحميل
+      setTimeout(() => {
+        if (!isSyncing && !isForceSyncing) {
+          runSync();
+        }
+      }, 3000);
+      
+      // إعداد مؤقت للتحقق الدوري كل 5 دقائق
+      const intervalId = setInterval(() => {
+        if (!isSyncing && !isForceSyncing && networkStatus.hasInternet) {
+          runSync();
+        }
+      }, 5 * 60 * 1000);
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [deploymentPlatform, isSyncing, isForceSyncing, networkStatus.hasInternet, runSync]);
 
   // عرض آخر وقت مزامنة بتنسيق مناسب
   const formatLastSync = () => {
@@ -165,7 +203,8 @@ export function SyncStatus() {
         <SyncIndicators 
           networkStatus={networkStatus} 
           syncError={syncError} 
-          cacheCleared={cacheCleared} 
+          cacheCleared={cacheCleared}
+          deploymentPlatform={deploymentPlatform}
         />
       </div>
       
