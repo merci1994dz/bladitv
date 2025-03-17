@@ -1,6 +1,6 @@
 import { syncAllData } from './coreSync';
 import { loadFromLocalStorage } from '../dataStore';
-import { forceBroadcastToAllBrowsers } from './publish'; // Import directly from publish
+import { forceBroadcastToAllBrowsers } from './publish'; // Import from the publish index
 
 /**
  * دالة لإجبار إعادة تحميل البيانات وإعادة مزامنتها لجميع المستخدمين
