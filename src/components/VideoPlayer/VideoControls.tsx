@@ -6,26 +6,7 @@ import SettingsControls from './controls/SettingsControls';
 import { Channel } from '@/types';
 import { Button } from '../ui/button';
 import { Calendar, ListVideo, X } from 'lucide-react';
-
-export interface VideoControlsProps {
-  show: boolean;
-  isPlaying: boolean;
-  isMuted: boolean;
-  isFullscreen: boolean;
-  currentVolume: number;
-  onPlayPause: (e: React.MouseEvent) => void;
-  onMuteToggle: (e: React.MouseEvent) => void;
-  onFullscreenToggle: (e: React.MouseEvent) => void;
-  onVolumeChange: (value: number) => void;
-  onSeek?: (seconds: number) => (e: React.MouseEvent) => void;
-  onClick?: (e: React.MouseEvent) => void;
-  onReload?: (e: React.MouseEvent) => void;
-  isTV?: boolean;
-  channel?: Channel;
-  onShowStreamSources?: () => void;
-  onShowProgramGuide?: () => void;
-  onClose?: () => void;
-}
+import { VideoControlsProps } from './VideoControlsProps';
 
 const VideoControls: React.FC<VideoControlsProps> = ({
   show,
