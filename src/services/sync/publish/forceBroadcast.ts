@@ -2,7 +2,11 @@
 import { saveChannelsToStorage } from '../../dataStore';
 import { syncAllData } from '../coreSync';
 
-// Function for direct and strong broadcasting to all browsers
+/**
+ * Forces a broadcast to all browsers with synchronized data
+ * @param skipReload - When true, prevents automatic page reload after synchronization
+ * @returns Promise resolving to boolean indicating success
+ */
 export const forceBroadcastToAllBrowsers = async (skipReload: boolean = false): Promise<boolean> => {
   console.log('بدء النشر القسري والقوي لجميع المتصفحات...');
   
@@ -79,8 +83,10 @@ export const forceBroadcastToAllBrowsers = async (skipReload: boolean = false): 
   }
 };
 
-// وظيفة جديدة لإعادة تحميل الصفحة الحالية مع منع التخزين المؤقت
-// New function to reload current page with cache prevention
+/**
+ * Forces a page refresh with cache prevention
+ * @param delay - Time in milliseconds to wait before refreshing
+ */
 export const forcePageRefresh = (delay = 1000): void => {
   console.log('جاري إعادة تحميل الصفحة مع منع التخزين المؤقت...');
   
