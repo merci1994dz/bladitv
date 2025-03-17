@@ -9,13 +9,15 @@ interface SyncButtonProps {
   isLoading: boolean;
   tooltipText: string;
   variant?: 'default' | 'ghost' | 'amber';
+  disabled?: boolean;
 }
 
 const SyncButton: React.FC<SyncButtonProps> = ({ 
   onClick, 
   isLoading, 
   tooltipText,
-  variant = 'ghost' 
+  variant = 'ghost',
+  disabled = false
 }) => {
   // Define button class based on variant
   const buttonClass = variant === 'amber' 
@@ -36,7 +38,7 @@ const SyncButton: React.FC<SyncButtonProps> = ({
             size="icon"
             className={buttonClass}
             onClick={onClick}
-            disabled={isLoading}
+            disabled={isLoading || disabled}
           >
             <RefreshCw className={iconClass} />
             <span className="sr-only">تحديث</span>

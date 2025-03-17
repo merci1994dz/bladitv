@@ -15,6 +15,10 @@ interface SyncStatusDisplayProps {
   isForceSyncing: boolean;
   availableSource: string | null;
   isAdmin: boolean;
+  networkStatus: {
+    hasInternet: boolean;
+    hasServerAccess: boolean;
+  };
 }
 
 const SyncStatusDisplay: React.FC<SyncStatusDisplayProps> = ({ 
@@ -24,7 +28,8 @@ const SyncStatusDisplay: React.FC<SyncStatusDisplayProps> = ({
   isSyncing, 
   isForceSyncing,
   availableSource,
-  isAdmin
+  isAdmin,
+  networkStatus
 }) => {
   const timeAgo = formatDistanceToNow(lastSyncDate, { 
     addSuffix: true,
@@ -37,7 +42,11 @@ const SyncStatusDisplay: React.FC<SyncStatusDisplayProps> = ({
   return (
     <TooltipProvider>
       <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-        <SyncStatusIcon isRecent={isRecent} isVeryOld={isVeryOld} />
+        <SyncStatusIcon 
+          isRecent={isRecent} 
+          isVeryOld={isVeryOld} 
+          noSync={!networkStatus.hasServerAccess}
+        />
         <span>آخر تحديث: {timeAgo}</span>
         
         {/* عرض حالة المصدر المتاح */}
@@ -48,6 +57,7 @@ const SyncStatusDisplay: React.FC<SyncStatusDisplayProps> = ({
           onClick={runSync}
           isLoading={isSyncing || isForceSyncing}
           tooltipText="تحديث الآن من Supabase"
+          disabled={!networkStatus.hasServerAccess}
         />
         
         {/* زر التحديث القسري (للمشرفين فقط) */}
@@ -57,6 +67,7 @@ const SyncStatusDisplay: React.FC<SyncStatusDisplayProps> = ({
             isLoading={isSyncing || isForceSyncing}
             tooltipText="تحديث قسري (يمسح ذاكرة التخزين المؤقت)"
             variant="amber"
+            disabled={!networkStatus.hasServerAccess}
           />
         )}
       </div>
