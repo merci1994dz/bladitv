@@ -8,15 +8,28 @@ interface VideoErrorProps {
   error: string;
   onRetry: (e: React.MouseEvent) => void;
   streamUrl?: string;
+  errorCode?: string | number;
+  isRecoverable?: boolean;
+  attempts?: number;
 }
 
-const VideoError: React.FC<VideoErrorProps> = ({ error, onRetry, streamUrl }) => {
+const VideoError: React.FC<VideoErrorProps> = ({ 
+  error, 
+  onRetry, 
+  streamUrl,
+  errorCode,
+  isRecoverable = true,
+  attempts = 0
+}) => {
   // إضافة وظائف متقدمة للتشخيص
   const handleTechnicalDetails = (e: React.MouseEvent) => {
     e.stopPropagation();
     
     const errorDetails = {
       message: error,
+      code: errorCode,
+      recoverable: isRecoverable,
+      attempts,
       url: streamUrl ? `${streamUrl.substring(0, 30)}...` : 'غير متوفر',
       browser: navigator.userAgent,
       time: new Date().toLocaleTimeString(),
@@ -46,7 +59,12 @@ const VideoError: React.FC<VideoErrorProps> = ({ error, onRetry, streamUrl }) =>
       return "جرب تغيير مصدر البث أو العودة لاحقًا";
     } else if (error.includes('مصادر البيانات') || error.includes('قاعدة البيانات')) {
       return "يوجد مشكلة في الاتصال بمصادر البيانات، يتم استخدام البيانات المحلية";
+    } else if (!isRecoverable) {
+      return "هذه المشكلة لا يمكن حلها تلقائيًا. جرب استخدام قناة أخرى.";
+    } else if (attempts > 2) {
+      return `فشلت ${attempts} محاولات لتشغيل البث. قد تكون المشكلة مؤقتة، يرجى المحاولة لاحقاً.`;
     }
+    
     return "حاول مرة أخرى أو اختر قناة مختلفة";
   };
   
@@ -64,6 +82,8 @@ const VideoError: React.FC<VideoErrorProps> = ({ error, onRetry, streamUrl }) =>
   const getBackgroundStyle = () => {
     if (error.includes('بيانات') || error.includes('مصادر')) {
       return "bg-black/80 border-amber-500/20";
+    } else if (!isRecoverable) {
+      return "bg-black/90 border-red-700/30";
     }
     return "bg-black/90 border-red-500/20";
   };
@@ -75,18 +95,27 @@ const VideoError: React.FC<VideoErrorProps> = ({ error, onRetry, streamUrl }) =>
         
         <h3 className="text-white text-lg font-bold mb-1">خطأ في التشغيل</h3>
         <p className="text-white/80 text-sm text-center mb-2">{error}</p>
+        
+        {errorCode && (
+          <div className="bg-red-900/20 px-2 py-0.5 rounded text-xs text-white/60 mb-2">
+            كود الخطأ: {errorCode}
+          </div>
+        )}
+        
         <p className="text-white/60 text-xs text-center mb-3">{getErrorHelpText()}</p>
         
         <div className="flex space-x-2 rtl:space-x-reverse">
-          <Button
-            variant="default"
-            size="sm"
-            className="bg-primary hover:bg-primary/90 text-white flex items-center gap-1.5 px-4"
-            onClick={onRetry}
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span>إعادة المحاولة</span>
-          </Button>
+          {isRecoverable && (
+            <Button
+              variant="default"
+              size="sm"
+              className="bg-primary hover:bg-primary/90 text-white flex items-center gap-1.5 px-4"
+              onClick={onRetry}
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>إعادة المحاولة</span>
+            </Button>
+          )}
           
           <Button
             variant="outline"
@@ -98,6 +127,12 @@ const VideoError: React.FC<VideoErrorProps> = ({ error, onRetry, streamUrl }) =>
             <span>تفاصيل</span>
           </Button>
         </div>
+        
+        {attempts > 0 && (
+          <div className="mt-2 text-xs text-white/40">
+            عدد المحاولات: {attempts}
+          </div>
+        )}
       </div>
     </div>
   );
