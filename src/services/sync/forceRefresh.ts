@@ -32,7 +32,11 @@ export const forceDataRefresh = async (): Promise<boolean> => {
       'channels_update_by_cms',
       'bladi_info_update',
       'bladi_update_version',
-      'channels_last_update'
+      'channels_last_update',
+      'force_app_reload', // إضافة مفتاح جديد
+      'cache_breaker', // إضافة مفتاح جديد
+      'app_update_required', // إضافة مفتاح جديد
+      'refresh_timestamp' // إضافة مفتاح جديد
     ];
     
     // تطبيق جميع العلامات
@@ -51,6 +55,8 @@ export const forceDataRefresh = async (): Promise<boolean> => {
       sessionStorage.setItem('force_reload', 'true');
       sessionStorage.setItem('force_update', 'true');
       sessionStorage.setItem('data_version', timestamp);
+      sessionStorage.setItem('app_refresh', 'true');
+      sessionStorage.setItem('cache_breaker', timestamp);
     } catch (e) {
       // تجاهل الأخطاء هنا / Ignore errors here
     }
@@ -61,6 +67,8 @@ export const forceDataRefresh = async (): Promise<boolean> => {
       document.cookie = `force_reload=true; path=/;`;
       document.cookie = `force_update=true; path=/;`;
       document.cookie = `data_version=${timestamp}; path=/;`;
+      document.cookie = `nocache_version=${timestamp}; path=/;`;
+      document.cookie = `app_refresh=true; path=/;`;
     } catch (e) {
       // تجاهل الأخطاء هنا / Ignore errors here
     }
@@ -77,16 +85,17 @@ export const forceDataRefresh = async (): Promise<boolean> => {
     // 7. Reload page after sufficient delay
     setTimeout(() => {
       try {
-        // محاولة تحديث الصفحة مع منع التخزين المؤقت
-        // Try to refresh page with cache prevention
-        window.location.href = window.location.href.split('?')[0] + '?refresh=' + Date.now();
+        // محاولة تحديث الصفحة مع منع التخزين المؤقت بشكل قوي
+        const baseUrl = window.location.href.split('?')[0];
+        const cacheBuster = `refresh=${timestamp}&nocache=${Date.now()}&t=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`;
+        window.location.href = `${baseUrl}?${cacheBuster}`;
       } catch (e) {
         // محاولة استخدام طريقة تحديث بديلة
-        // Try using alternative refresh method
         try {
-          window.location.reload();
+          window.location.reload(true); // إجبار إعادة التحميل بدون تخزين مؤقت
         } catch (e2) {
-          console.error('فشلت جميع محاولات تحديث الصفحة: / All page refresh attempts failed:', e2);
+          // طريقة أخيرة
+          window.location.reload();
         }
       }
     }, 1500);
@@ -94,6 +103,35 @@ export const forceDataRefresh = async (): Promise<boolean> => {
     return true;
   } catch (error) {
     console.error('خطأ في التحديث القسري للبيانات: / Error in forced data refresh:', error);
+    
+    // محاولة إعادة تحميل الصفحة على أي حال في حالة الفشل
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+    
     return false;
+  }
+};
+
+// دالة جديدة للتحديث الفوري للبيانات والمتصفح
+// New function for immediate data and browser refresh
+export const immediateRefresh = (): void => {
+  console.log('تنفيذ تحديث فوري وإعادة تحميل...');
+  
+  const timestamp = Date.now().toString();
+  
+  // تعيين معلمات التحديث
+  localStorage.setItem('force_browser_refresh', 'true');
+  localStorage.setItem('nocache_version', timestamp);
+  localStorage.setItem('data_version', timestamp);
+  localStorage.setItem('force_update', 'true');
+  
+  // إعادة تحميل الصفحة مباشرة
+  try {
+    const baseUrl = window.location.href.split('?')[0];
+    const cacheBuster = `refresh=${timestamp}&nocache=${Date.now()}&t=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`;
+    window.location.href = `${baseUrl}?${cacheBuster}`;
+  } catch (e) {
+    window.location.reload(true);
   }
 };

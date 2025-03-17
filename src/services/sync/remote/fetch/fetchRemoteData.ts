@@ -22,11 +22,31 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
     return fetchLocalFile(remoteUrl);
   }
   
-  // إضافة معلمات لتجنب التخزين المؤقت
-  const cacheParam = `nocache=${Date.now()}&_=${Math.random().toString(36).substring(2, 15)}`;
-  const urlWithCache = remoteUrl.includes('?') 
-    ? `${remoteUrl}&${cacheParam}` 
-    : `${remoteUrl}?${cacheParam}`;
+  // إضافة معلمات قوية لتجنب التخزين المؤقت
+  // Add aggressive cache busting parameters
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 15);
+  const cacheParam = `nocache=${timestamp}&_=${random}&ts=${timestamp}&r=${random}`;
+  
+  // حذف أي معلمات سابقة لمنع التخزين المؤقت وإضافة معلمات جديدة
+  let baseUrl = remoteUrl;
+  if (baseUrl.includes('?')) {
+    // إزالة فقط معلمات التخزين المؤقت السابقة إذا وجدت
+    const urlParts = baseUrl.split('?');
+    const path = urlParts[0];
+    const queryParams = urlParts[1].split('&').filter(param => 
+      !param.startsWith('nocache=') && 
+      !param.startsWith('_=') && 
+      !param.startsWith('ts=') && 
+      !param.startsWith('r=')
+    ).join('&');
+    
+    baseUrl = queryParams.length > 0 ? `${path}?${queryParams}` : path;
+  }
+  
+  const urlWithCache = baseUrl.includes('?') 
+    ? `${baseUrl}&${cacheParam}` 
+    : `${baseUrl}?${cacheParam}`;
   
   // إضافة حماية التزامن Vercel Skew Protection
   let headers: Record<string, string> = {
@@ -35,15 +55,17 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
     'Pragma': 'no-cache',
     'Expires': '0',
     'X-Requested-With': 'XMLHttpRequest',
-    'Origin': window.location.origin
+    'Origin': window.location.origin,
+    'X-Timestamp': timestamp.toString(),
+    'X-Random': random
   };
   
   // إضافة رأس معرف النشر إذا كانت حماية التزامن مُفعلة
   headers = addSkewProtectionHeaders(headers);
   
-  // زيادة وقت المهلة الزمنية إلى 45 ثانية
+  // زيادة وقت المهلة الزمنية إلى 60 ثانية
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 45000);
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
   
   try {
     console.log(`جاري تحميل البيانات من: ${urlWithCache}`);
@@ -54,6 +76,19 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
     
     while (retries > 0) {
       try {
+        // تحديث معلمات منع التخزين المؤقت في كل محاولة
+        const newTimestamp = Date.now();
+        const newRandom = Math.random().toString(36).substring(2, 15);
+        const newCacheParam = `nocache=${newTimestamp}&_=${newRandom}&ts=${newTimestamp}&r=${newRandom}`;
+        
+        const currentUrlWithCache = baseUrl.includes('?') 
+          ? `${baseUrl}&${newCacheParam}` 
+          : `${baseUrl}?${newCacheParam}`;
+        
+        // تعديل الرؤوس لكل محاولة
+        headers['X-Timestamp'] = newTimestamp.toString();
+        headers['X-Random'] = newRandom;
+        
         // تعديل خيارات الطلب بناءً على المتصفح والمحاولة الحالية
         let fetchOptions: RequestInit = {
           method: 'GET',
@@ -73,8 +108,8 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
         if (retries <= 5) {
           // في المحاولات الأخيرة، استخدم JSONP للتغلب على قيود CORS
           try {
-            console.log(`محاولة استخدام JSONP للرابط: ${urlWithCache}`);
-            const jsonpData = await loadWithJsonp(urlWithCache);
+            console.log(`محاولة استخدام JSONP للرابط: ${currentUrlWithCache}`);
+            const jsonpData = await loadWithJsonp(currentUrlWithCache);
             clearTimeout(timeoutId);
             return jsonpData;
           } catch (jsonpError) {
@@ -85,10 +120,10 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
         // محاولة فتح proxy إذا فشلت المحاولات المباشرة
         if (retries <= 3) {
           const proxyUrls = [
-            `https://corsproxy.io/?${encodeURIComponent(urlWithCache)}`,
-            `https://cors-anywhere.herokuapp.com/${urlWithCache}`,
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(urlWithCache)}`,
-            `https://proxy.cors.sh/${urlWithCache}`
+            `https://corsproxy.io/?${encodeURIComponent(currentUrlWithCache)}`,
+            `https://cors-anywhere.herokuapp.com/${currentUrlWithCache}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(currentUrlWithCache)}`,
+            `https://proxy.cors.sh/${currentUrlWithCache}`
           ];
           
           const proxyUrl = proxyUrls[8 - retries % proxyUrls.length];
@@ -100,7 +135,10 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
               signal: controller.signal,
               headers: {
                 'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
+                'X-Requested-With': 'XMLHttpRequest',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
               }
             });
             
@@ -120,8 +158,8 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
         }
         
         // محاولة الطلب المباشر
-        console.log(`محاولة الطلب المباشر للرابط: ${urlWithCache}`);
-        const response = await fetch(urlWithCache, fetchOptions);
+        console.log(`محاولة الطلب المباشر للرابط: ${currentUrlWithCache}`);
+        const response = await fetch(currentUrlWithCache, fetchOptions);
         
         if (!response.ok) {
           const errorMessage = await processResponseError(response);
@@ -144,9 +182,19 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
         }
         
         clearTimeout(timeoutId);
+        
+        // إضافة علامة لتأكيد تحديث البيانات وكسر التخزين المؤقت للمتصفح
+        try {
+          localStorage.setItem('force_browser_refresh', 'true');
+          localStorage.setItem('nocache_version', Date.now().toString());
+          localStorage.setItem('data_version', Date.now().toString());
+        } catch (e) {
+          // تجاهل أخطاء التخزين المحلي
+        }
+        
         return data;
       } catch (error) {
-        console.warn(`فشلت المحاولة ${9 - retries}/8 للاتصال بـ ${remoteUrl}:`, error);
+        console.warn(`فشلت المحاولة ${9 - retries}/8 للاتصال بـ ${baseUrl}:`, error);
         lastError = error;
         retries--;
         

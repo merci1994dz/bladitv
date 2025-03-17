@@ -26,12 +26,20 @@ export async function executeSync(
   skewParam: string | null
 ): Promise<boolean> {
   try {
+    // إضافة علامة تأكيد للتحديث
+    forceRefresh = true; // دائمًا استخدم forceRefresh=true
+    
     // محاولة المزامنة مع المصدر المتاح مباشرة إذا وجد
     // Try to sync with available source directly if found
     if (availableSource) {
       try {
         console.log(`محاولة المزامنة مع المصدر المتاح: / Attempting to sync with available source: ${availableSource}`);
-        const directResult = await syncWithRemoteSource(availableSource, forceRefresh);
+        // إضافة معامل منع التخزين المؤقت للرابط
+        const urlWithCacheBuster = availableSource.includes('?') 
+          ? `${availableSource}&_=${Date.now()}&nocache=${Math.random().toString(36).substring(2, 15)}` 
+          : `${availableSource}${fullCacheBuster}`;
+          
+        const directResult = await syncWithRemoteSource(urlWithCacheBuster, forceRefresh);
         if (directResult) {
           console.log(`تمت المزامنة بنجاح مع المصدر المتاح: / Successfully synced with available source: ${availableSource}`);
           return true;
@@ -83,7 +91,7 @@ export async function executeSync(
     // Try to use local data in case of failure
     try {
       console.log('محاولة استخدام البيانات المحلية بعد فشل المزامنة الخارجية / Attempting to use local data after external sync failure');
-      return await syncWithLocalData(false);
+      return await syncWithLocalData(forceRefresh);
     } catch (localError) {
       console.error('فشل في استخدام البيانات المحلية: / Failed to use local data:', localError);
       return false;

@@ -14,35 +14,62 @@
   <FilesMatch "\.(html|htm|js|json|css)$">
     Header unset ETag
     FileETag None
-    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
-    Header set Pragma "no-cache"
-    Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
-    Header set X-Content-Type-Options "nosniff"
+    <IfModule mod_headers.c>
+      Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+      Header set Pragma "no-cache"
+      Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
+      Header set X-Content-Type-Options "nosniff"
+      # إضافة طوابع زمنية عشوائية للتغلب على التخزين المؤقت
+      Header set X-App-Version "%{TIME}e"
+      Header set X-Current-Time "%{TIME}e"
+      Header set X-Random-Value "%{UNIQUE_ID}e"
+    </IfModule>
   </FilesMatch>
   
-  # منع التخزين المؤقت لبيانات API - تحسين
+  # منع التخزين المؤقت لبيانات API - تحسين كبير
   <FilesMatch "(data\.json|channels\.json|countries\.json|categories\.json)$">
     Header unset ETag
     FileETag None
-    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
-    Header set Pragma "no-cache"
-    Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
-    Header set Access-Control-Allow-Origin "*"
-    Header set X-Cache-Disabled "true"
-    Header set X-Timestamp "%{TIME}e"
+    <IfModule mod_headers.c>
+      Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+      Header set Pragma "no-cache"
+      Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
+      Header set Access-Control-Allow-Origin "*"
+      Header set X-Cache-Disabled "true"
+      Header set X-Timestamp "%{TIME}e"
+      # إضافة رؤوس جديدة للتغلب على التخزين المؤقت
+      Header set X-Last-Modified "%{TIME}e"
+      Header set X-Cache-Status "BYPASS"
+      Header set X-App-Time "%{msec}e"
+      # إضافة رؤوس متغيرة
+      Header set Vary "*"
+      # إضافة طابع زمني للمستعرض
+      Header set X-Date "%{TIME}e" 
+      # إجبار المتصفح على تحديث الطلب
+      Header set Cache-Control "max-age=0, no-cache, no-store, must-revalidate, private"
+      # إلغاء أي تخزين مؤقت من قبل CDN
+      Header set CDN-Cache-Control "no-cache, no-store"
+      Header set Surrogate-Control "no-store"
+    </IfModule>
   </FilesMatch>
   
   # السماح بالوصول عبر CORS (مهم لملفات API)
   <IfModule mod_headers.c>
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
-    Header set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept"
+    Header set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Cache-Control, Pragma, X-Timestamp, X-Visitor-ID, X-Requested-At"
     
     # إضافة رؤوس خاصة لتجنب التخزين المؤقت
     Header set X-App-Version "%{TIME}e"
     Header set X-Last-Modified "%{TIME}e"
     Header set X-Content-Update-Time "%{TIME}e"
     Header set X-Cache-Control "no-cache"
+    Header set X-Cache-Status "BYPASS"
+    
+    # معالجة طلبات OPTIONS للدعم الكامل لـ CORS
+    RewriteEngine On
+    RewriteCond %{REQUEST_METHOD} OPTIONS
+    RewriteRule ^(.*)$ $1 [R=200,L]
   </IfModule>
   
   # إضافة رؤوس أمان إضافية - تحسين
@@ -54,6 +81,24 @@
     Header set Permissions-Policy "microphone=(), camera=()"
     Header set Content-Security-Policy "default-src 'self'; connect-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' data: https:; object-src 'none';"
   </IfModule>
+  
+  # تعديل معالجة طلبات API لضمان عدم التخزين المؤقت
+  <FilesMatch "\.json$">
+    # إلغاء أي تاريخ تعديل أخير
+    Header unset Last-Modified
+    Header unset If-Modified-Since
+    # إلغاء ETag وأي معلومات عن المحتوى
+    Header unset ETag
+    FileETag None
+    # ضبط تاريخ انتهاء الصلاحية في الماضي
+    Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
+    # إضافة معلومات عشوائية للرؤوس
+    Header set X-Random "%{UNIQUE_ID}e"
+    Header set X-Time "%{TIME}e"
+  </FilesMatch>
+  
+  # إضافة إعادة توجيه للملفات JSON للتغلب على التخزين المؤقت
+  RewriteRule ^(.*)\.json$ $1.json?v=%{TIME}e&r=%{UNIQUE_ID}e [B,L,QSA]
   
   # توجيه جميع الطلبات إلى index.html (ضروري لـ React Router)
   RewriteRule ^index\.html$ - [L]
@@ -69,7 +114,7 @@
 
 # تفعيل Brotli إذا كان متاحًا (أكثر كفاءة من Gzip)
 <IfModule mod_brotli.c>
-  AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/xml text/css text/javascript application/javascript application/json
+  AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/xml text/css text/javascript application/json
 </IfModule>
 
 # تعيين منطقة زمنية افتراضية
@@ -97,5 +142,9 @@ DirectoryIndex index.html
     Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
     Header set Pragma "no-cache"
     Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
+    # إضافة قيم متغيرة لضمان عدم التخزين المؤقت
+    Header set X-Random-Value "%{UNIQUE_ID}e"
+    Header set X-Current-Time "%{TIME}e"
+    Header set X-Request-Time "%{msec}e"
   </FilesMatch>
 </IfModule>

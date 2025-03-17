@@ -15,6 +15,16 @@ export function createTimeoutPromise(timeout: number): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     setTimeout(() => {
       console.warn('تم تجاوز الوقت المخصص للمزامنة / Sync timeout exceeded');
+      
+      // محاولة تحديث ذاكرة التخزين المؤقت للمتصفح عند انتهاء المهلة
+      try {
+        localStorage.setItem('force_browser_refresh', 'true');
+        localStorage.setItem('nocache_version', Date.now().toString());
+        localStorage.setItem('data_version', Date.now().toString());
+      } catch (e) {
+        console.error('فشل في تعيين علامات التحديث عند انتهاء المهلة', e);
+      }
+      
       resolve(false);
     }, timeout);
   });

@@ -39,7 +39,7 @@ export const performInitialSync = async (): Promise<boolean> => {
       if (availableSource) {
         try {
           console.log(`محاولة المزامنة مع المصدر المتاح: / Attempting to sync with available source: ${availableSource}`);
-          const directResult = await syncWithRemoteSource(availableSource, false);
+          const directResult = await syncWithRemoteSource(availableSource, true); // تغيير إلى true للمزامنة القسرية
           if (directResult) {
             console.log(`تمت المزامنة بنجاح مع المصدر المتاح: / Successfully synced with available source: ${availableSource}`);
             return true;
@@ -53,7 +53,7 @@ export const performInitialSync = async (): Promise<boolean> => {
       // Try to sync with Bladi Info sites first
       try {
         console.log('محاولة المزامنة مع مواقع Bladi Info... / Attempting to sync with Bladi Info sites...');
-        const bladiResult = await syncWithBladiInfo(false);
+        const bladiResult = await syncWithBladiInfo(true); // تغيير إلى true للمزامنة القسرية
         if (bladiResult) {
           console.log('تمت المزامنة بنجاح مع مواقع Bladi Info / Successfully synced with Bladi Info sites');
           return true;
@@ -65,7 +65,7 @@ export const performInitialSync = async (): Promise<boolean> => {
     
     // إذا لم تكن هناك حاجة للمزامنة أو فشلت المزامنة مع المواقع، استخدم المزامنة العادية
     // If no sync needed or failed to sync with sites, use regular sync
-    return await syncAllData();
+    return await syncAllData(true); // تغيير إلى true للمزامنة القسرية
   } catch (error) {
     console.error('فشلت المزامنة الأولية: / Initial sync failed:', error);
     

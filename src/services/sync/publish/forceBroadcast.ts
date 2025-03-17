@@ -22,12 +22,14 @@ export const forceBroadcastToAllBrowsers = async (): Promise<boolean> => {
       { key: 'channels_last_update', value: updateId },
       { key: 'update_broadcast_id', value: updateId },
       { key: 'force_update', value: 'true' },
-      { key: 'refresh_timestamp', value: updateId }
+      { key: 'refresh_timestamp', value: updateId },
+      { key: 'cache_breaker', value: updateId },
+      { key: 'nocache_version', value: updateId }
     ];
     
     // Apply signals sequentially with short time intervals
     let delay = 0;
-    const step = 100; // 100 milliseconds between each signal
+    const step = 50; // 50 milliseconds between each signal (decreased for faster response)
     
     for (const signal of signals) {
       setTimeout(() => {
@@ -45,15 +47,58 @@ export const forceBroadcastToAllBrowsers = async (): Promise<boolean> => {
       localStorage.setItem('sync_complete', updateId);
       localStorage.setItem('force_browser_refresh', 'true');
       
-      // 6. Force reload of current page
+      // 6. Force reload of current page with cache busting parameters
       setTimeout(() => {
-        window.location.href = window.location.href.split('?')[0] + '?refresh=' + updateId;
-      }, 1500);
-    }, delay + 200);
+        try {
+          const baseUrl = window.location.href.split('?')[0];
+          const cacheBuster = `refresh=${updateId}&nocache=${Date.now()}&t=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`;
+          window.location.href = `${baseUrl}?${cacheBuster}`;
+        } catch (e) {
+          // Fallback to simple reload
+          window.location.reload();
+        }
+      }, 1000);
+    }, delay + 100);
     
     return true;
   } catch (error) {
     console.error('فشل في النشر القسري:', error);
+    
+    // محاولة إجبار إعادة التحميل على أي حال في حالة الفشل
+    try {
+      window.location.reload();
+    } catch (e) {
+      console.error('فشل في إعادة تحميل الصفحة:', e);
+    }
+    
     return false;
   }
+};
+
+// وظيفة جديدة لإعادة تحميل الصفحة الحالية مع منع التخزين المؤقت
+// New function to reload current page with cache prevention
+export const forcePageRefresh = (delay = 1000): void => {
+  console.log('جاري إعادة تحميل الصفحة مع منع التخزين المؤقت...');
+  
+  // إنشاء معرف فريد للتحديث
+  const updateId = Date.now().toString() + '_' + Math.random().toString(36).substring(2, 9);
+  
+  // إضافة علامات متعددة لمنع التخزين المؤقت
+  localStorage.setItem('force_browser_refresh', 'true');
+  localStorage.setItem('bladi_force_refresh', 'true');
+  localStorage.setItem('data_version', updateId);
+  localStorage.setItem('nocache_version', updateId);
+  localStorage.setItem('refresh_timestamp', updateId);
+  
+  // إعادة تحميل الصفحة بعد التأخير المحدد
+  setTimeout(() => {
+    try {
+      const baseUrl = window.location.href.split('?')[0];
+      const cacheBuster = `refresh=${updateId}&nocache=${Date.now()}&t=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`;
+      window.location.href = `${baseUrl}?${cacheBuster}`;
+    } catch (e) {
+      // Fallback to simple reload
+      window.location.reload();
+    }
+  }, delay);
 };

@@ -28,7 +28,7 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     
     // إضافة الوظيفة إلى الطابور (إعادة استدعاء النفس)
     // Add function to queue (calling itself)
-    return addToSyncQueue(() => syncAllData(forceRefresh));
+    return addToSyncQueue(() => syncAllData(forceRefresh || true)); // دائمًا استخدم forceRefresh=true في الطابور
   }
   
   // وضع قفل المزامنة
@@ -46,9 +46,9 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     const cacheBuster = `?_=${Date.now()}&nocache=${Math.random().toString(36).substring(2, 15)}`;
     const fullCacheBuster = skewParam ? `${cacheBuster}&${skewParam}` : cacheBuster;
     
-    // تحديد مهلة زمنية للمزامنة لمنع التعليق إلى ما لا نهاية - زيادة إلى 60 ثانية
-    // Set timeout for sync to prevent hanging indefinitely - increased to 60 seconds
-    const timeoutPromise = createTimeoutPromise(60000);
+    // تحديد مهلة زمنية للمزامنة لمنع التعليق إلى ما لا نهاية - زيادة إلى 120 ثانية
+    // Set timeout for sync to prevent hanging indefinitely - increased to 120 seconds
+    const timeoutPromise = createTimeoutPromise(120000);
     
     // التحقق من وجود مصدر متاح
     // Check for available source
@@ -62,11 +62,24 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     
     // محاولة المزامنة مع مواقع Bladi Info أولاً
     // Try to sync with Bladi Info sites first
-    const syncPromise = executeSync(availableSource, forceRefresh, fullCacheBuster, skewParam);
+    const syncPromise = executeSync(availableSource, forceRefresh || true, fullCacheBuster, skewParam); // دائمًا استخدم forceRefresh=true
     
     // تنفيذ المزامنة مع مهلة زمنية
     // Execute sync with timeout
     const result = await Promise.race([syncPromise, timeoutPromise]);
+    
+    // إضافة علامة للتحديث الإجباري في التخزين المحلي
+    // Add a forced refresh flag in local storage
+    if (result) {
+      try {
+        localStorage.setItem('force_browser_refresh', 'true');
+        localStorage.setItem('nocache_version', Date.now().toString());
+        localStorage.setItem('data_version', Date.now().toString());
+      } catch (e) {
+        console.error('فشل في تعيين علامات التحديث', e);
+      }
+    }
+    
     return result;
     
   } catch (error) {
@@ -75,7 +88,7 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     // محاولة استخدام البيانات المحلية في حالة الخطأ
     // Try to use local data in case of error
     try {
-      return await syncWithLocalData(false);
+      return await syncWithLocalData(forceRefresh || true); // دائمًا استخدم forceRefresh=true
     } catch (e) {
       console.error('فشل الرجوع للبيانات المحلية: / Failed to fallback to local data:', e);
       return false;

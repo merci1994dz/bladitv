@@ -17,6 +17,9 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
   try {
     console.log(`مزامنة مع المصدر الخارجي: / Syncing with remote source: ${remoteUrl}`);
     
+    // إجبار التحديث دائمًا
+    forceRefresh = true;
+    
     // تعيين حالة المزامنة كنشطة
     // Set sync state as active
     setSyncActive(true);
@@ -44,33 +47,59 @@ export const syncWithRemoteSource = async (remoteUrl: string, forceRefresh = fal
     
     setIsSyncing(true);
     
-    // إضافة محاولات متعددة لتحميل البيانات (حتى 3 محاولات)
-    // Add multiple attempts to load data (up to 3 attempts)
+    // تعديل الرابط لمنع التخزين المؤقت بشكل مكثف
+    // Modify the URL to aggressively prevent caching
+    let urlWithCacheBuster = remoteUrl;
+    if (!remoteUrl.includes('nocache=') || !remoteUrl.includes('_=')) {
+      const cacheBuster = `nocache=${Date.now()}&_=${Math.random().toString(36).substring(2, 15)}`;
+      urlWithCacheBuster = remoteUrl.includes('?') 
+        ? `${remoteUrl}&${cacheBuster}` 
+        : `${remoteUrl}?${cacheBuster}`;
+    }
+    
+    // إضافة محاولات متعددة لتحميل البيانات (حتى 5 محاولات)
+    // Add multiple attempts to load data (up to 5 attempts)
     let attempts = 0;
-    const maxAttempts = 3;
+    const maxAttempts = 5;
     let success = false;
     
     while (attempts < maxAttempts && !success) {
       try {
         attempts++;
-        console.log(`محاولة تحميل البيانات / Attempting to load data ${attempts}/${maxAttempts} from ${remoteUrl}`);
+        console.log(`محاولة تحميل البيانات / Attempting to load data ${attempts}/${maxAttempts} from ${urlWithCacheBuster}`);
         
-        const data = await fetchRemoteData(remoteUrl);
+        const data = await fetchRemoteData(urlWithCacheBuster);
         success = await storeRemoteData(data, remoteUrl);
         
         if (success) {
           console.log(`تمت المزامنة بنجاح مع / Successfully synced with ${remoteUrl} after ${attempts} attempt(s)`);
+          
+          // إضافة علامات تحديث إجباري
+          try {
+            localStorage.setItem('force_browser_refresh', 'true');
+            localStorage.setItem('nocache_version', Date.now().toString());
+            localStorage.setItem('data_version', Date.now().toString());
+          } catch (e) {
+            console.error('فشل في تعيين علامات التحديث', e);
+          }
+          
           return true;
         }
       } catch (attemptError) {
-        console.error(`فشلت المحاولة / Failed attempt ${attempts}/${maxAttempts} to sync data from ${remoteUrl}:`, attemptError);
+        console.error(`فشلت المحاولة / Failed attempt ${attempts}/${maxAttempts} to sync data from ${urlWithCacheBuster}:`, attemptError);
         
         if (attempts < maxAttempts) {
           // الانتظار قبل المحاولة التالية مع زيادة الوقت في كل مرة
           // Wait before next attempt with increased time each time
-          const waitTime = 1000 * attempts;
+          const waitTime = 2000 * attempts;
           console.log(`الانتظار / Waiting ${waitTime}ms before next attempt...`);
           await new Promise(resolve => setTimeout(resolve, waitTime));
+          
+          // تحديث معلمات منع التخزين المؤقت لكل محاولة
+          const newCacheBuster = `nocache=${Date.now()}&_=${Math.random().toString(36).substring(2, 15)}`;
+          urlWithCacheBuster = remoteUrl.includes('?') 
+            ? `${remoteUrl.split('?')[0]}?${newCacheBuster}` 
+            : `${remoteUrl}?${newCacheBuster}`;
         }
       }
     }
