@@ -1,6 +1,6 @@
 
 import { useToast } from '@/hooks/use-toast';
-import { publishChannelsToAllUsers } from '@/services/sync';
+import { publishChannelsToAllUsers, forceBroadcastToAllBrowsers } from '@/services/sync';
 
 /**
  * Hook for handling channel synchronization
@@ -16,8 +16,13 @@ export const useChannelsSync = (refetchChannels: () => Promise<any>) => {
     });
     
     try {
-      // نشر التغييرات مع إجبار إعادة تحميل الصفحة
-      await publishChannelsToAllUsers();
+      // استخدام البث القوي لضمان وصول التحديث لجميع المتصفحات
+      const broadcastResult = await forceBroadcastToAllBrowsers();
+      
+      if (!broadcastResult) {
+        // محاولة استخدام الطريقة العادية إذا فشل البث القوي
+        await publishChannelsToAllUsers();
+      }
       
       // تحديث البيانات في واجهة المستخدم
       await refetchChannels();
@@ -28,6 +33,15 @@ export const useChannelsSync = (refetchChannels: () => Promise<any>) => {
         title: "تم النشر",
         description: "تم نشر القنوات بنجاح للمستخدمين",
       });
+      
+      // محاولة إعادة تحميل الصفحة بعد فترة قصيرة
+      setTimeout(() => {
+        try {
+          window.location.reload();
+        } catch (e) {
+          console.error('فشل في إعادة تحميل الصفحة:', e);
+        }
+      }, 2000);
     } catch (error) {
       console.error('خطأ في نشر القنوات:', error);
       

@@ -1,4 +1,3 @@
-
 import { saveChannelsToStorage } from '../dataStore';
 import { syncAllData } from './coreSync';
 
@@ -25,12 +24,15 @@ export const publishChannelsToAllUsers = async (): Promise<boolean> => {
       'bladi_update_version',
       'bladi_update_channels',
       'bladi_force_refresh',
-      'force_browser_refresh'
+      'force_browser_refresh',
+      'channels_updated_at',
+      'channels_version',
+      'force_reload_all'
     ];
     
     // تطبيق جميع العلامات
     updateKeys.forEach(key => {
-      if (key.includes('force') || key.includes('refresh')) {
+      if (key.includes('force') || key.includes('refresh') || key.includes('reload')) {
         localStorage.setItem(key, 'true');
       } else {
         localStorage.setItem(key, timestamp);
@@ -41,6 +43,8 @@ export const publishChannelsToAllUsers = async (): Promise<boolean> => {
     try {
       sessionStorage.setItem('force_reload', 'true');
       sessionStorage.setItem('reload_time', timestamp);
+      sessionStorage.setItem('channels_update', timestamp);
+      sessionStorage.setItem('require_refresh', 'true');
     } catch (e) {
       // تجاهل الأخطاء هنا
     }
@@ -49,19 +53,40 @@ export const publishChannelsToAllUsers = async (): Promise<boolean> => {
     try {
       document.cookie = `force_reload=true; path=/;`;
       document.cookie = `reload_time=${timestamp}; path=/;`;
+      document.cookie = `channels_update=${timestamp}; path=/;`;
     } catch (e) {
       // تجاهل الأخطاء هنا
     }
     
-    // 5. تطبيق المزامنة القسرية
+    // 5. إطلاق حدث مخصص لإعلام جميع مكونات التطبيق
+    try {
+      const event = new CustomEvent('channels_updated', { 
+        detail: { timestamp, source: 'cms' } 
+      });
+      window.dispatchEvent(event);
+    } catch (e) {
+      console.error('فشل في إطلاق حدث تحديث القنوات:', e);
+    }
+    
+    // 6. تطبيق المزامنة القسرية
     const syncResult = await syncAllData(true);
     
-    // 6. إضافة التأخير قبل إعادة التحميل لإعطاء وقت للتغييرات لتأخذ مفعولها
+    // 7. إضافة التأخير قبل إعادة التحميل لإعطاء وقت للتغييرات لتأخذ مفعولها
     if (syncResult) {
       setTimeout(() => {
         localStorage.setItem('refresh_complete', timestamp);
         
-        // 7. تحديث صفحة المستخدم لضمان ظهور التغييرات
+        // 8. إعلان عن اكتمال التحديث
+        try {
+          const completionEvent = new CustomEvent('update_complete', { 
+            detail: { timestamp, success: true } 
+          });
+          window.dispatchEvent(completionEvent);
+        } catch (e) {
+          // تجاهل الأخطاء هنا
+        }
+        
+        // 9. تحديث صفحة المستخدم لضمان ظهور التغييرات
         // نقوم بإضافة معلمة لتجنب التخزين المؤقت
         try {
           window.location.href = window.location.href.split('?')[0] + '?refresh=' + Date.now();

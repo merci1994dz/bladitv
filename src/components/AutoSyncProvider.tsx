@@ -15,6 +15,65 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
   const { syncError, availableSource, networkStatus, resetSyncError } = useAutoSync();
   const { toast } = useToast();
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [lastUpdateTime, setLastUpdateTime] = useState<string | null>(null);
+  
+  // معالجة أحداث تحديث القنوات
+  useEffect(() => {
+    const handleChannelsUpdate = (e: CustomEvent) => {
+      const { timestamp, source } = e.detail || {};
+      console.log('تم استلام إشعار بتحديث القنوات:', { timestamp, source });
+      
+      setLastUpdateTime(new Date().toLocaleString());
+      
+      // إظهار إشعار للمستخدم
+      toast({
+        title: "تم تحديث القنوات",
+        description: "تم تحديث قائمة القنوات المتاحة. سيتم تحديث الصفحة تلقائيًا.",
+        duration: 4000,
+      });
+      
+      // تأخير التحديث لإتاحة الوقت للمستخدم لقراءة الإشعار
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    };
+    
+    // إضافة مستمع لأحداث تحديث القنوات
+    window.addEventListener('channels_updated', handleChannelsUpdate as EventListener);
+    
+    // إضافة مستمع للتغييرات في مخزن البيانات المحلي
+    const handleStorageChange = (e: StorageEvent) => {
+      const forceRefreshKeys = [
+        'force_browser_refresh',
+        'bladi_force_refresh',
+        'force_update',
+        'force_reload_all'
+      ];
+      
+      if (e.key && forceRefreshKeys.includes(e.key) && e.newValue === 'true') {
+        console.log('تم اكتشاف طلب تحديث من مصدر خارجي:', e.key);
+        
+        // إظهار إشعار للمستخدم
+        toast({
+          title: "طلب تحديث",
+          description: "تم استلام طلب لتحديث صفحة القنوات. سيتم التحديث تلقائيًا.",
+        });
+        
+        // تأخير التحديث لإتاحة الوقت للمستخدم لقراءة الإشعار
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      }
+    };
+    
+    // إضافة مستمع للتغييرات في التخزين المحلي
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('channels_updated', handleChannelsUpdate as EventListener);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [toast]);
   
   // التعامل مع تغييرات حالة الشبكة
   const handleNetworkChange = useCallback(async () => {
@@ -69,6 +128,13 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
       {isOffline && (
         <div className="bg-amber-500 text-white text-center py-1 px-2 text-sm sticky top-0 z-50">
           أنت الآن في وضع عدم الاتصال. سيتم استخدام البيانات المخزنة محليًا.
+        </div>
+      )}
+      
+      {/* إظهار شريط إشعار عند تحديث القنوات مؤخرًا */}
+      {lastUpdateTime && (
+        <div className="bg-green-500 text-white text-center py-1 px-2 text-sm sticky top-0 z-50">
+          تم تحديث القنوات في {lastUpdateTime}
         </div>
       )}
       
