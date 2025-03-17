@@ -74,18 +74,18 @@ const UserForm: React.FC<UserFormProps> = ({
         <div className="space-y-2">
           <Label>الصلاحيات</Label>
           <div className="grid grid-cols-2 gap-2">
-            {Object.values(CMS_CONFIG.PERMISSIONS).map((permission) => (
-              <div key={permission} className="flex items-center space-x-2 space-x-reverse">
+            {Object.entries(CMS_CONFIG.PERMISSIONS).map(([key, value]) => (
+              <div key={key} className="flex items-center space-x-2 space-x-reverse">
                 <Switch
-                  id={`permission-${permission}`}
-                  checked={user.permissions?.includes(permission) || false}
-                  onCheckedChange={() => togglePermission(permission)}
+                  id={`permission-${key}`}
+                  checked={user.permissions?.includes(value) || false}
+                  onCheckedChange={() => togglePermission(value)}
                 />
-                <Label htmlFor={`permission-${permission}`}>
-                  {permission === 'create' ? 'إنشاء' : 
-                  permission === 'read' ? 'قراءة' : 
-                  permission === 'update' ? 'تحديث' : 
-                  permission === 'delete' ? 'حذف' : 'نشر'}
+                <Label htmlFor={`permission-${key}`}>
+                  {value === 'create' ? 'إنشاء' : 
+                  value === 'read' ? 'قراءة' : 
+                  value === 'update' ? 'تحديث' : 
+                  value === 'delete' ? 'حذف' : 'نشر'}
                 </Label>
               </div>
             ))}

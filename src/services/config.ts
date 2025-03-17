@@ -56,12 +56,26 @@ export const APP_VERSION = '1.0.0';
 export const SECURITY_CONFIG = {
   DISABLE_RIGHT_CLICK: true,
   DISABLE_DEVELOPER_TOOLS: false,
+  DISABLE_INSPECT: true,
+  DISABLE_VIDEO_DOWNLOAD: true,
   MAX_LOGIN_ATTEMPTS: 5,
-  LOCK_DURATION: 30 * 60 * 1000  // 30 minutes
+  LOCK_DURATION: 30 * 60 * 1000,  // 30 minutes
+  ADMIN_PROTECTION: {
+    MAX_LOGIN_ATTEMPTS: 5,
+    LOCK_TIME: 30 * 60 * 1000, // 30 minutes
+    SESSION_TIMEOUT: 24 * 60 * 60 * 1000 // 24 hours
+  }
 };
 
 // CMS configuration
 export const CMS_CONFIG = {
   MAX_USERS: 10,
-  DEFAULT_ROLE: 'editor'
+  DEFAULT_ROLE: 'editor',
+  PERMISSIONS: {
+    create: 'create',
+    read: 'read',
+    update: 'update',
+    delete: 'delete',
+    publish: 'publish'
+  }
 };

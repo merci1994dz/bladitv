@@ -5,6 +5,28 @@
 
 import { validateRemoteData } from '../remoteValidation';
 
+// Type declaration for global ENV
+declare global {
+  interface Window {
+    ENV?: {
+      VERCEL_SKEW_PROTECTION_ENABLED?: string;
+      VERCEL_DEPLOYMENT_ID?: string;
+    };
+  }
+}
+
+/**
+ * Helper function to get skew protection parameters
+ */
+export const getSkewProtectionParams = (): string => {
+  if (typeof window !== 'undefined' && window.ENV && 
+      window.ENV.VERCEL_SKEW_PROTECTION_ENABLED === '1' && 
+      window.ENV.VERCEL_DEPLOYMENT_ID) {
+    return `dpl=${window.ENV.VERCEL_DEPLOYMENT_ID}`;
+  }
+  return '';
+};
+
 /**
  * Fetches data from a remote URL with cache-busting parameters and timeout protection
  */

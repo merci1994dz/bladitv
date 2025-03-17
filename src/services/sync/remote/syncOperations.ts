@@ -9,6 +9,16 @@ import { storeRemoteData } from './storeData';
 import { STORAGE_KEYS } from '../../config';
 import { setSyncActive } from '../status';
 
+// Type declaration for global ENV
+declare global {
+  interface Window {
+    ENV?: {
+      VERCEL_SKEW_PROTECTION_ENABLED?: string;
+      VERCEL_DEPLOYMENT_ID?: string;
+    };
+  }
+}
+
 // تحسين قائمة المصادر مع خادم احتياطي ودعم CORS
 const BLADI_INFO_SOURCES = [
   // المصادر الرئيسية
@@ -206,4 +216,3 @@ export const getSkewProtectionParams = (): string => {
   }
   return '';
 };
-

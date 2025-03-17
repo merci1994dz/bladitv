@@ -7,12 +7,12 @@
 export { 
   syncWithRemoteSource, 
   syncWithBladiInfo, 
-  checkBladiInfoAvailability 
+  checkBladiInfoAvailability,
+  getSkewProtectionParams
 } from './remote/syncOperations';
 
 export { 
   fetchRemoteData, 
-  getSkewProtectionParams, 
   isRemoteUrlAccessible 
 } from './remote/fetchData';
 
