@@ -5,7 +5,7 @@
  */
 
 import { setIsSyncing } from '../../dataStore';
-import { isSyncLocked, setSyncLock, releaseSyncLock, addToSyncQueue } from '../syncLock';
+import { isSyncLocked, setSyncLock, releaseSyncLock, addToSyncQueue } from '../lock';
 import { setSyncActive } from '../status';
 import { getSkewProtectionParams } from '../remoteSync';
 import { checkBladiInfoAvailability } from '../remoteSync';
