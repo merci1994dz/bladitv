@@ -1,135 +1,54 @@
 
-/**
- * معالجة أخطاء الفيديو
- */
+import { VideoRef } from '../useVideoSetup';
 import { toast } from "@/hooks/use-toast";
-import { setupVideoSource } from '../useVideoSetup';
-import { setupVideoAttributes } from './videoAttributes';
 
 /**
- * معالجة خطأ NotAllowedError - محاولة بديلة للتشغيل
- * @param videoRef مرجع عنصر الفيديو
- * @param setError دالة تعيين الخطأ
- * @param setIsLoading دالة تعيين حالة التحميل
- * @param setIsPlaying دالة تعيين حالة التشغيل
- * @returns وعد يشير إلى نجاح أو فشل المحاولة
+ * محاولة تشغيل الفيديو مع معالجة الأخطاء
  */
-export const handleNotAllowedError = async (
-  videoRef: React.RefObject<HTMLVideoElement>,
-  setError: (error: string | null) => void,
-  setIsLoading: (loading: boolean) => void,
-  setIsPlaying: (playing: boolean) => void
-): Promise<boolean> => {
-  if (!videoRef.current) return false;
-  
-  setError('انقر على الشاشة لبدء التشغيل');
-  setIsLoading(false);
-  
-  try {
-    console.log("محاولة التشغيل مع كتم الصوت");
-    videoRef.current.muted = true;
-    
-    await videoRef.current.play();
-    console.log("نجح التشغيل الصامت، إلغاء الكتم");
-    
-    // إضافة مستمع للنقر لإلغاء كتم الصوت
-    const unmuteOnClick = () => {
-      if (videoRef.current) {
-        videoRef.current.muted = false;
-        setError(null);
-      }
-      document.removeEventListener('click', unmuteOnClick);
-    };
-    
-    document.addEventListener('click', unmuteOnClick, { once: true });
-    setIsPlaying(true);
-    setIsLoading(false);
-    
-    return true;
-  } catch (muteErr) {
-    console.error('فشل التشغيل حتى مع كتم الصوت:', muteErr);
-    setError('فشل في تشغيل البث. حاول النقر فوق الشاشة لبدء التشغيل');
-    return false;
-  }
-};
-
-/**
- * معالجة أخطاء التشغيل وترجمتها إلى رسائل مفهومة
- * @param error الخطأ الذي حدث
- * @returns رسالة الخطأ المناسبة
- */
-export const translatePlaybackError = (error: any): string => {
-  let errorMessage = 'فشل في تشغيل البث، حاول مرة أخرى';
-  
-  if (error.name === "AbortError") {
-    errorMessage = 'تم إلغاء تحميل الفيديو، حاول مرة أخرى';
-  } else if (error.name === "NetworkError" || error.message?.includes('network')) {
-    errorMessage = 'فشل في تحميل الفيديو، تحقق من اتصالك بالإنترنت';
-  } else if (error.name === "NotAllowedError") {
-    errorMessage = 'انقر للتشغيل، التشغيل التلقائي ممنوع';
-  } else if (error.name === "NotSupportedError") {
-    errorMessage = 'تنسيق الفيديو غير مدعوم في هذا المتصفح';
-  }
-  
-  return errorMessage;
-};
-
-/**
- * محاولة تشغيل الفيديو مع معالجة الأخطاء المحتملة
- * @param videoRef مرجع عنصر الفيديو
- * @param setIsPlaying دالة تعيين حالة التشغيل
- * @param setIsLoading دالة تعيين حالة التحميل
- * @param setError دالة تعيين الخطأ
- * @returns وعد يشير إلى نجاح أو فشل المحاولة
- */
-export const attemptVideoPlay = async (
-  videoRef: React.RefObject<HTMLVideoElement>,
+export async function attemptVideoPlay(
+  videoRef: VideoRef, 
   setIsPlaying: (playing: boolean) => void,
   setIsLoading: (loading: boolean) => void,
   setError: (error: string | null) => void
-): Promise<boolean> => {
+): Promise<boolean> {
   if (!videoRef.current) return false;
   
   try {
+    console.log("محاولة تشغيل الفيديو...");
     await videoRef.current.play();
     console.log("تم تشغيل الفيديو بنجاح");
     setIsPlaying(true);
     setIsLoading(false);
     return true;
-  } catch (err: any) {
-    console.error('خطأ في تشغيل الفيديو:', err);
+  } catch (error) {
+    console.error("حدث خطأ أثناء محاولة التشغيل:", error);
     
-    // معالجة خاصة لحالة NotAllowedError
-    if (err.name === "NotAllowedError") {
-      return await handleNotAllowedError(videoRef, setError, setIsLoading, setIsPlaying);
+    if (error instanceof Error) {
+      // معالجة خطأ عدم السماح بالتشغيل التلقائي
+      if (error.name === "NotAllowedError") {
+        console.log("خطأ NotAllowedError: يحتاج المستخدم للنقر على زر التشغيل");
+        setError('انقر للتشغيل، التشغيل التلقائي ممنوع');
+      } else {
+        // أخطاء أخرى
+        setError(`حدث خطأ أثناء التشغيل: ${error.message}`);
+      }
+    } else {
+      // حالة الخطأ غير المعروف
+      setError('حدث خطأ غير متوقع أثناء محاولة التشغيل');
     }
     
-    // معالجة أنواع الأخطاء الأخرى
-    setError(translatePlaybackError(err));
     setIsLoading(false);
     return false;
   }
-};
+}
 
 /**
- * عرض إشعار نجاح إعادة المحاولة
+ * إظهار إشعار نجاح إعادة المحاولة
  */
-export const showRetrySuccessToast = (): void => {
+export function showRetrySuccessToast() {
   toast({
-    title: "تم استئناف التشغيل",
-    description: "تم استئناف تشغيل البث بنجاح",
+    title: "تم إعادة التشغيل بنجاح",
+    description: "تم استئناف البث",
     duration: 3000,
   });
-};
-
-/**
- * عرض إشعار فشل إعادة المحاولة
- */
-export const showRetryFailureToast = (): void => {
-  toast({
-    title: "تعذر تشغيل القناة",
-    description: "يرجى التحقق من اتصالك بالإنترنت وانقر على إعادة المحاولة",
-    variant: "destructive",
-    duration: 5000,
-  });
-};
+}

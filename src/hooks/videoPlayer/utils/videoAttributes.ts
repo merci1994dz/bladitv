@@ -1,26 +1,48 @@
 
 /**
- * أدوات مساعدة لإعداد سمات مشغل الفيديو
+ * إعداد خصائص الفيديو المشتركة
  */
+interface VideoAttributes {
+  attemptNumber?: number;
+  autoplay?: boolean;
+  muted?: boolean;
+  playsInline?: boolean;
+  preload?: string;
+}
 
 /**
- * إعداد سمات الفيديو المناسبة للتشغيل
- * @param videoElement عنصر الفيديو
- * @param options خيارات إضافية
+ * وظيفة لإعداد خصائص عنصر الفيديو
  */
-export const setupVideoAttributes = (
-  videoElement: HTMLVideoElement, 
-  options: { muted?: boolean, attemptNumber?: number } = {}
-): void => {
-  const { muted = false, attemptNumber = 0 } = options;
+export function setupVideoAttributes(
+  videoElement: HTMLVideoElement,
+  options: VideoAttributes = {}
+): void {
+  // تعيين السمات الافتراضية
+  videoElement.preload = options.preload || 'auto';
+  videoElement.autoplay = options.autoplay !== undefined ? options.autoplay : true;
+  videoElement.muted = options.muted !== undefined ? options.muted : true;
+  videoElement.playsInline = options.playsInline !== undefined ? options.playsInline : true;
   
-  // تعيين خصائص مختلفة للفيديو للمساعدة في التشغيل
-  videoElement.autoplay = true;
-  videoElement.muted = muted || (attemptNumber === 2); // تجربة كتم الصوت في المحاولة الثالثة
-  videoElement.playsInline = true;
-  videoElement.crossOrigin = "anonymous";
+  // إضافة سمات خاصة بملاحظات محاولة إعادة التشغيل
+  if (options.attemptNumber !== undefined) {
+    videoElement.dataset.attemptNumber = options.attemptNumber.toString();
+  }
   
-  // إضافة سمات لتحسين التوافق
-  videoElement.setAttribute('playsinline', '');
-  videoElement.setAttribute('webkit-playsinline', '');
-};
+  // إضافة السمات الضرورية لدعم التوافق مع مختلف المتصفحات
+  videoElement.setAttribute('webkit-playsinline', 'true');
+  videoElement.setAttribute('playsinline', 'true');
+  
+  // تنظيف أي معاملات إضافية
+  videoElement.removeAttribute('controls');
+  
+  // تطبيق خصائص متقدمة للأداء
+  try {
+    // @ts-ignore - خصائص متقدمة قد لا تكون مدعومة في جميع المتصفحات
+    if (videoElement.hasOwnProperty('disableRemotePlayback')) {
+      // @ts-ignore
+      videoElement.disableRemotePlayback = true;
+    }
+  } catch (e) {
+    console.warn('خصائص الفيديو المتقدمة غير مدعومة في هذا المتصفح:', e);
+  }
+}
