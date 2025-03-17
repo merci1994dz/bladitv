@@ -11,7 +11,7 @@
 export const createCacheBuster = (): string => {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 15);
-  return `nocache=${timestamp}&_=${random}&ts=${timestamp}&r=${random}`;
+  return `nocache=${timestamp}&_=${random}&ts=${timestamp}&r=${random}&v=${timestamp}`;
 };
 
 /**
@@ -29,16 +29,27 @@ export const addCacheBusterToUrl = (url: string): string => {
       !param.startsWith('nocache=') && 
       !param.startsWith('_=') && 
       !param.startsWith('ts=') && 
-      !param.startsWith('r=')
+      !param.startsWith('r=') && 
+      !param.startsWith('v=')
     ).join('&');
     
     baseUrl = queryParams.length > 0 ? `${path}?${queryParams}` : path;
   }
   
+  // إضافة معلمات إضافية لمنع التخزين المؤقت (تشمل طوابع زمنية وأرقام عشوائية)
   const cacheParam = createCacheBuster();
-  return baseUrl.includes('?') 
+  const urlWithCache = baseUrl.includes('?') 
     ? `${baseUrl}&${cacheParam}` 
     : `${baseUrl}?${cacheParam}`;
+  
+  // إضافة معرف زائر لتتبع الطلبات
+  const visitorId = `visitor_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+  
+  // إضافة وقت الطلب بتنسيق ISO
+  const requestedAt = new Date().toISOString();
+  
+  // إنشاء الرابط النهائي
+  return `${urlWithCache}&visitorId=${visitorId}&requestedAt=${encodeURIComponent(requestedAt)}`;
 };
 
 /**
@@ -47,7 +58,7 @@ export const addCacheBusterToUrl = (url: string): string => {
  */
 export const exponentialBackoff = async (attempt: number): Promise<void> => {
   const backoffTime = Math.min(
-    (attempt * 2000) + Math.random() * 1000,
+    Math.pow(2, attempt) * 1000 + Math.random() * 1000,
     15000 // الحد الأقصى هو 15 ثانية
   );
   console.log(`الانتظار ${backoffTime}ms قبل المحاولة التالية...`);
