@@ -1,3 +1,4 @@
+
 import { syncAllData } from './coreSync';
 import { loadFromLocalStorage } from '../dataStore';
 import { forceBroadcastToAllBrowsers } from './publish'; // Import from the publish index
@@ -77,7 +78,7 @@ export const forceDataRefresh = async (): Promise<boolean> => {
     await syncAllData(true);
     
     // 6. محاولة بث التحديث لجميع المتصفحات
-    // 6. Try broadcasting update to all browsers - Passing true to skipReload parameter
+    // 6. Try broadcasting update to all browsers - Using skipReload parameter
     await forceBroadcastToAllBrowsers(true);
     
     // 7. إعادة تحميل الصفحة بعد تأخير كاف
@@ -91,7 +92,7 @@ export const forceDataRefresh = async (): Promise<boolean> => {
       } catch (e) {
         // محاولة استخدام طريقة تحديث بديلة
         try {
-          window.location.reload(true); // إجبار ��عادة التحميل بدون تخزين مؤقت
+          window.location.reload(true); // إجبار إعادة التحميل بدون تخزين مؤقت
         } catch (e2) {
           // طريقة أخيرة
           window.location.reload();
