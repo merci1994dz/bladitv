@@ -7,7 +7,6 @@ import React, { useCallback } from 'react';
 import { Channel } from '@/types';
 import { useVideoPlayback } from '@/hooks/videoPlayer/useVideoPlayback';
 import { useVideoErrorHandling } from '@/hooks/videoPlayer/useVideoErrorHandling';
-import VideoPlayer from './VideoPlayer';
 import VideoError from './VideoError';
 import VideoControls from './VideoControls';
 import VideoSpinner from './VideoSpinner';
@@ -65,12 +64,20 @@ const VideoPlayerWithErrorHandling: React.FC<VideoPlayerWithErrorHandlingProps> 
     }
   }, [playbackError, handlePlaybackError, errorState.hasError, clearError]);
 
+  // تكييف دالة seekVideo لتناسب بنية التوقعات لـ onSeek في VideoControls
+  const handleSeek = (seconds: number) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    seekVideo(seconds);
+  };
+
   return (
     <div className="relative w-full h-full bg-black rounded-lg overflow-hidden">
       {/* مشغل الفيديو الأساسي */}
-      <VideoPlayer 
-        channel={channel} 
-        videoRef={videoRef}
+      <video 
+        ref={videoRef}
+        className="w-full h-full object-contain"
+        playsInline
+        autoPlay
       />
       
       {/* عرض مؤشر التحميل إذا كان التحميل نشطًا */}
@@ -84,7 +91,7 @@ const VideoPlayerWithErrorHandling: React.FC<VideoPlayerWithErrorHandlingProps> 
           isPlaying={isPlaying}
           onPlayPause={togglePlayPause}
           onClose={onClose}
-          onSeek={seekVideo}
+          onSeek={handleSeek}
           channel={channel}
         />
       )}
@@ -102,6 +109,6 @@ const VideoPlayerWithErrorHandling: React.FC<VideoPlayerWithErrorHandlingProps> 
       )}
     </div>
   );
-};
+}
 
 export default VideoPlayerWithErrorHandling;

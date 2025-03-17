@@ -47,7 +47,8 @@ export function SyncStatus() {
     if (!lastSync) return 'لم تتم المزامنة بعد';
     
     try {
-      const date = new Date(lastSync);
+      // التحقق من أن lastSync هو سلسلة نصية قبل تمريره إلى Date
+      const date = typeof lastSync === 'string' ? new Date(lastSync) : new Date();
       return new Intl.DateTimeFormat('ar-SA', {
         hour: '2-digit',
         minute: '2-digit',

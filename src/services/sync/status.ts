@@ -1,4 +1,3 @@
-
 import { STORAGE_KEYS } from '../config';
 
 /**
@@ -45,6 +44,52 @@ export const setSyncActive = (isActive: boolean): void => {
     }));
   } catch (error) {
     console.error('خطأ في تعيين حالة المزامنة:', error);
+  }
+};
+
+/**
+ * تعيين خطأ المزامنة
+ */
+export const setSyncError = (error: string | null): void => {
+  try {
+    localStorage.setItem(STORAGE_KEYS.SYNC_ERROR, error ? JSON.stringify({ message: error, timestamp: Date.now() }) : '');
+  } catch (e) {
+    console.error('خطأ في تعيين خطأ المزامنة:', e);
+  }
+};
+
+/**
+ * مسح خطأ المزامنة
+ */
+export const clearSyncError = (): void => {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.SYNC_ERROR);
+  } catch (e) {
+    console.error('خطأ في مسح خطأ المزامنة:', e);
+  }
+};
+
+/**
+ * تعيين طابع وقت المزامنة
+ */
+export const setSyncTimestamp = (timestamp: string): void => {
+  try {
+    localStorage.setItem(STORAGE_KEYS.LAST_SYNC_TIME, timestamp);
+    localStorage.setItem(STORAGE_KEYS.LAST_SYNC, timestamp); // للتوافق مع التطبيقات القديمة
+  } catch (e) {
+    console.error('خطأ في تعيين وقت المزامنة:', e);
+  }
+};
+
+/**
+ * الحصول على آخر وقت مزامنة
+ */
+export const getLastSyncTime = (): string | null => {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.LAST_SYNC_TIME) || localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
+  } catch (e) {
+    console.error('خطأ في الحصول على آخر وقت مزامنة:', e);
+    return null;
   }
 };
 
@@ -110,7 +155,7 @@ export const checkConnectivityIssues = async (): Promise<{ hasInternet: boolean,
         // تجاهل أخطاء التخزين
       }
     } catch (error) {
-      console.warn('تعذر الوصول إلى خوادم المزامنة:', error);
+      console.warn('تعذر الوصول إ��ى خوادم المزامنة:', error);
       hasServerAccess = false;
     }
   }

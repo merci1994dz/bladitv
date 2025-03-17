@@ -70,7 +70,9 @@ export function useReliableQuery<T>(
     staleTime,
     gcTime: cacheTime,
     retry: false, // نحن نتعامل مع إعادة المحاولة في دالة queryFn
-    onSuccess,
+    meta: {
+      onSuccessCallback: onSuccess
+    }
   });
 }
 
