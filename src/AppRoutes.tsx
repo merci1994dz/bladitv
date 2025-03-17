@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Home from './pages/Home';
 import Favorites from './pages/Favorites';
 import Countries from './pages/Countries';
@@ -13,7 +13,7 @@ import NotFound from './pages/NotFound';
 import SplashScreen from './pages/SplashScreen';
 import BackupPage from './pages/Backup';
 import UserSettings from './pages/UserSettings';
-import Advanced from './pages/Advanced'; // صفحة البحث المتقدم الجديدة
+import Advanced from './pages/Advanced';
 import Navigation from './components/Navigation';
 import Index from './pages/Index';
 
@@ -27,7 +27,7 @@ const routes = {
   country: '/country/:countryId',
   categories: '/categories',
   search: '/search',
-  advanced: '/advanced', // مسار البحث المتقدم الجديد
+  advanced: '/advanced',
   admin: '/admin',
   settings: '/settings',
   remoteConfig: '/remote-config',
@@ -113,6 +113,8 @@ const AppRoutes: React.FC = () => {
       {/* الصفحات بدون شريط التنقل */}
       <Route path={routes.remoteConfig} element={<RemoteConfig />} />
       <Route path={routes.backup} element={<BackupPage />} />
+      
+      {/* صفحة 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

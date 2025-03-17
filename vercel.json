@@ -7,23 +7,11 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" },
-        { "key": "Pragma", "value": "no-cache" },
-        { "key": "Expires", "value": "0" },
+        { "key": "Cache-Control", "value": "no-store" },
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "X-Frame-Options", "value": "DENY" },
         { "key": "X-XSS-Protection", "value": "1; mode=block" },
         { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" },
-        { "key": "X-Cache-Bust", "value": "${Date.now()}" },
-        { "key": "Clear-Site-Data", "value": "\"cache\", \"cookies\", \"storage\"" },
-        { "key": "X-Content-Update-Time", "value": "${Date.now()}" },
-        { "key": "X-Cache-Control", "value": "no-cache" },
-        { "key": "X-App-Version", "value": "${Date.now()}-${Math.random().toString(36).substring(2, 15)}" },
-        { "key": "CDN-Cache-Control", "value": "no-cache, no-store" },
-        { "key": "Surrogate-Control", "value": "no-store" },
-        { "key": "Edge-Control", "value": "no-store, no-cache" },
-        { "key": "Vary", "value": "*" },
-        { "key": "Age", "value": "0" },
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
         { "key": "Access-Control-Allow-Headers", "value": "*" }
@@ -34,54 +22,8 @@
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
-    },
-    {
-      "source": "/(.*).json",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, max-age=0" },
-        { "key": "Pragma", "value": "no-cache" },
-        { "key": "Expires", "value": "0" },
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "X-Cache-Bust", "value": "${Date.now()}" },
-        { "key": "X-Last-Modified", "value": "${Date.now()}" },
-        { "key": "X-Cache-Status", "value": "BYPASS-ALWAYS" },
-        { "key": "X-App-Time", "value": "${Date.now()}" },
-        { "key": "Vary", "value": "*" },
-        { "key": "Age", "value": "0" },
-        { "key": "X-Request-ID", "value": "${Date.now()}-${Math.random().toString(36).substring(2, 15)}" },
-        { "key": "CDN-Cache-Control", "value": "no-cache, no-store" },
-        { "key": "Surrogate-Control", "value": "no-store" },
-        { "key": "Edge-Control", "value": "no-store, no-cache" },
-        { "key": "Clear-Site-Data", "value": "\"cache\"" }
-      ]
-    },
-    {
-      "source": "/index.html",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, max-age=0" },
-        { "key": "Pragma", "value": "no-cache" },
-        { "key": "Expires", "value": "0" },
-        { "key": "X-Cache-Bust", "value": "${Date.now()}" },
-        { "key": "Clear-Site-Data", "value": "\"cache\", \"cookies\", \"storage\"" },
-        { "key": "X-App-Version", "value": "${Date.now()}-${Math.random().toString(36).substring(2, 15)}" },
-        { "key": "X-Content-Update-Time", "value": "${Date.now()}" },
-        { "key": "X-Cache-Status", "value": "NO-CACHE" }
-      ]
     }
   ],
   "trailingSlash": false,
-  "cleanUrls": true,
-  "routes": [
-    { "handle": "filesystem" },
-    { 
-      "src": "/(.*).json", 
-      "dest": "/$1.json",
-      "headers": { 
-        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-        "X-Cache-Bust": "${Date.now()}",
-        "Access-Control-Allow-Origin": "*" 
-      }
-    },
-    { "src": "/(.*)", "dest": "/index.html" }
-  ]
+  "cleanUrls": true
 }

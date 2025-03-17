@@ -45,7 +45,7 @@ const NotFound = () => {
           <p className="text-muted-foreground mb-6">
             عذراً، الصفحة التي تبحث عنها غير موجودة أو تم نقلها.
           </p>
-          <p className="text-xs text-muted-foreground mb-8 px-4">
+          <p className="text-xs text-muted-foreground mb-8 px-4 direction-ltr">
             المسار: <span dir="ltr" className="font-mono">{location.pathname}</span>
           </p>
           
