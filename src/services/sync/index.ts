@@ -1,7 +1,7 @@
 
 // Main export file for sync functionality
 import { isSyncing, setIsSyncing } from '../dataStore';
-import { syncAllData, performInitialSync } from './coreSync';
+import { syncAllData, performInitialSync } from './core';
 import { forceDataRefresh } from './forceRefresh';
 import { 
   publishChannelsToAllUsers, 
@@ -77,5 +77,6 @@ export {
   getSyncStatus
 };
 
-// تنفيذ المزامنة الأولية عند تحميل الوحدة
-performInitialSync().catch(console.error);
+// تنفيذ المزامنة الأولية عند تحميل الوحدة - استخدام الوظيفة من المسار الجديد
+import { performInitialSync as initialSync } from './core';
+initialSync().catch(console.error);
