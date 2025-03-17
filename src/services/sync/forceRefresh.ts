@@ -42,49 +42,47 @@ export const forceDataRefresh = async (): Promise<boolean> => {
       'content_refresh_signal', // مفتاح جديد
       'hard_refresh_trigger',   // مفتاح جديد
       'data_refresh_marker',    // مفتاح جديد
-      'app_reload_marker'       // مفتاح جديد
+      'app_reload_marker',      // مفتاح جديد
+      'aggressive_cache_bust',  // مفتاح إضافي جديد
+      'total_cache_clear',      // مفتاح إضافي جديد
+      'clear_page_cache'        // مفتاح إضافي جديد
     ];
     
-    // تطبيق جميع العلامات مع إدخال بعض التأخير العشوائي بينها
-    // Apply all flags with some random delay between them
-    for (let i = 0; i < keys.length; i++) {
-      const key = keys[i];
-      const delay = Math.floor(Math.random() * 50); // تأخير عشوائي بين 0-50 مللي ثانية
-      
-      setTimeout(() => {
-        if (key.includes('force') || key.includes('refresh') || key.includes('reload') || key.includes('trigger')) {
+    // تطبيق جميع العلامات بشكل فوري وبدون تأخير
+    // Apply all flags immediately without delay
+    for (const key of keys) {
+      try {
+        if (key.includes('force') || key.includes('refresh') || key.includes('reload') || key.includes('trigger') || key.includes('clear')) {
           localStorage.setItem(key, 'true');
         } else {
           localStorage.setItem(key, `${timestamp}_${Math.random().toString(36).substring(2, 9)}`);
         }
-      }, delay);
+      } catch (e) {
+        console.error('خطأ في تعيين مفتاح التحديث:', key, e);
+      }
     }
     
-    // 3. محاولة إضافة مؤشرات في sessionStorage
-    // 3. Try to add indicators in sessionStorage
+    // تطبيق مباشر على sessionStorage
+    // Direct application to sessionStorage
     try {
-      sessionStorage.setItem('force_reload', 'true');
-      sessionStorage.setItem('force_update', 'true');
-      sessionStorage.setItem('data_version', timestamp);
-      sessionStorage.setItem('app_refresh', 'true');
-      sessionStorage.setItem('cache_breaker', timestamp);
-      sessionStorage.setItem('cache_bust_time', timestamp); // مفتاح جديد
+      const sessionKeys = ['force_reload', 'force_update', 'data_version', 'app_refresh', 'cache_breaker', 'cache_bust_time'];
+      for (const key of sessionKeys) {
+        sessionStorage.setItem(key, key.includes('version') || key.includes('time') ? timestamp : 'true');
+      }
     } catch (e) {
-      // تجاهل الأخطاء هنا / Ignore errors here
+      console.error('خطأ في تعيين مفاتيح التحديث في sessionStorage:', e);
     }
     
-    // 4. محاولة استخدام cookies مع أسماء متنوعة
-    // 4. Try using cookies with diverse names
+    // تطبيق على cookies بشكل مباشر
+    // Apply directly to cookies
     try {
-      document.cookie = `force_reload=true; path=/;`;
-      document.cookie = `force_update=true; path=/;`;
-      document.cookie = `data_version=${timestamp}; path=/;`;
-      document.cookie = `nocache_version=${timestamp}; path=/;`;
-      document.cookie = `app_refresh=true; path=/;`;
-      document.cookie = `cache_bust=${timestamp}; path=/;`; // مفتاح جديد
-      document.cookie = `refresh_signal=${timestamp}; path=/;`; // مفتاح جديد
+      const cookieKeys = ['force_reload', 'force_update', 'data_version', 'nocache_version', 'app_refresh', 'cache_bust', 'refresh_signal'];
+      for (const key of cookieKeys) {
+        const value = key.includes('version') || key.includes('bust') || key.includes('signal') ? timestamp : 'true';
+        document.cookie = `${key}=${value}; path=/; max-age=3600; SameSite=Lax`;
+      }
     } catch (e) {
-      // تجاهل الأخطاء هنا / Ignore errors here
+      console.error('خطأ في تعيين مفاتيح التحديث في cookies:', e);
     }
     
     // 5. تنفيذ المزامنة القسرية
@@ -95,20 +93,51 @@ export const forceDataRefresh = async (): Promise<boolean> => {
     // 6. Try broadcasting update to all browsers
     await forceBroadcastToAllBrowsers(true);
     
-    // 7. إعادة تحميل الصفحة بعد تأخير كاف
-    // 7. Reload page after sufficient delay
+    // مسح التخزين المؤقت للصفحة قبل إعادة التحميل
+    // Clear page cache before reload
+    try {
+      if ('caches' in window) {
+        caches.keys().then(cacheNames => {
+          cacheNames.forEach(cacheName => {
+            caches.delete(cacheName);
+            console.log('تم مسح التخزين المؤقت:', cacheName);
+          });
+        });
+      }
+    } catch (e) {
+      console.error('خطأ في مسح التخزين المؤقت للصفحة:', e);
+    }
+    
+    // 7. إعادة تحميل الصفحة بعد تأخير كاف مع معلمات قوية لمنع التخزين المؤقت
+    // 7. Reload page after sufficient delay with strong cache busting parameters
     setTimeout(() => {
       try {
         // محاولة تحديث الصفحة مع منع التخزين المؤقت بشكل قوي
-        const baseUrl = window.location.href.split('?')[0];
-        const cacheBuster = `refresh=${timestamp}&nocache=${Date.now()}&t=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}&v=${Date.now()}`;
+        const baseUrl = window.location.href.split('?')[0].split('#')[0];
+        const cacheBuster = `refresh=${timestamp}&nocache=${Date.now()}&t=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}&v=${Date.now()}&_=${Math.random().toString(36).substring(2, 15)}`;
+        
+        // إضافة معلمات قوية لمنع التخزين المؤقت
         window.location.href = `${baseUrl}?${cacheBuster}`;
+        
+        // محاولة إجبار المتصفح على تجاهل التخزين المؤقت
+        const meta = document.createElement('meta');
+        meta.httpEquiv = 'Cache-Control';
+        meta.content = 'no-cache, no-store, must-revalidate';
+        document.head.appendChild(meta);
+        
+        const pragmaMeta = document.createElement('meta');
+        pragmaMeta.httpEquiv = 'Pragma';
+        pragmaMeta.content = 'no-cache';
+        document.head.appendChild(pragmaMeta);
       } catch (e) {
+        console.error('خطأ في إعادة تحميل الصفحة مع منع التخزين المؤقت:', e);
+        
         // محاولة استخدام طريقة تحديث بديلة
         try {
-          // إجبار إعادة التحميل - تم إزالة المعامل للتوافق مع المتصفحات الحديثة
           window.location.reload();
         } catch (e2) {
+          console.error('خطأ في إعادة تحميل الصفحة بالطريقة البديلة:', e2);
+          
           // طريقة أخيرة
           window.location = window.location;
         }
@@ -144,7 +173,10 @@ export const immediateRefresh = (): void => {
     'force_update': 'true',
     'cache_bust_time': timestamp,
     'hard_refresh_trigger': 'true',
-    'refresh_marker': `${timestamp}_${random}`
+    'refresh_marker': `${timestamp}_${random}`,
+    'aggressive_cache_bust': 'true', // علامة جديدة
+    'total_cache_clear': 'true',     // علامة جديدة
+    'clear_page_cache': 'true'       // علامة جديدة
   };
   
   // تطبيق جميع العلامات
@@ -152,34 +184,92 @@ export const immediateRefresh = (): void => {
     try {
       localStorage.setItem(key, value);
       sessionStorage.setItem(key, value);
-      document.cookie = `${key}=${value}; path=/;`;
+      document.cookie = `${key}=${value}; path=/; max-age=3600; SameSite=Lax`;
     } catch (e) {
       // تجاهل أي أخطاء
+      console.error('خطأ في تعيين مفتاح تحديث:', key, e);
     }
   });
   
-  // تطبيق علامات إضافية في التخزين المحلي
+  // مسح التخزين المؤقت للصفحة إذا كان متاحًا
   try {
-    localStorage.setItem('app_reload_marker', timestamp);
-    localStorage.setItem('content_refresh_signal', 'true');
+    if ('caches' in window) {
+      caches.keys().then(cacheNames => {
+        cacheNames.forEach(cacheName => {
+          caches.delete(cacheName);
+          console.log('تم مسح التخزين المؤقت:', cacheName);
+        });
+      });
+    }
   } catch (e) {
-    // تجاهل أي أخطاء
+    console.error('خطأ في مسح التخزين المؤقت للصفحة:', e);
   }
   
   // إعادة تحميل الصفحة مع معلمات متنوعة لمنع التخزين المؤقت
   try {
-    const baseUrl = window.location.href.split('?')[0];
-    const cacheBuster = `refresh=${timestamp}&nocache=${Date.now()}&t=${Date.now()}&r=${random}&v=${Date.now()}&ts=${new Date().toISOString()}`;
+    const baseUrl = window.location.href.split('?')[0].split('#')[0];
+    const cacheBuster = `refresh=${timestamp}&nocache=${Date.now()}&t=${Date.now()}&r=${random}&v=${Date.now()}&ts=${new Date().toISOString()}&_=${Math.random().toString(36).substring(2, 15)}`;
+    
+    // إضافة معلمات قوية لمنع التخزين المؤقت
     window.location.href = `${baseUrl}?${cacheBuster}`;
+    
+    // إضافة عناصر meta لمنع التخزين المؤقت
+    const meta = document.createElement('meta');
+    meta.httpEquiv = 'Cache-Control';
+    meta.content = 'no-cache, no-store, must-revalidate';
+    document.head.appendChild(meta);
+    
+    const pragmaMeta = document.createElement('meta');
+    pragmaMeta.httpEquiv = 'Pragma';
+    pragmaMeta.content = 'no-cache';
+    document.head.appendChild(pragmaMeta);
   } catch (e) {
     // محاولة طريقة بديلة
     try {
-      // Fix: Instead of using URL constructor, directly set window.location.href
+      // استخدام window.location.href مباشرة
       const currentUrl = window.location.href.split('?')[0];
-      window.location.href = `${currentUrl}?bust=${Date.now()}`;
+      window.location.href = `${currentUrl}?bust=${Date.now()}&r=${Math.random()}`;
     } catch (e2) {
       // طريقة أخيرة بسيطة
       window.location.reload();
     }
+  }
+};
+
+// إضافة دالة جديدة لمسح التخزين المؤقت للصفحة
+// Add new function to clear page cache
+export const clearPageCache = async (): Promise<boolean> => {
+  try {
+    console.log('محاولة مسح التخزين المؤقت للصفحة...');
+    
+    // مسح التخزين المؤقت للصفحة إذا كان متاحًا
+    if ('caches' in window) {
+      const cacheNames = await caches.keys();
+      await Promise.all(
+        cacheNames.map(cacheName => caches.delete(cacheName))
+      );
+      console.log('تم مسح كل التخزين المؤقت للصفحة');
+    }
+    
+    // إضافة معلمات تحكم في التخزين المؤقت
+    const meta = document.createElement('meta');
+    meta.httpEquiv = 'Cache-Control';
+    meta.content = 'no-cache, no-store, must-revalidate';
+    document.head.appendChild(meta);
+    
+    const pragmaMeta = document.createElement('meta');
+    pragmaMeta.httpEquiv = 'Pragma';
+    pragmaMeta.content = 'no-cache';
+    document.head.appendChild(pragmaMeta);
+    
+    const expiresMeta = document.createElement('meta');
+    expiresMeta.httpEquiv = 'Expires';
+    expiresMeta.content = '0';
+    document.head.appendChild(expiresMeta);
+    
+    return true;
+  } catch (error) {
+    console.error('خطأ في مسح التخزين المؤقت للصفحة:', error);
+    return false;
   }
 };

@@ -23,6 +23,16 @@
       Header set X-App-Version "%{TIME}e-%{UNIQUE_ID}e"
       Header set X-Current-Time "%{TIME}e"
       Header set X-Random-Value "%{UNIQUE_ID}e"
+      
+      # إضافة رؤوس جديدة أكثر قوة
+      Header always set X-Cache-Status "BYPASS-ALWAYS"
+      Header always set Clear-Site-Data "\"cache\", \"cookies\", \"storage\""
+      Header always set Age "0"
+      Header always set X-Request-ID "%{UNIQUE_ID}e"
+      Header always set CDN-Cache-Control "no-cache, no-store"
+      Header always set Surrogate-Control "no-store"
+      Header always set Edge-Control "no-store, no-cache"
+      Header always set Vary "*"
     </IfModule>
   </FilesMatch>
   
@@ -49,11 +59,41 @@
       Header always set CDN-Cache-Control "no-cache, no-store"
       Header always set Surrogate-Control "no-store"
       Header always set Edge-Control "no-store, no-cache"
+      
+      # رؤوس إضافية لمنع التخزين المؤقت بشكل أقوى
+      Header always set Clear-Site-Data "\"cache\", \"cookies\", \"storage\""
+      Header always set X-Content-Update-Time "%{TIME}e"
+      Header always set X-Cache-Control "no-cache"
+      Header always set X-Cache-Tags "no-cache, dynamic-content"
+      Header always set X-App-Version "%{TIME}e-%{UNIQUE_ID}e"
     </IfModule>
     
     # إعادة كتابة الملفات JSON مع إضافة معلمات عشوائية
     RewriteCond %{QUERY_STRING} !(.*)cachebuster=(.*) [NC]
-    RewriteRule ^(.*)\.json$ $1.json?cachebuster=%{TIME}e&unique=%{UNIQUE_ID}e [B,L,QSA]
+    RewriteRule ^(.*)\.json$ $1.json?cachebuster=%{TIME}e&unique=%{UNIQUE_ID}e&t=%{msec}e&rand=%{REMOTE_ADDR}e [B,L,QSA]
+  </FilesMatch>
+  
+  # منع التخزين المؤقت بشكل قوي للصفحة الرئيسية
+  <FilesMatch "^(index\.html)$">
+    <IfModule mod_headers.c>
+      Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0, private"
+      Header always set Pragma "no-cache"
+      Header always set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
+      Header always set X-Cache-Status "NO-CACHE"
+      Header always set Clear-Site-Data "\"cache\", \"cookies\", \"storage\""
+      Header always set X-Content-Update-Time "%{TIME}e"
+      Header always set X-Cache-Control "no-cache"
+      Header always set X-App-Version "%{TIME}e-%{UNIQUE_ID}e"
+      Header always set Age "0"
+      Header always set Vary "*"
+      Header always set CDN-Cache-Control "no-cache, no-store"
+      Header always set Surrogate-Control "no-store"
+      Header always set Edge-Control "no-store, no-cache"
+    </IfModule>
+    
+    # إضافة معلمات عشوائية للصفحة الرئيسية
+    RewriteCond %{QUERY_STRING} !(.*)timestamp=(.*) [NC]
+    RewriteRule ^index\.html$ index.html?timestamp=%{TIME}e&unique=%{UNIQUE_ID}e&t=%{msec}e [R=302,L,QSA]
   </FilesMatch>
   
   # السماح بالوصول عبر CORS (مهم لملفات API)
@@ -93,6 +133,7 @@
     Header always set X-Request-Time "%{TIME}e"
     Header always set X-Runtime-ID "%{UNIQUE_ID}e"
     Header always set Cache-Control "no-cache, no-store, must-revalidate, max-age=0, private"
+    Header always set Clear-Site-Data "\"cache\""
   </FilesMatch>
   
   # توجيه جميع الطلبات إلى index.html (ضروري لـ React Router)
@@ -100,6 +141,11 @@
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /index.html [L]
+  
+  # إضافة معلمات عشوائية لكل الطلبات
+  RewriteCond %{QUERY_STRING} !(.*)timestamp=(.*) [NC]
+  RewriteCond %{REQUEST_URI} !\.(css|js|png|jpg|gif|svg|woff|woff2|ttf|eot)$ [NC]
+  RewriteRule ^(.*)$ $1?timestamp=%{TIME}e&unique=%{UNIQUE_ID}e [QSA,L]
 </IfModule>
 
 # تحسين GZip للضغط
@@ -120,12 +166,3 @@ Options -Indexes
 
 # تعيين الصفحة الافتراضية
 DirectoryIndex index.html
-
-# منع التخزين المؤقت بشكل كامل للصفحة الرئيسية
-<FilesMatch "^(index\.html)$">
-  Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0, private"
-  Header always set Pragma "no-cache"
-  Header always set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
-  Header always set X-Cache-Status "NO-CACHE"
-  Header always set Clear-Site-Data "\"cache\", \"cookies\", \"storage\""
-</FilesMatch>

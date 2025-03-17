@@ -7,16 +7,18 @@ import React, { useEffect, useState } from 'react';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, XCircle, CheckCircle2, Wifi, WifiOff } from 'lucide-react';
+import { RefreshCw, XCircle, CheckCircle2, Wifi, WifiOff, AlertTriangle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getLastSyncTime } from '@/services/sync/status/timestamp';
 import { toast } from '@/hooks/use-toast';
 import { useSyncMutations } from './sync/useSyncMutations';
 import SyncErrorNotification from './sync/SyncErrorNotification';
+import { immediateRefresh, clearPageCache } from '../services/sync/forceRefresh';
 
 export function SyncStatus() {
   const { syncError, checkSourceAvailability, networkStatus } = useAutoSync();
   const [availableSource, setAvailableSource] = useState<string | null>(null);
+  const [cacheCleared, setCacheCleared] = useState(false);
   
   // جلب آخر وقت مزامنة
   const { data: lastSync, refetch: refetchLastSync } = useQuery({
@@ -75,6 +77,38 @@ export function SyncStatus() {
     runSync();
   };
 
+  // معالجة نقر زر تحديث الصفحة
+  const handleForceRefresh = () => {
+    toast({
+      title: "جاري تحديث الصفحة",
+      description: "جاري مسح التخزين المؤقت وإعادة تحميل الصفحة...",
+      duration: 2000,
+    });
+    
+    // تنفيذ تحديث فوري مع مسح التخزين المؤقت
+    setTimeout(() => {
+      immediateRefresh();
+    }, 1000);
+  };
+
+  // معالجة مسح التخزين المؤقت
+  const handleClearCache = async () => {
+    toast({
+      title: "جاري مسح التخزين المؤقت",
+      description: "جاري مسح جميع بيانات التخزين المؤقت...",
+      duration: 2000,
+    });
+    
+    const result = await clearPageCache();
+    setCacheCleared(result);
+    
+    toast({
+      title: result ? "تم مسح التخزين المؤقت" : "فشل مسح التخزين المؤقت",
+      description: result ? "تم مسح التخزين المؤقت بنجاح" : "حدث خطأ أثناء مسح التخزين المؤقت",
+      duration: 3000,
+    });
+  };
+
   return (
     <div className="flex flex-col space-y-2 p-4 border rounded-lg bg-background shadow-sm">
       {/* عرض إشعار الخطأ إذا وجد */}
@@ -122,6 +156,24 @@ export function SyncStatus() {
             )}
           </Badge>
           
+          {/* مؤشر التخزين المؤقت */}
+          <Badge 
+            variant={cacheCleared ? "outline" : "secondary"} 
+            className="gap-1 px-2"
+          >
+            {cacheCleared ? (
+              <>
+                <CheckCircle2 className="h-3 w-3" />
+                <span>تم مسح التخزين المؤقت</span>
+              </>
+            ) : (
+              <>
+                <AlertTriangle className="h-3 w-3" />
+                <span>التخزين المؤقت</span>
+              </>
+            )}
+          </Badge>
+          
           {/* زر المزامنة */}
           <Button 
             size="sm" 
@@ -132,6 +184,26 @@ export function SyncStatus() {
           >
             <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing || isForceSyncing ? "animate-spin" : ""}`} />
             مزامنة
+          </Button>
+          
+          {/* زر تحديث الصفحة */}
+          <Button 
+            size="sm" 
+            variant="secondary" 
+            onClick={handleForceRefresh}
+          >
+            <RefreshCw className="h-4 w-4 mr-1" />
+            تحديث الصفحة
+          </Button>
+          
+          {/* زر مسح التخزين المؤقت */}
+          <Button 
+            size="sm" 
+            variant="ghost" 
+            onClick={handleClearCache}
+          >
+            <XCircle className="h-4 w-4 mr-1" />
+            مسح التخزين المؤقت
           </Button>
         </div>
       </div>
