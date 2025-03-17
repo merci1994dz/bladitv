@@ -4,7 +4,7 @@
  */
 
 import { setIsSyncing } from '../../dataStore';
-import { fetchRemoteData, isRemoteUrlAccessible } from './fetchData';
+import { fetchRemoteData, isRemoteUrlAccessible } from '../remote/fetch';
 import { storeRemoteData } from './storeData';
 import { STORAGE_KEYS } from '../../config';
 import { setSyncActive } from '../status';

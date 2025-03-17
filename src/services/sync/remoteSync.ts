@@ -14,6 +14,6 @@ export {
 export { 
   fetchRemoteData, 
   isRemoteUrlAccessible 
-} from './remote/fetchData';
+} from './remote/fetch';
 
 export { storeRemoteData } from './remote/storeData';
