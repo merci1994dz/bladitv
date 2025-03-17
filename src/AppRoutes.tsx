@@ -51,8 +51,10 @@ const pagesWithNavigation = [
 const AppRoutes: React.FC = () => {
   return (
     <Routes>
+      {/* الصفحات الأساسية */}
       <Route path={routes.splash} element={<SplashScreen />} />
       <Route path={routes.index} element={<Index />} />
+      <Route path="*" element={<NotFound />} />
       
       {/* الصفحات مع شريط التنقل */}
       <Route path={routes.home} element={
@@ -113,9 +115,6 @@ const AppRoutes: React.FC = () => {
       {/* الصفحات بدون شريط التنقل */}
       <Route path={routes.remoteConfig} element={<RemoteConfig />} />
       <Route path={routes.backup} element={<BackupPage />} />
-      
-      {/* صفحة 404 */}
-      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };

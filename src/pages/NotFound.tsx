@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { HomeIcon, ArrowLeft, RefreshCw, Settings } from "lucide-react";
 import ErrorMessage from "@/components/ui/error-message";
+import { toast } from "@/hooks/use-toast";
 
 const NotFound = () => {
   const location = useLocation();
@@ -14,6 +15,13 @@ const NotFound = () => {
       "404 Error: User attempted to access non-existent route:",
       location.pathname
     );
+    
+    // تعرف على مسار الخطأ في وحدة التحكم للمساعدة في التشخيص
+    toast({
+      title: "خطأ في الوصول للصفحة",
+      description: `المسار غير موجود: ${location.pathname}`,
+      variant: "destructive",
+    });
   }, [location.pathname]);
 
   const handleGoBack = () => {
@@ -45,8 +53,8 @@ const NotFound = () => {
           <p className="text-muted-foreground mb-6">
             عذراً، الصفحة التي تبحث عنها غير موجودة أو تم نقلها.
           </p>
-          <p className="text-xs text-muted-foreground mb-8 px-4 direction-ltr">
-            المسار: <span dir="ltr" className="font-mono">{location.pathname}</span>
+          <p className="text-xs text-muted-foreground mb-8 px-4">
+            المسار: <span className="font-mono">{location.pathname}</span>
           </p>
           
           {location.pathname.includes('/admin') && (

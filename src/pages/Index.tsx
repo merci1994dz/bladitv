@@ -13,7 +13,7 @@ const Index: React.FC = () => {
     // إعادة توجيه المستخدم إلى الصفحة الرئيسية بعد تأخير قصير
     const timer = setTimeout(() => {
       console.log('التوجيه إلى الصفحة الرئيسية...');
-      navigate('/home');
+      navigate('/home', { replace: true });
     }, 500);
 
     return () => clearTimeout(timer);
