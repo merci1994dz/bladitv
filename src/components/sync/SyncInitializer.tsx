@@ -1,7 +1,8 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { setupRealtimeSync, syncWithSupabase } from '@/services/sync/supabaseSync';
 import { useAutoSync } from '@/hooks/useAutoSync';
+import { useToast } from '@/hooks/use-toast';
 
 interface SyncInitializerProps {
   children: React.ReactNode;
@@ -13,50 +14,104 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
     initializeSupabase,
     performInitialSync,
     handleOnline,
-    handleFocus
+    handleFocus,
+    isSyncing
   } = useAutoSync();
   
+  const { toast } = useToast();
+  const syncAttemptsRef = useRef(0);
+  const realtimeUnsubscribeRef = useRef<() => void | null>(null);
+  const isMountedRef = useRef(true);
+  
+  // تهيئة المزامنة مع آلية إعادة المحاولة المحسنة
   useEffect(() => {
-    // Set up initial sync with delay to prevent conflicts
-    const initialSyncTimeout = setTimeout(() => {
-      console.log('بدء المزامنة الأولية في AutoSyncProvider');
+    // تعيين مؤقت للتهيئة الأولية مع تأخير لمنع التعارضات
+    const initialSyncTimeout = setTimeout(async () => {
+      if (!isMountedRef.current) return;
+      
+      console.log('بدء المزامنة الأولية مع حماية أفضل ضد الفشل');
       
       const initialize = async () => {
-        await checkSourceAvailability();
-        await initializeSupabase();
-        await performInitialSync();
+        try {
+          // التحقق من توفر المصادر
+          await checkSourceAvailability();
+          
+          // تهيئة Supabase
+          const supabaseInitialized = await initializeSupabase();
+          
+          if (supabaseInitialized) {
+            // تنفيذ المزامنة الأولية
+            await performInitialSync();
+          } else {
+            // إعادة المحاولة بعد تأخير إذا فشلت تهيئة Supabase
+            setTimeout(() => {
+              if (isMountedRef.current) {
+                syncAttemptsRef.current++;
+                console.log(`إعادة محاولة المزامنة (المحاولة ${syncAttemptsRef.current}/3)`);
+                initialize();
+              }
+            }, 5000);
+          }
+        } catch (error) {
+          console.error('خطأ في التهيئة الأولية للمزامنة:', error);
+          
+          // إعادة المحاولة عدة مرات قبل الاستسلام
+          if (syncAttemptsRef.current < 3) {
+            setTimeout(() => {
+              if (isMountedRef.current) {
+                syncAttemptsRef.current++;
+                console.log(`إعادة محاولة المزامنة (المحاولة ${syncAttemptsRef.current}/3)`);
+                initialize();
+              }
+            }, 7000 * syncAttemptsRef.current); // زيادة التأخير مع كل محاولة
+          } else {
+            // إذا استمر الفشل، أخبر المستخدم وتحديث الحالة
+            toast({
+              title: "تعذر المزامنة",
+              description: "سيتم استخدام البيانات المخزنة محليًا. الرجاء التحقق من اتصالك بالإنترنت.",
+              variant: "destructive",
+              duration: 7000,
+            });
+          }
+        }
       };
       
       initialize();
     }, 3000);
     
-    // Set up periodic sync every 5 minutes
+    // إعداد مزامنة دورية كل 5 دقائق مع إضافة عشوائية لمنع التزامن
+    const randomInterval = 5 * 60 * 1000 + (Math.random() * 30 * 1000);
     const syncInterval = setInterval(() => {
-      console.log('تنفيذ المزامنة الدورية مع Supabase');
-      syncWithSupabase(false);
-      
-      // Re-check available sources periodically
-      checkSourceAvailability();
-    }, 5 * 60 * 1000);
+      if (isMountedRef.current && !isSyncing) {
+        console.log('تنفيذ المزامنة الدورية مع Supabase');
+        syncWithSupabase(false).catch(console.error);
+        
+        // إعادة التحقق من المصادر المتاحة دوريًا
+        checkSourceAvailability().catch(console.error);
+      }
+    }, randomInterval);
     
-    // Set up online/offline listeners
+    // إعداد مستمعي الشبكة
     window.addEventListener('online', handleOnline);
     
-    // Set up realtime subscription
-    const unsubscribeRealtime = setupRealtimeSync();
+    // إعداد اشتراك في الوقت الحقيقي
+    realtimeUnsubscribeRef.current = setupRealtimeSync();
     
-    // Set up focus/blur listeners
+    // إعداد مستمعي التركيز/التشويش
     window.addEventListener('focus', handleFocus);
     
-    // Clean up all listeners and timers
+    // تنظيف جميع المستمعين والمؤقتات
     return () => {
+      isMountedRef.current = false;
       clearTimeout(initialSyncTimeout);
       clearInterval(syncInterval);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('focus', handleFocus);
-      unsubscribeRealtime();
+      if (realtimeUnsubscribeRef.current) {
+        realtimeUnsubscribeRef.current();
+      }
     };
-  }, [checkSourceAvailability, initializeSupabase, performInitialSync, handleOnline, handleFocus]);
+  }, [checkSourceAvailability, initializeSupabase, performInitialSync, handleOnline, handleFocus, isSyncing, toast]);
   
   return <>{children}</>;
 };

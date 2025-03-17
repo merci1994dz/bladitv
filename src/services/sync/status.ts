@@ -55,50 +55,80 @@ export const checkConnectivityIssues = async (): Promise<{ hasInternet: boolean,
   // التحقق من وجود اتصال بالإنترنت
   const hasInternet = navigator.onLine;
   
-  // التحقق من القدرة على الوصول إلى الخادم مع زيادة المهلة
+  // التحقق من القدرة على الوصول إلى الخادم
   let hasServerAccess = false;
   
   if (hasInternet) {
     try {
-      // محاولة الوصول إلى الخادم الرئيسي باستخدام طلب بسيط مع زيادة المهلة إلى 10 ثواني
+      // محاولة الوصول إلى الخادم الرئيسي باستخدام طلب بسيط
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       
-      // تجربة المواقع المختلفة
+      // تجربة المواقع المختلفة بشكل متوازي لتحسين الأداء
       const urls = [
         'https://bladitv.lovable.app/ping',
         'https://bladi-info.com/ping',
         'https://bladiinfo-api.vercel.app/ping',
-        'https://bladiinfo-backup.netlify.app/ping'
+        'https://bladiinfo-backup.netlify.app/ping',
+        'https://cdn.jsdelivr.net/gh/lovable-iq/bladi-info@main/ping'
       ];
       
-      // محاولة الاتصال بالمواقع المختلفة حتى ينجح أحدها
-      for (const url of urls) {
-        try {
-          const response = await fetch(url, {
-            method: 'HEAD',
-            signal: controller.signal,
-            cache: 'no-store',
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache'
-            }
-          });
-          
-          if (response.ok) {
-            hasServerAccess = true;
-            break;
+      const connectionChecks = urls.map(url => 
+        fetch(url, {
+          method: 'HEAD',
+          signal: controller.signal,
+          cache: 'no-store',
+          mode: 'cors',
+          credentials: 'omit',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
           }
-        } catch (e) {
-          // استمر في المحاولة مع المصدر التالي
-          console.warn(`تعذر الوصول إلى ${url}:`, e);
-        }
-      }
+        })
+        .then(response => response.ok)
+        .catch(() => false)
+      );
+      
+      // انتظار حتى تنجح إحدى الطلبات أو تفشل جميعها
+      const results = await Promise.allSettled(connectionChecks);
       
       clearTimeout(timeoutId);
+      
+      // إذا نجح أي طلب، فهناك وصول للخادم
+      hasServerAccess = results.some(result => 
+        result.status === 'fulfilled' && result.value === true
+      );
+      
+      // حفظ نتيجة الاتصال للاستخدام لاحقاً
+      try {
+        sessionStorage.setItem('last_connectivity_check', JSON.stringify({
+          hasInternet,
+          hasServerAccess,
+          timestamp: Date.now()
+        }));
+      } catch (e) {
+        // تجاهل أخطاء التخزين
+      }
     } catch (error) {
-      console.warn('تعذر الوصول إلى جميع خوادم المزامنة:', error);
+      console.warn('تعذر الوصول إلى خوادم المزامنة:', error);
       hasServerAccess = false;
+    }
+  }
+  
+  // تحسين الأداء: استخدام القيم المخزنة إذا كان الفحص الأخير حديثًا (أقل من دقيقة)
+  if (!hasServerAccess) {
+    try {
+      const lastCheckStr = sessionStorage.getItem('last_connectivity_check');
+      if (lastCheckStr) {
+        const lastCheck = JSON.parse(lastCheckStr);
+        const isRecent = Date.now() - lastCheck.timestamp < 60000; // أقل من دقيقة
+        
+        if (isRecent && lastCheck.hasServerAccess) {
+          hasServerAccess = true;
+        }
+      }
+    } catch (e) {
+      // تجاهل أخطاء التخزين
     }
   }
   
@@ -106,16 +136,43 @@ export const checkConnectivityIssues = async (): Promise<{ hasInternet: boolean,
 };
 
 /**
- * الحصول على معلومات حالة المزامنة
+ * الحصول على معلومات حالة المزامنة الكاملة
  */
-export const getSyncStatus = (): { lastSync: string | null; isActive: boolean; } => {
+export const getSyncStatus = (): { 
+  lastSync: string | null; 
+  isActive: boolean;
+  networkStatus: { hasInternet: boolean; hasServerAccess: boolean };
+} => {
   try {
     const lastSync = localStorage.getItem(STORAGE_KEYS.LAST_SYNC_TIME) || localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
     const isActive = isSyncInProgress();
     
-    return { lastSync, isActive };
+    // محاولة استرداد آخر حالة اتصال معروفة
+    let networkStatus = { hasInternet: navigator.onLine, hasServerAccess: false };
+    try {
+      const lastCheckStr = sessionStorage.getItem('last_connectivity_check');
+      if (lastCheckStr) {
+        const lastCheck = JSON.parse(lastCheckStr);
+        networkStatus = {
+          hasInternet: navigator.onLine, // استخدام القيمة الحالية
+          hasServerAccess: lastCheck.hasServerAccess
+        };
+      }
+    } catch (e) {
+      // تجاهل أخطاء التخزين
+    }
+    
+    return { 
+      lastSync, 
+      isActive,
+      networkStatus
+    };
   } catch (error) {
     console.error('خطأ في الحصول على معلومات حالة المزامنة:', error);
-    return { lastSync: null, isActive: false };
+    return { 
+      lastSync: null, 
+      isActive: false,
+      networkStatus: { hasInternet: navigator.onLine, hasServerAccess: false }
+    };
   }
 };
