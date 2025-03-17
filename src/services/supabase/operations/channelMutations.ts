@@ -17,8 +17,11 @@ export const addChannelToSupabase = async (channel: Omit<Channel, 'id'>): Promis
     
     console.log('إضافة قناة جديدة:', channel);
     
-    // إنشاء معرف جديد للقناة إذا لم يكن موجودًا
-    const newChannelId = `channel-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    // إنشاء معرف UUID جديد للقناة باستخدام crypto.randomUUID() أو تنسيق uuid-v4
+    // لضمان أن المعرف يتوافق مع متطلبات Supabase UUID
+    const newChannelId = crypto.randomUUID ? 
+      crypto.randomUUID() : 
+      `channel-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     
     const { data, error } = await supabase
       .from('channels')
@@ -55,6 +58,11 @@ export const updateChannelInSupabase = async (channel: Channel): Promise<Channel
     const supabaseChannel = toSupabaseChannel(channel);
     
     console.log('تحديث القناة في Supabase:', {id: channel.id, ...supabaseChannel});
+    
+    // تأكد من أن المعرف موجود وصالح قبل التحديث
+    if (!channel.id || typeof channel.id !== 'string') {
+      throw new Error('معرف القناة غير صالح للتحديث');
+    }
     
     const { data, error } = await supabase
       .from('channels')
@@ -93,6 +101,11 @@ export const updateChannelInSupabase = async (channel: Channel): Promise<Channel
 export const deleteChannelFromSupabase = async (channelId: string): Promise<boolean> => {
   try {
     console.log('حذف القناة من Supabase:', channelId);
+    
+    // تأكد من أن المعرف موجود وصالح قبل الحذف
+    if (!channelId || typeof channelId !== 'string') {
+      throw new Error('معرف القناة غير صالح للحذف');
+    }
     
     const { error } = await supabase
       .from('channels')

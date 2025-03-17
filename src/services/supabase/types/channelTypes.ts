@@ -9,7 +9,7 @@ export interface SupabaseChannel {
   country: string;
   externallinks: Json | null;
   id: string;
-  isfavorite: boolean | null;
+  isfavorite: boolean | null;  // لاحظ أن الاسم بحروف صغيرة في Supabase
   lastwatched: string | null;
   logo: string;
   name: string;
@@ -35,7 +35,7 @@ export const toSupabaseChannel = (channel: Omit<Channel, 'id'> | Channel): Omit<
   streamurl: channel.streamUrl,
   category: channel.category,
   country: channel.country,
-  isfavorite: channel.isFavorite,
+  isfavorite: channel.isFavorite,  // تحويل من isFavorite (كاملكيس) إلى isfavorite (حروف صغيرة)
   lastwatched: channel.lastWatched,
   externallinks: channel.externalLinks as unknown as Json
 });

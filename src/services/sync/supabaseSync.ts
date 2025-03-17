@@ -1,36 +1,9 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Channel, Country, Category } from '@/types';
 import { channels, countries, categories, setIsSyncing } from '../dataStore';
 import { STORAGE_KEYS } from '../config';
 import { updateLastSyncTime } from './config';
-import { Json } from '@/integrations/supabase/types';
-
-// Types to map Supabase schema to our app models
-interface SupabaseChannel {
-  category: string;
-  country: string;
-  externallinks: any;
-  id: string;
-  isfavorite: boolean | null;
-  lastwatched: string | null;
-  logo: string;
-  name: string;
-  streamurl: string;
-}
-
-// Converter functions
-const toChannel = (sc: SupabaseChannel): Channel => ({
-  id: sc.id,
-  name: sc.name,
-  logo: sc.logo,
-  streamUrl: sc.streamurl,
-  category: sc.category,
-  country: sc.country,
-  isFavorite: sc.isfavorite || false,
-  lastWatched: sc.lastwatched,
-  externalLinks: sc.externallinks || []
-});
+import { SupabaseChannel, toChannel } from '../supabase/types/channelTypes';
 
 // مزامنة البيانات من Supabase
 export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> => {
@@ -158,7 +131,7 @@ export const initializeSupabaseTables = async (): Promise<boolean> => {
         if (Array.isArray(parsedChannels) && parsedChannels.length > 0) {
           // تحويل البيانات إلى صيغة Supabase
           const supabaseChannels = parsedChannels.map(ch => ({
-            id: ch.id,
+            id: crypto.randomUUID ? crypto.randomUUID() : ch.id,
             name: ch.name,
             logo: ch.logo,
             streamurl: ch.streamUrl,

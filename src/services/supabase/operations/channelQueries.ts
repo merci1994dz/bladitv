@@ -7,6 +7,7 @@ import { SupabaseChannel, toChannel } from '../types/channelTypes';
 // جلب قائمة القنوات من Supabase
 export const getChannelsFromSupabase = async (): Promise<Channel[]> => {
   try {
+    console.log('جلب القنوات من Supabase...');
     const { data, error } = await supabase
       .from('channels')
       .select('*');
@@ -18,6 +19,7 @@ export const getChannelsFromSupabase = async (): Promise<Channel[]> => {
     
     // Convert Supabase data to our Channel model
     const channels = (data as SupabaseChannel[]).map(toChannel);
+    console.log(`تم جلب ${channels.length} قناة من Supabase`);
     
     // حفظ البيانات في التخزين المحلي كنسخة احتياطية
     try {

@@ -1,3 +1,4 @@
+
 import { Channel } from '@/types';
 import { channels } from './dataStore';
 import { STORAGE_KEYS } from './config';
@@ -63,9 +64,14 @@ export const playChannel = async (channelId: string): Promise<Channel> => {
 export const addChannel = async (channel: Omit<Channel, 'id'>): Promise<Channel> => {
   await new Promise(resolve => setTimeout(resolve, 200));
   
+  // إنشاء معرف فريد بتنسيق UUID
+  const newId = crypto.randomUUID ? 
+    crypto.randomUUID() : 
+    `channel-${Date.now().toString()}`;
+  
   const newChannel: Channel = {
     ...channel,
-    id: Date.now().toString()
+    id: newId
   };
   
   channels.push(newChannel);
