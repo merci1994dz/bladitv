@@ -1,4 +1,3 @@
-
 import { Channel } from '@/types';
 import { useVideoSetup } from './useVideoSetup';
 import { useVideoRetry } from './useVideoRetry';
@@ -40,7 +39,7 @@ export function useVideoPlayback({ channel }: UseVideoPlaybackProps) {
     setError
   });
 
-  // Set up retry logic - optimized
+  // Set up retry logic - now using our refactored modules
   const {
     retryCount,
     retryPlayback,
