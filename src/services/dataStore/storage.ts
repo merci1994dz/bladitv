@@ -1,4 +1,3 @@
-
 import { STORAGE_KEYS } from '../config';
 import { channels, countries, categories } from './state';
 import { fallbackChannels, fallbackCountries, fallbackCategories } from '../fallbackData';
@@ -18,6 +17,7 @@ export const saveChannelsToStorage = () => {
     localStorage.setItem('bladi_info_update', timestamp);
     localStorage.setItem('force_refresh', 'true');
     localStorage.setItem('nocache_version', timestamp);
+    localStorage.setItem('channels_update_by_cms', timestamp);
     
     // For additional compatibility with all browsers
     try {
@@ -29,6 +29,17 @@ export const saveChannelsToStorage = () => {
         detail: { type: 'channels', time: timestamp } 
       });
       window.dispatchEvent(event);
+      
+      // Also try to broadcast a storage event manually
+      try {
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: STORAGE_KEYS.CHANNELS,
+          newValue: JSON.stringify(channels),
+          storageArea: localStorage
+        }));
+      } catch (e) {
+        // Ignore any errors here
+      }
     } catch (e) {
       // Ignore any errors here
     }
@@ -112,15 +123,17 @@ export const loadFromLocalStorage = () => {
       console.log(`تم تحميل ${categories.length} فئة من البيانات الاحتياطية`);
     }
     
-    // Save loaded data back to ensure it's available
+    // Save loaded data back to ensure it's available and force browser refresh
     saveChannelsToStorage();
     localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(countries));
     localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
     
-    // Ensure changes are broadcast - optimization
+    // Ensure changes are broadcast - with force refresh
     const timestamp = Date.now().toString();
     localStorage.setItem('bladi_info_update', timestamp);
     localStorage.setItem('data_version', timestamp);
+    localStorage.setItem('force_browser_refresh', 'true');
+    localStorage.setItem('nocache_version', timestamp);
     
     // Initialize admin password if not exists
     if (!localStorage.getItem(STORAGE_KEYS.ADMIN_PASSWORD)) {

@@ -1,65 +1,85 @@
 
-import { saveChannelsToStorage } from '../dataStore';
 import { syncAllData } from './coreSync';
+import { loadFromLocalStorage } from '../dataStore';
+import { forceBroadcastToAllBrowsers } from './publishOperations';
 
-// تحسين دالة التحديث القسري - تضمن تحديث جميع البيانات
+// دالة لإجبار إعادة تحميل البيانات وإعادة مزامنتها لجميع المستخدمين
 export const forceDataRefresh = async (): Promise<boolean> => {
-  console.log('بدء عملية التحديث القسري للبيانات...');
+  console.log('بدء التحديث القسري للبيانات...');
   
   try {
-    // مسح بيانات القنوات من التخزين المحلي لفرض التحديث
-    localStorage.removeItem('last_sync_time');
-    localStorage.removeItem('last_sync');
+    // 1. إعادة تحميل البيانات من التخزين المحلي
+    const reloadResult = loadFromLocalStorage();
+    console.log('نتيجة إعادة تحميل البيانات:', reloadResult);
     
-    // فرض إعادة تحميل البيانات المخزنة مؤقتًا
+    // 2. إضافة مؤشرات للتحديث القسري
     const timestamp = Date.now().toString();
-    localStorage.setItem('force_refresh', timestamp);
-    localStorage.setItem('bladi_info_update', timestamp);
-    localStorage.setItem('data_version', timestamp);
-    localStorage.setItem('channels_last_update', timestamp);
     
-    // حفظ القنوات الحالية لضمان تضمينها في التخزين المحلي
-    saveChannelsToStorage();
+    // علامات متعددة لزيادة فرص الاكتشاف
+    const keys = [
+      'force_update',
+      'force_refresh',
+      'force_browser_refresh',
+      'force_reload',
+      'nocache_version',
+      'data_version',
+      'channels_update_by_cms',
+      'bladi_info_update',
+      'bladi_update_version',
+      'channels_last_update'
+    ];
     
-    // محاولة إجراء المزامنة القسرية
-    const success = await syncAllData(true);
+    // تطبيق جميع العلامات
+    keys.forEach(key => {
+      if (key.includes('force') || key.includes('refresh') || key.includes('reload')) {
+        localStorage.setItem(key, 'true');
+      } else {
+        localStorage.setItem(key, timestamp);
+      }
+    });
     
-    // إضافة علامات خاصة متعددة لاكتشاف التغييرات
-    const newTimestamp = Date.now().toString(); // استخدام طابع زمني جديد
-    localStorage.setItem('bladi_info_update', newTimestamp);
-    localStorage.setItem('force_browser_refresh', 'true');
-    localStorage.setItem('refresh_timestamp', newTimestamp);
-    localStorage.setItem('bladi_force_refresh', 'true');
-    localStorage.setItem('final_update_check', newTimestamp);
-    
-    // محاولة استخدام sessionStorage أيضًا
+    // 3. محاولة إضافة مؤشرات في sessionStorage
     try {
       sessionStorage.setItem('force_reload', 'true');
-      sessionStorage.setItem('reload_time', newTimestamp);
+      sessionStorage.setItem('force_update', 'true');
+      sessionStorage.setItem('data_version', timestamp);
     } catch (e) {
       // تجاهل الأخطاء هنا
     }
     
-    // محاولة استخدام cookies أيضًا
+    // 4. محاولة استخدام cookies أيضًا
     try {
       document.cookie = `force_reload=true; path=/;`;
-      document.cookie = `reload_time=${newTimestamp}; path=/;`;
+      document.cookie = `force_update=true; path=/;`;
+      document.cookie = `data_version=${timestamp}; path=/;`;
     } catch (e) {
       // تجاهل الأخطاء هنا
     }
     
-    // إجبار المتصفح على إعادة التحميل لإظهار البيانات الجديدة
-    if (success) {
-      // إضافة تأخير مناسب لضمان اكتمال المزامنة
-      setTimeout(() => {
-        // إضافة معلمة URL لمنع التخزين المؤقت أثناء إعادة التحميل
-        window.location.href = window.location.href.split('?')[0] + '?refresh=' + Date.now();
-      }, 1500);
-    }
+    // 5. تنفيذ المزامنة القسرية
+    await syncAllData(true);
     
-    return success;
+    // 6. محاولة بث التحديث لجميع المتصفحات
+    await forceBroadcastToAllBrowsers();
+    
+    // 7. إعادة تحميل الصفحة بعد تأخير كاف
+    setTimeout(() => {
+      try {
+        // محاولة تحديث الصفحة مع منع التخزين المؤقت
+        window.location.href = window.location.href.split('?')[0] + '?refresh=' + Date.now();
+      } catch (e) {
+        // محاولة استخدام طريقة تحديث بديلة
+        try {
+          window.location.reload(true);
+        } catch (e2) {
+          console.error('فشلت جميع محاولات تحديث الصفحة:', e2);
+        }
+      }
+    }, 1500);
+    
+    return true;
   } catch (error) {
-    console.error('خطأ في التحديث القسري:', error);
+    console.error('خطأ في التحديث القسري للبيانات:', error);
     return false;
   }
 };

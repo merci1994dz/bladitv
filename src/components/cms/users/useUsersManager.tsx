@@ -1,50 +1,56 @@
 
 import { useState, useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { getCMSUsers, saveCMSUsers } from '@/services/cms/storage';
 import { CMSUser } from '@/services/cms/types';
-import { addUser, updateUser, deleteUser } from '@/services/cms/managers/userManager';
+import { useToast } from '@/hooks/use-toast';
+import { publishChannelsToAllUsers } from '@/services/sync';
+import { saveChannelsToStorage } from '@/services/dataStore';
 
+// Hook للتعامل مع المستخدمين
 export const useUsersManager = () => {
+  const { toast } = useToast();
   const [users, setUsers] = useState<CMSUser[]>([]);
   const [isAddingUser, setIsAddingUser] = useState(false);
-  const [isEditingUser, setIsEditingUser] = useState<string | null>(null);
+  const [isEditingUser, setIsEditingUser] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState<string | null>(null);
-  const { toast } = useToast();
-
-  // نموذج المستخدم الجديد
-  const [newUser, setNewUser] = useState<Omit<CMSUser, 'id'>>({
+  const [editingUser, setEditingUser] = useState<CMSUser | null>(null);
+  const [newUser, setNewUser] = useState<CMSUser>({
+    id: '',
     username: '',
     email: '',
-    role: 'editor',
-    permissions: ['read'],
-    active: true
+    role: 'viewer',
+    active: true,
   });
 
-  // حالة للمستخدم الذي يتم تحريره
-  const [editingUser, setEditingUser] = useState<CMSUser | null>(null);
-
-  // جلب المستخدمين عند تحميل المكون
+  // تحميل المستخدمين من التخزين المحلي
   useEffect(() => {
-    const loadUsers = () => {
-      try {
-        const loadedUsers = getCMSUsers();
-        setUsers(loadedUsers);
-      } catch (error) {
-        toast({
-          title: "خطأ في تحميل المستخدمين",
-          description: "تعذر تحميل قائمة المستخدمين",
-          variant: "destructive",
-        });
+    try {
+      const storedUsers = localStorage.getItem('cms_users');
+      if (storedUsers) {
+        setUsers(JSON.parse(storedUsers));
+      } else {
+        // إضافة مستخدم افتراضي إذا لم يكن هناك مستخدمين
+        const defaultUser: CMSUser = {
+          id: 'admin-1',
+          username: 'مدير النظام',
+          email: 'admin@example.com',
+          role: 'admin',
+          active: true,
+        };
+        setUsers([defaultUser]);
+        localStorage.setItem('cms_users', JSON.stringify([defaultUser]));
       }
-    };
-
-    loadUsers();
+    } catch (error) {
+      console.error('خطأ في تحميل المستخدمين:', error);
+      toast({
+        title: "خطأ في تحميل المستخدمين",
+        description: "تعذر تحميل بيانات المستخدمين",
+        variant: "destructive",
+      });
+    }
   }, [toast]);
 
   // إضافة مستخدم جديد
   const handleAddUser = () => {
-    // التحقق من صحة البيانات
     if (!newUser.username || !newUser.email) {
       toast({
         title: "بيانات غير مكتملة",
@@ -54,115 +60,156 @@ export const useUsersManager = () => {
       return;
     }
 
-    // التحقق من عدم تكرار البريد الإلكتروني
-    if (users.some(user => user.email === newUser.email)) {
-      toast({
-        title: "البريد الإلكتروني مستخدم",
-        description: "هذا البريد الإلكتروني مستخدم بالفعل",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
-      const createdUser = addUser(newUser);
-      setUsers([...users, createdUser]);
+      const updatedUser = {
+        ...newUser,
+        id: `user-${Date.now()}`,
+      };
       
-      toast({
-        title: "تم إضافة المستخدم",
-        description: "تمت إضافة المستخدم بنجاح",
-      });
+      const updatedUsers = [...users, updatedUser];
+      setUsers(updatedUsers);
+      localStorage.setItem('cms_users', JSON.stringify(updatedUsers));
       
-      // إعادة تعيين النموذج
+      // مسح نموذج المستخدم الجديد
       setNewUser({
+        id: '',
         username: '',
         email: '',
-        role: 'editor',
-        permissions: ['read'],
-        active: true
+        role: 'viewer',
+        active: true,
       });
       
       setIsAddingUser(false);
+      
+      toast({
+        title: "تمت الإضافة بنجاح",
+        description: `تم إضافة المستخدم ${updatedUser.username} بنجاح`,
+      });
+      
+      // نشر التحديثات للمستخدمين
+      publishUpdates();
     } catch (error) {
+      console.error('خطأ في إضافة المستخدم:', error);
       toast({
         title: "خطأ في إضافة المستخدم",
-        description: "تعذرت إضافة المستخدم",
+        description: "تعذر إضافة المستخدم، يرجى المحاولة مرة أخرى",
         variant: "destructive",
       });
-    }
-  };
-
-  // تحديث مستخدم
-  const handleUpdateUser = () => {
-    if (!editingUser) return;
-
-    try {
-      const updatedUser = updateUser(editingUser);
-      setUsers(users.map(user => user.id === updatedUser.id ? updatedUser : user));
-      
-      toast({
-        title: "تم تحديث المستخدم",
-        description: "تم تحديث بيانات المستخدم بنجاح",
-      });
-      
-      setIsEditingUser(null);
-      setEditingUser(null);
-    } catch (error) {
-      toast({
-        title: "خطأ في تحديث المستخدم",
-        description: "تعذر تحديث بيانات المستخدم",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // حذف مستخدم
-  const handleDeleteUser = (userId: string) => {
-    // منع حذف المستخدم الوحيد بدور المسؤول
-    const adminUsers = users.filter(user => user.role === 'admin');
-    const userToDelete = users.find(user => user.id === userId);
-    
-    if (adminUsers.length === 1 && userToDelete?.role === 'admin') {
-      toast({
-        title: "لا يمكن الحذف",
-        description: "لا يمكن حذف المستخدم المسؤول الوحيد",
-        variant: "destructive",
-      });
-      setIsConfirmingDelete(null);
-      return;
-    }
-
-    try {
-      const success = deleteUser(userId);
-      if (success) {
-        setUsers(users.filter(user => user.id !== userId));
-        
-        toast({
-          title: "تم حذف المستخدم",
-          description: "تم حذف المستخدم بنجاح",
-        });
-      }
-      setIsConfirmingDelete(null);
-    } catch (error) {
-      toast({
-        title: "خطأ في حذف المستخدم",
-        description: "تعذر حذف المستخدم",
-        variant: "destructive",
-      });
-      setIsConfirmingDelete(null);
     }
   };
 
   // بدء تحرير مستخدم
   const startEditingUser = (user: CMSUser) => {
     setEditingUser({ ...user });
-    setIsEditingUser(user.id);
+    setIsEditingUser(true);
+  };
+
+  // تحديث مستخدم
+  const handleUpdateUser = () => {
+    if (!editingUser) return;
+    
+    if (!editingUser.username || !editingUser.email) {
+      toast({
+        title: "بيانات غير مكتملة",
+        description: "يرجى إدخال اسم المستخدم والبريد الإلكتروني",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const updatedUsers = users.map(user => 
+        user.id === editingUser.id ? editingUser : user
+      );
+      
+      setUsers(updatedUsers);
+      localStorage.setItem('cms_users', JSON.stringify(updatedUsers));
+      setIsEditingUser(false);
+      setEditingUser(null);
+      
+      toast({
+        title: "تم التحديث بنجاح",
+        description: `تم تحديث بيانات المستخدم ${editingUser.username} بنجاح`,
+      });
+      
+      // نشر التحديثات للمستخدمين
+      publishUpdates();
+    } catch (error) {
+      console.error('خطأ في تحديث المستخدم:', error);
+      toast({
+        title: "خطأ في تحديث المستخدم",
+        description: "تعذر تحديث بيانات المستخدم، يرجى المحاولة مرة أخرى",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // حذف مستخدم
+  const handleDeleteUser = () => {
+    if (!isConfirmingDelete) return;
+    
+    try {
+      const userId = isConfirmingDelete;
+      const userToDelete = users.find(user => user.id === userId);
+      
+      if (!userToDelete) {
+        throw new Error('المستخدم غير موجود');
+      }
+      
+      // التحقق من عدم حذف آخر مستخدم مسؤول
+      const admins = users.filter(user => user.role === 'admin');
+      if (admins.length === 1 && admins[0].id === userId) {
+        toast({
+          title: "لا يمكن حذف المستخدم",
+          description: "لا يمكن حذف آخر مستخدم بدور مسؤول",
+          variant: "destructive",
+        });
+        setIsConfirmingDelete(null);
+        return;
+      }
+      
+      const updatedUsers = users.filter(user => user.id !== userId);
+      setUsers(updatedUsers);
+      localStorage.setItem('cms_users', JSON.stringify(updatedUsers));
+      setIsConfirmingDelete(null);
+      
+      toast({
+        title: "تم الحذف بنجاح",
+        description: `تم حذف المستخدم ${userToDelete.username} بنجاح`,
+      });
+      
+      // نشر التحديثات للمستخدمين
+      publishUpdates();
+    } catch (error) {
+      console.error('خطأ في حذف المستخدم:', error);
+      toast({
+        title: "خطأ في حذف المستخدم",
+        description: "تعذر حذف المستخدم، يرجى المحاولة مرة أخرى",
+        variant: "destructive",
+      });
+      setIsConfirmingDelete(null);
+    }
+  };
+
+  // نشر التحديثات للجميع
+  const publishUpdates = async () => {
+    try {
+      // حفظ وحدة التخزين
+      await saveChannelsToStorage();
+      
+      // نشر القنوات للمستخدمين
+      await publishChannelsToAllUsers();
+      
+      console.log('تم نشر التحديثات لجميع المستخدمين');
+    } catch (error) {
+      console.error('خطأ في نشر التحديثات:', error);
+    }
   };
 
   return {
     users,
     newUser,
-    setNewUser,
+    setNewUser: (user: Partial<CMSUser>) => setNewUser({ ...newUser, ...user }),
     isAddingUser,
     setIsAddingUser,
     isEditingUser,
@@ -170,7 +217,13 @@ export const useUsersManager = () => {
     isConfirmingDelete,
     setIsConfirmingDelete,
     editingUser,
-    setEditingUser,
+    setEditingUser: (user: Partial<CMSUser> | null) => {
+      if (user === null) {
+        setEditingUser(null);
+      } else if (editingUser) {
+        setEditingUser({ ...editingUser, ...user });
+      }
+    },
     handleAddUser,
     handleUpdateUser,
     handleDeleteUser,

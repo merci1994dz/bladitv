@@ -56,13 +56,25 @@ export const publishChannelsToAllUsers = async (): Promise<boolean> => {
     // 5. تطبيق المزامنة القسرية
     const syncResult = await syncAllData(true);
     
-    // 6. فرض إعادة تحميل الصفحة بعد نجاح العملية
+    // 6. إضافة التأخير قبل إعادة التحميل لإعطاء وقت للتغييرات لتأخذ مفعولها
     if (syncResult) {
       setTimeout(() => {
         localStorage.setItem('refresh_complete', timestamp);
         
-        // إعادة تحميل مع منع التخزين المؤقت
-        window.location.href = window.location.href.split('?')[0] + '?refresh=' + Date.now();
+        // 7. تحديث صفحة المستخدم لضمان ظهور التغييرات
+        // نقوم بإضافة معلمة لتجنب التخزين المؤقت
+        try {
+          window.location.href = window.location.href.split('?')[0] + '?refresh=' + Date.now();
+        } catch (e) {
+          console.error('فشل في إعادة تحميل الصفحة:', e);
+          
+          // محاولة تحديث الصفحة بطريقة أخرى إذا فشلت الطريقة السابقة
+          try {
+            window.location.reload();
+          } catch (e2) {
+            console.error('فشل في تحديث الصفحة بالطريقة الثانية:', e2);
+          }
+        }
       }, 1800);
     }
     
