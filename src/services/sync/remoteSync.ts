@@ -7,14 +7,15 @@
 export { 
   syncWithRemoteSource, 
   syncWithBladiInfo, 
-  checkBladiInfoAvailability
+  checkBladiInfoAvailability,
+  BLADI_INFO_SOURCES
 } from './remote/sync';
 
 export { 
   fetchRemoteData, 
   isRemoteUrlAccessible,
-  getSkewProtectionParams
+  getSkewProtectionParams,
+  loadWithJsonp
 } from './remote/fetch';
 
 export { storeRemoteData } from './remote/storeData';
-

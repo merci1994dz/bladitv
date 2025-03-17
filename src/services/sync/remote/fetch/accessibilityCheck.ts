@@ -1,91 +1,135 @@
 
 /**
- * Utilities for checking remote URL accessibility
+ * Check if remote URL is accessible
  */
 
-import { detectBrowser } from './browserDetection';
+import { getSkewProtectionParams } from './skewProtection';
 
 /**
- * Check if a remote URL is accessible
+ * Checks if a remote URL is accessible
  * 
- * @param url URL to check
- * @returns Promise resolving with boolean indicating accessibility
+ * @param remoteUrl URL to check
+ * @returns Promise resolving with accessibility status
  */
-export const isRemoteUrlAccessible = async (url: string): Promise<boolean> => {
+export const isRemoteUrlAccessible = async (remoteUrl: string): Promise<boolean> => {
+  // عدم فحص المصادر المحلية
+  if (remoteUrl.startsWith('/')) {
+    return true;
+  }
+  
+  // إضافة معلمات لتجنب التخزين المؤقت
+  const cacheParam = `nocache=${Date.now()}&_=${Math.random().toString(36).substring(2, 15)}`;
+  const skewParam = getSkewProtectionParams();
+  const urlWithCache = remoteUrl.includes('?') 
+    ? `${remoteUrl}&${cacheParam}${skewParam ? `&${skewParam}` : ''}` 
+    : `${remoteUrl}?${cacheParam}${skewParam ? `&${skewParam}` : ''}`;
+  
+  // تعيين مهلة زمنية قصيرة (8 ثوانٍ) للتحقق من إمكانية الوصول
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // زيادة المهلة إلى 10 ثواني
+    console.log(`التحقق من إمكانية الوصول إلى: ${urlWithCache}`);
     
-    // كشف المتصفح للتوافق الأفضل
-    const { isSafari, isIE, isEdge } = detectBrowser();
-    
-    // محاولات متعددة بخيارات مختلفة
-    const fetchMethods = ['HEAD', 'GET'];
-    const fetchModes = ['cors', 'no-cors'];
-    
-    for (const method of fetchMethods) {
-      for (const mode of fetchModes) {
+    // تنفيذ أكثر من نهج للتحقق من إمكانية الوصول
+    const methods = [
+      // محاولة HEAD مع CORS
+      async () => {
         try {
-          // إضافة معلمات لمنع التخزين المؤقت
-          const cacheParam = `nocache=${Date.now()}&_=${Math.random().toString(36).substring(2, 15)}`;
-          const urlWithCache = url.includes('?') 
-            ? `${url}&${cacheParam}` 
-            : `${url}?${cacheParam}`;
-          
-          const fetchOptions: RequestInit = {
-            method,
+          console.log(`محاولة الوصول بطريقة HEAD و cors إلى ${urlWithCache}`);
+          const response = await fetch(urlWithCache, {
+            method: 'HEAD',
             signal: controller.signal,
-            mode: mode as RequestMode,
+            mode: 'cors',
+            cache: 'no-store',
             credentials: 'omit',
             headers: {
               'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
-              'Expires': '0'
+              'Pragma': 'no-cache'
             }
-          };
+          });
+          return response.ok;
+        } catch (error) {
+          console.warn(`فشلت محاولة الوصول بطريقة HEAD و cors إلى ${urlWithCache}:`, error);
+          return false;
+        }
+      },
+      
+      // محاولة HEAD مع no-cors
+      async () => {
+        try {
+          console.log(`محاولة الوصول بطريقة HEAD و no-cors إلى ${urlWithCache}`);
+          await fetch(urlWithCache, {
+            method: 'HEAD',
+            signal: controller.signal,
+            mode: 'no-cors',
+            cache: 'no-store',
+            credentials: 'omit',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            }
+          });
+          // لا يمكن قراءة الاستجابة في وضع no-cors، لكن عدم وجود خطأ يعني أن الرابط متاح
+          return true;
+        } catch (error) {
+          console.warn(`فشلت محاولة الوصول بطريقة HEAD و no-cors إلى ${urlWithCache}:`, error);
+          return false;
+        }
+      },
+      
+      // محاولة باستخدام Image
+      async () => {
+        return new Promise<boolean>(resolve => {
+          console.log(`محاولة فحص الوصول باستخدام Image إلى ${remoteUrl}`);
+          const img = new Image();
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(false);
           
-          // تعديلات لبعض المتصفحات
-          if (isSafari || isIE || isEdge) {
-            delete fetchOptions.cache;
-          }
+          // استخدام نفس النطاق للتحقق من إمكانية الوصول
+          const domain = new URL(remoteUrl).origin;
+          img.src = `${domain}/favicon.ico?_=${Date.now()}`;
           
-          const response = await fetch(urlWithCache, fetchOptions);
-          
-          clearTimeout(timeoutId);
-          
-          // لـ no-cors، لا يمكننا الوصول إلى حالة الاستجابة، لذا نفترض أنها ناجحة إذا لم يتم رفض الوعد
-          if (mode === 'no-cors') {
-            return true;
-          }
-          
-          return response.ok || response.status === 0;
-        } catch (attemptError) {
-          console.warn(`فشلت محاولة الوصول بطريقة ${method} و ${mode} إلى ${url}:`, attemptError);
-          // نستمر في المحاولة التالية
+          // وضع مهلة زمنية للصورة
+          setTimeout(() => resolve(false), 5000);
+        });
+      },
+      
+      // التحقق من الرابط باستخدام ping
+      async () => {
+        try {
+          console.log(`محاولة ping للنطاق: ${new URL(remoteUrl).origin}/ping`);
+          const pingUrl = `${new URL(remoteUrl).origin}/ping`;
+          const response = await fetch(pingUrl, {
+            method: 'HEAD',
+            signal: controller.signal,
+            mode: 'cors',
+            cache: 'no-store',
+            credentials: 'omit',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            }
+          });
+          return response.ok;
+        } catch (error) {
+          console.warn(`فشل ping النطاق:`, error);
+          return false;
         }
       }
-    }
+    ];
     
-    // محاولة أخيرة باستخدام طريقة مبسطة
-    try {
-      const img = new Image();
-      const imgPromise = new Promise<boolean>((resolve) => {
-        img.onload = () => resolve(true);
-        img.onerror = () => resolve(false);
-      });
-      
-      // استخدام صورة صغيرة من الموقع نفسه للتحقق
-      const domain = new URL(url).origin;
-      img.src = `${domain}/favicon.ico?_=${Date.now()}`;
-      
-      return await imgPromise;
-    } catch (imgError) {
-      // تجاهل الخطأ، نعود false
-    }
+    // تنفيذ جميع الطرق بالتوازي للحصول على أسرع نتيجة
+    const results = await Promise.all(methods.map(method => method()));
     
-    return false;
+    // إذا نجحت أي طريقة، فإن الرابط متاح
+    const isAccessible = results.some(result => result === true);
+    
+    clearTimeout(timeoutId);
+    return isAccessible;
   } catch (error) {
-    console.warn(`تعذر الوصول إلى ${url}:`, error);
+    clearTimeout(timeoutId);
+    console.error(`خطأ أثناء التحقق من إمكانية الوصول إلى ${remoteUrl}:`, error);
     return false;
   }
 };

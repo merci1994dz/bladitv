@@ -29,18 +29,34 @@ export const processResponseError = async (response: Response): Promise<string> 
 export const enhanceFetchError = (error: any): Error => {
   // تحسين رسائل خطأ محددة للمساعدة في تشخيص المشكلات
   if (error.name === 'AbortError') {
-    return new Error('تم إلغاء طلب البيانات بسبب تجاوز المهلة الزمنية (30 ثانية)');
+    return new Error('تم إلغاء طلب البيانات بسبب تجاوز المهلة الزمنية (45 ثانية)');
   }
   
+  // إضافة المزيد من معلومات الخطأ للمساعدة في التشخيص
+  let errorMessage = error.message || 'خطأ غير معروف';
+  
   // فحص أخطاء CORS الشائعة
-  if (error.message.includes('CORS') || error.message.includes('Cross-Origin')) {
-    return new Error('خطأ في سياسات CORS. محاولة استخدام الوضع المتوافق.');
+  if (errorMessage.includes('CORS') || 
+      errorMessage.includes('Cross-Origin') || 
+      errorMessage.includes('Access-Control-Allow-Origin')) {
+    return new Error('خطأ في سياسات CORS. جاري الانتقال لاستخدام وسائط المزامنة البديلة.');
   }
   
   // فحص أخطاء الشبكة الشائعة
-  if (error.message.includes('network') || error.message.includes('NetworkError')) {
-    return new Error('خطأ في الشبكة. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.');
+  if (errorMessage.includes('network') || 
+      errorMessage.includes('NetworkError') || 
+      errorMessage.includes('net::') || 
+      errorMessage.includes('internet')) {
+    return new Error('خطأ في الشبكة. تحقق من اتصالك بالإنترنت وسيتم المحاولة مرة أخرى تلقائيًا.');
   }
   
-  return error;
+  // فحص أخطاء DNS
+  if (errorMessage.includes('DNS') || 
+      errorMessage.includes('resolve') || 
+      errorMessage.includes('lookup')) {
+    return new Error('خطأ في حل اسم النطاق. قد يكون المصدر غير متاح حاليًا. سيتم استخدام مصدر بديل.');
+  }
+  
+  // إضافة معلومات سياق للخطأ
+  return new Error(`خطأ أثناء الاتصال بالمصدر: ${errorMessage}`);
 };
