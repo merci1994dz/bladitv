@@ -1,4 +1,3 @@
-
 import { saveChannelsToStorage } from '../../dataStore';
 import { syncAllData } from '../coreSync';
 
@@ -39,15 +38,15 @@ export const forceBroadcastToAllBrowsers = async (skipReload: boolean = false): 
       delay += step;
     }
     
-    // 4. Apply forced sync
+    // 5. Apply forced sync
     setTimeout(async () => {
       await syncAllData(true);
       
-      // 5. Send final signal after sync completion
+      // 6. Send final signal after sync completion
       localStorage.setItem('sync_complete', updateId);
       localStorage.setItem('force_browser_refresh', 'true');
       
-      // 6. Force reload of current page with cache busting parameters only if skipReload is false
+      // 7. Force reload of current page with cache busting parameters only if skipReload is false
       if (!skipReload) {
         setTimeout(() => {
           try {
