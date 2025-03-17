@@ -79,7 +79,7 @@ export const forceDataRefresh = async (): Promise<boolean> => {
     
     // 6. محاولة بث التحديث لجميع المتصفحات
     // 6. Try broadcasting update to all browsers
-    await forceBroadcastToAllBrowsers();
+    await forceBroadcastToAllBrowsers(true);
     
     // 7. إعادة تحميل الصفحة بعد تأخير كاف
     // 7. Reload page after sufficient delay

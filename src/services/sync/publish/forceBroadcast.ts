@@ -3,7 +3,7 @@ import { saveChannelsToStorage } from '../../dataStore';
 import { syncAllData } from '../coreSync';
 
 // Function for direct and strong broadcasting to all browsers
-export const forceBroadcastToAllBrowsers = async (): Promise<boolean> => {
+export const forceBroadcastToAllBrowsers = async (skipReload?: boolean): Promise<boolean> => {
   console.log('بدء النشر القسري والقوي لجميع المتصفحات...');
   
   try {
@@ -47,28 +47,32 @@ export const forceBroadcastToAllBrowsers = async (): Promise<boolean> => {
       localStorage.setItem('sync_complete', updateId);
       localStorage.setItem('force_browser_refresh', 'true');
       
-      // 6. Force reload of current page with cache busting parameters
-      setTimeout(() => {
-        try {
-          const baseUrl = window.location.href.split('?')[0];
-          const cacheBuster = `refresh=${updateId}&nocache=${Date.now()}&t=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`;
-          window.location.href = `${baseUrl}?${cacheBuster}`;
-        } catch (e) {
-          // Fallback to simple reload
-          window.location.reload();
-        }
-      }, 1000);
+      // 6. Force reload of current page with cache busting parameters only if skipReload is false
+      if (!skipReload) {
+        setTimeout(() => {
+          try {
+            const baseUrl = window.location.href.split('?')[0];
+            const cacheBuster = `refresh=${updateId}&nocache=${Date.now()}&t=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`;
+            window.location.href = `${baseUrl}?${cacheBuster}`;
+          } catch (e) {
+            // Fallback to simple reload
+            window.location.reload();
+          }
+        }, 1000);
+      }
     }, delay + 100);
     
     return true;
   } catch (error) {
     console.error('فشل في النشر القسري:', error);
     
-    // محاولة إجبار إعادة التحميل على أي حال في حالة الفشل
-    try {
-      window.location.reload();
-    } catch (e) {
-      console.error('فشل في إعادة تحميل الصفحة:', e);
+    // محاولة إجبار إعادة التحميل على أي حال في حالة الفشل إذا لم يتم تخطي إعادة التحميل
+    if (!skipReload) {
+      try {
+        window.location.reload();
+      } catch (e) {
+        console.error('فشل في إعادة تحميل الصفحة:', e);
+      }
     }
     
     return false;
