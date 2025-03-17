@@ -1,62 +1,50 @@
 
 /**
- * Error handling utilities for fetch operations
+ * معالجة أخطاء طلبات الشبكة
+ * Network request error handling
  */
 
 /**
- * Process response error for better debugging
- * 
- * @param response Fetch response object
- * @returns Promise resolving with error message
+ * معالجة أخطاء الاستجابة
+ * Process response errors
  */
 export const processResponseError = async (response: Response): Promise<string> => {
-  let statusText = '';
   try {
-    statusText = await response.text();
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const errorData = await response.json();
+      return errorData.message || errorData.error || `خطأ في الاستجابة: ${response.status} ${response.statusText}`;
+    } else {
+      const text = await response.text();
+      return text || `خطأ في الاستجابة: ${response.status} ${response.statusText}`;
+    }
   } catch (e) {
-    statusText = response.statusText || 'خطأ غير معروف';
+    return `خطأ في الاستجابة: ${response.status} ${response.statusText}`;
   }
-  
-  return `فشل في تحميل البيانات: ${response.status} ${response.statusText} - ${statusText}`;
 };
 
 /**
- * Enhance fetch error with more specific information
- * 
- * @param error Original error
- * @returns Enhanced error object
+ * تحسين رسائل الخطأ
+ * Enhance error messages
  */
 export const enhanceFetchError = (error: any): Error => {
-  // تحسين رسائل خطأ محددة للمساعدة في تشخيص المشكلات
-  if (error.name === 'AbortError') {
-    return new Error('تم إلغاء طلب البيانات بسبب تجاوز المهلة الزمنية (45 ثانية)');
+  const errorMsg = error instanceof Error ? error.message : String(error);
+  
+  if (errorMsg.includes('aborted') || errorMsg.includes('abort')) {
+    return new Error('تم إلغاء الطلب بسبب تجاوز المهلة الزمنية');
   }
   
-  // إضافة المزيد من معلومات الخطأ للمساعدة في التشخيص
-  let errorMessage = error.message || 'خطأ غير معروف';
-  
-  // فحص أخطاء CORS الشائعة
-  if (errorMessage.includes('CORS') || 
-      errorMessage.includes('Cross-Origin') || 
-      errorMessage.includes('Access-Control-Allow-Origin')) {
-    return new Error('خطأ في سياسات CORS. جاري الانتقال لاستخدام وسائط المزامنة البديلة.');
+  if (errorMsg.includes('network') || errorMsg.includes('Network')) {
+    return new Error('خطأ في الشبكة، تأكد من اتصالك بالإنترنت');
   }
   
-  // فحص أخطاء الشبكة الشائعة
-  if (errorMessage.includes('network') || 
-      errorMessage.includes('NetworkError') || 
-      errorMessage.includes('net::') || 
-      errorMessage.includes('internet')) {
-    return new Error('خطأ في الشبكة. تحقق من اتصالك بالإنترنت وسيتم المحاولة مرة أخرى تلقائيًا.');
+  if (errorMsg.includes('SSL') || errorMsg.includes('certificate')) {
+    return new Error('خطأ في شهادة SSL، تأكد من أمان الموقع');
   }
   
-  // فحص أخطاء DNS
-  if (errorMessage.includes('DNS') || 
-      errorMessage.includes('resolve') || 
-      errorMessage.includes('lookup')) {
-    return new Error('خطأ في حل اسم النطاق. قد يكون المصدر غير متاح حاليًا. سيتم استخدام مصدر بديل.');
+  if (errorMsg.includes('CORS') || errorMsg.includes('origin')) {
+    return new Error('خطأ CORS: المصدر الخارجي لا يسمح بالوصول من هذا الموقع');
   }
   
-  // إضافة معلومات سياق للخطأ
-  return new Error(`خطأ أثناء الاتصال بالمصدر: ${errorMessage}`);
+  return new Error(`خطأ في جلب البيانات: ${errorMsg}`);
 };
