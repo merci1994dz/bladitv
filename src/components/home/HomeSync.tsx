@@ -27,24 +27,18 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
       // وتجنب إضافة قنوات متشابهة
       const result = await syncWithBladiInfo(true, { preventDuplicates: true });
       
-      if (result && result.updated) {
+      if (result.updated) {
         toast({
           title: "تمت المزامنة بنجاح",
-          description: `تم تحديث ${result.channelsCount || 0} قناة بنجاح`
+          description: `تم تحديث ${result.channelsCount} قناة بنجاح`
         });
         
         // إعادة تحميل القنوات
         await refetchChannels();
-      } else if (result && !result.updated) {
+      } else {
         toast({
           title: "لا يوجد تحديثات جديدة",
           description: "جميع القنوات محدثة بالفعل"
-        });
-      } else {
-        toast({
-          title: "تعذرت المزامنة",
-          description: "لم يتم العثور على تحديثات جديدة",
-          variant: "destructive"
         });
       }
     } catch (error) {

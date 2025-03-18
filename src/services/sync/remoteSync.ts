@@ -3,7 +3,10 @@ import { channels, countries, categories, setIsSyncing } from '../dataStore';
 import { fetchRemoteData } from './remote/fetch';
 import { storeRemoteData } from './remote/storeData';
 import { updateLastSyncTime } from './config';
-import { checkBladiInfoAvailability } from './remote/syncOperations';
+import { syncWithRemoteSource, checkBladiInfoAvailability } from './remote/sync/bladiInfoSync';
+
+// Re-export these functions to make them available to other modules
+export { syncWithRemoteSource, checkBladiInfoAvailability };
 
 /**
  * المزامنة مع مواقع Bladi Info
@@ -15,7 +18,7 @@ import { checkBladiInfoAvailability } from './remote/syncOperations';
 export const syncWithBladiInfo = async (
   forceRefresh = false, 
   options?: { preventDuplicates?: boolean }
-): Promise<boolean | { updated: boolean, channelsCount: number }> => {
+): Promise<{ updated: boolean, channelsCount: number }> => {
   try {
     console.log('بدء المزامنة مع مواقع Bladi Info...');
     
@@ -26,7 +29,7 @@ export const syncWithBladiInfo = async (
     
     if (!availableSource) {
       console.warn('لم يتم العثور على أي مصدر متاح للمزامنة');
-      return false;
+      return { updated: false, channelsCount: 0 };
     }
     
     console.log(`مزامنة مع المصدر: ${availableSource}`);
@@ -41,7 +44,7 @@ export const syncWithBladiInfo = async (
     
     if (!data || !data.channels || !Array.isArray(data.channels)) {
       console.error('بيانات غير صالحة تم استلامها من المصدر');
-      return false;
+      return { updated: false, channelsCount: 0 };
     }
     
     // حساب القنوات قبل التحديث
@@ -66,7 +69,7 @@ export const syncWithBladiInfo = async (
     };
   } catch (error) {
     console.error('خطأ في المزامنة مع مواقع Bladi Info:', error);
-    return false;
+    return { updated: false, channelsCount: 0 };
   } finally {
     setIsSyncing(false);
   }

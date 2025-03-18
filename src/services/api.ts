@@ -1,4 +1,3 @@
-
 // هذا الملف يعمل كنقطة تصدير رئيسية لجميع خدمات API
 
 // إعادة تصدير كل شيء من وحدات الخدمة
@@ -8,6 +7,9 @@ export * from './countryService';
 export * from './adminService';
 export * from './sync';  // تم التحديث لاستخدام وحدة المزامنة الجديدة
 export * from './historyService';
+
+// Import the syncAllData function for the forceSync implementation
+import { syncAllData } from './sync';
 
 export const getRecentlyWatchedChannels = async () => {
   try {
@@ -42,5 +44,18 @@ export const getRecentlyWatchedChannels = async () => {
   } catch (error) {
     console.error('Error fetching recently watched channels:', error);
     return [];
+  }
+};
+
+/**
+ * Force synchronization with remote servers
+ * إجبار المزامنة مع الخوادم البعيدة
+ */
+export const forceSync = async (): Promise<boolean> => {
+  try {
+    return await syncAllData(true);
+  } catch (error) {
+    console.error('Error in forceSync:', error);
+    return false;
   }
 };

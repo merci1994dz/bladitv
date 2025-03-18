@@ -1,7 +1,8 @@
+
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { getRemoteConfig, setRemoteConfig } from '@/services/sync/remote';
-import { syncWithRemoteSource } from '@/services/sync/remoteSync';
+import { syncWithRemoteSource } from '@/services/sync';
 
 export const useRemoteConfig = (isAuthenticated: boolean) => {
   const { toast } = useToast();
