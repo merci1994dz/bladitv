@@ -27,7 +27,9 @@ export const checkConnectivityIssues = async (): Promise<{
     const testEndpoints = [
       'https://www.google.com/generate_204',
       'https://www.cloudflare.com/cdn-cgi/trace',
-      'https://www.microsoft.com/favicon.ico'
+      'https://www.microsoft.com/favicon.ico',
+      'https://httpbin.org/ip', // إضافة نقطة نهاية إضافية
+      'https://raw.githubusercontent.com/bladitv/status/main/ping.txt' // مصدر مخصص
     ];
     
     // نحاول الوصول إلى نقطة نهاية واحدة على الأقل
@@ -42,7 +44,11 @@ export const checkConnectivityIssues = async (): Promise<{
           method: 'HEAD',
           mode: 'no-cors', // هذا مهم للتغلب على قيود CORS
           cache: 'no-store',
-          signal: controller.signal
+          signal: controller.signal,
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
         });
         
         clearTimeout(timeoutId);
@@ -59,36 +65,59 @@ export const checkConnectivityIssues = async (): Promise<{
     }
     
     // الآن نتحقق من الوصول إلى خوادم التطبيق
-    // لنستخدم CDN لتجنب مشاكل CORS
+    // استخدام مجموعة أكبر من نقاط النهاية لتجنب مشاكل CORS والحجب
     const appEndpoints = [
       'https://cdn.jsdelivr.net/gh/bladitv/channels@master/channels.json',
-      'https://raw.githubusercontent.com/bladitv/channels/master/channels.json'
+      'https://raw.githubusercontent.com/bladitv/channels/master/channels.json',
+      'https://api.github.com/repos/bladitv/channels/contents/channels.json',
+      'https://bladitv.github.io/channels/channels.json',
+      'https://fastly.jsdelivr.net/gh/bladitv/channels@master/channels.json',
+      'https://gcore.jsdelivr.net/gh/bladitv/channels@master/channels.json'
     ];
     
-    for (const endpoint of appEndpoints) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-        
-        const response = await fetch(endpoint, {
-          method: 'HEAD',
-          cache: 'no-store',
-          signal: controller.signal
+    // استخدام Promise.any للتعامل مع أول استجابة ناجحة
+    try {
+      // إنشاء مصفوفة من الوعود للتحقق من كل نقطة نهاية
+      const checkPromises = appEndpoints.map(endpoint => {
+        return new Promise(async (resolve, reject) => {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+              controller.abort();
+              reject(new Error(`Timeout for ${endpoint}`));
+            }, 3000); // وقت انتظار أقصر لكل طلب
+            
+            const response = await fetch(endpoint, {
+              method: 'HEAD',
+              cache: 'no-store',
+              signal: controller.signal,
+              headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+              }
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (response.ok || response.status === 204) {
+              resolve(true);
+            } else {
+              reject(new Error(`Status ${response.status} for ${endpoint}`));
+            }
+          } catch (error) {
+            reject(error);
+          }
         });
-        
-        clearTimeout(timeoutId);
-        
-        if (response.ok || response.status === 204) {
-          return { hasInternet: true, hasServerAccess: true };
-        }
-      } catch (error) {
-        console.log(`تعذر الوصول إلى خادم التطبيق ${endpoint}:`, error);
-        // نستمر في المحاولة مع النقطة التالية
-      }
+      });
+      
+      // استخدام Promise.any لانتظار أول نجاح (إذا كان متاحًا)
+      await Promise.any(checkPromises);
+      return { hasInternet: true, hasServerAccess: true };
+    } catch (aggregateError) {
+      console.log('فشل الوصول إلى جميع نقاط نهاية التطبيق:', aggregateError);
+      return { hasInternet: true, hasServerAccess: false };
     }
     
-    // الوصول إلى الإنترنت محدود، لكن لا يمكن الوصول إلى خوادم التطبيق
-    return { hasInternet: true, hasServerAccess: false };
   } catch (error) {
     console.log('خطأ في فحص الاتصال بالإنترنت:', error);
     
@@ -109,42 +138,48 @@ export const quickConnectivityCheck = async (): Promise<boolean> => {
   }
   
   try {
-    // نحاول الوصول بشكل بسيط إلى موارد معروفة
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    // نحاول الوصول بشكل بسيط إلى مجموعة من الموارد المعروفة
+    // استخدام خوادم متعددة لزيادة فرص النجاح
+    const quickEndpoints = [
+      'https://cdn.jsdelivr.net/gh/bladitv/channels@master/channels.json',
+      'https://www.google.com/generate_204',
+      'https://fastly.jsdelivr.net/gh/bladitv/channels@master/channels.json',
+      'https://httpbin.org/ip'
+    ];
     
-    try {
-      await fetch('https://cdn.jsdelivr.net/gh/bladitv/channels@master/channels.json', {
-        method: 'HEAD',
-        cache: 'no-store',
-        mode: 'no-cors',
-        signal: controller.signal
+    // التحقق بشكل متوازٍ من جميع نقاط النهاية
+    const allPromises = quickEndpoints.map(endpoint => {
+      return new Promise<boolean>(async (resolve) => {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => {
+            controller.abort();
+            resolve(false);
+          }, 2000); // وقت انتظار أقصر للفحص السريع
+          
+          await fetch(endpoint, {
+            method: 'HEAD',
+            cache: 'no-store',
+            mode: 'no-cors',
+            signal: controller.signal,
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
+          });
+          
+          clearTimeout(timeoutId);
+          resolve(true);
+        } catch (error) {
+          resolve(false);
+        }
       });
-      
-      clearTimeout(timeoutId);
-      return true;
-    } catch (error) {
-      clearTimeout(timeoutId);
-      
-      // نحاول مرة أخرى مع نقطة نهاية أخرى
-      const backupController = new AbortController();
-      const backupTimeoutId = setTimeout(() => backupController.abort(), 3000);
-      
-      try {
-        await fetch('https://www.google.com/generate_204', {
-          method: 'HEAD',
-          cache: 'no-store',
-          mode: 'no-cors',
-          signal: backupController.signal
-        });
-        
-        clearTimeout(backupTimeoutId);
-        return true;
-      } catch (backupError) {
-        clearTimeout(backupTimeoutId);
-        return false;
-      }
-    }
+    });
+    
+    // انتظار كافة الوعود واختيار أفضل نتيجة
+    const results = await Promise.all(allPromises);
+    return results.some(result => result === true);
+    
   } catch (error) {
     return false;
   }

@@ -4,7 +4,7 @@
  * ملف التصدير الرئيسي لوظائف فحص الاتصال
  */
 
-export { checkConnectivityIssues } from './connectivity-checker';
+export { checkConnectivityIssues, quickConnectivityCheck } from './connectivity-checker';
 export { checkEndpointsAccessibility } from './endpoint-checker';
 export { checkNetworkReliability } from './reliability-checker';
 export type { ConnectivityCheckResult } from './types';

@@ -11,7 +11,6 @@ export const useNetworkStatus = () => {
     hasServerAccess: boolean;
   }>({ hasInternet: navigator.onLine, hasServerAccess: false });
   
-  // متغير للتحكم في عدد محاولات الفحص
   const [checkAttempts, setCheckAttempts] = useState(0);
   const [lastCheckTime, setLastCheckTime] = useState(0);
   const [isChecking, setIsChecking] = useState(false);
