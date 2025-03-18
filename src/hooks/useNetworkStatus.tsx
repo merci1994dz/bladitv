@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { checkConnectivityIssues, quickConnectivityCheck } from '@/services/sync/status/connectivity/connectivity-checker';
@@ -15,85 +14,89 @@ export const useNetworkStatus = () => {
   const [lastCheckTime, setLastCheckTime] = useState(0);
   const [isChecking, setIsChecking] = useState(false);
 
-  // التعامل مع تغييرات حالة الشبكة - مع حماية ضد الفحص المتكرر
   const handleNetworkChange = useCallback(async () => {
-    // تجنب تشغيل عمليات فحص متعددة في نفس الوقت
-    if (isChecking) return navigator.onLine;
+    if (isChecking) {
+      console.log('فحص جارٍ بالفعل، تخطي...');
+      return navigator.onLine;
+    }
     
+    console.log('بدء فحص الاتصال...');
     setIsChecking(true);
     const isOnline = navigator.onLine;
     setIsOffline(!isOnline);
     
-    // تحقق مما إذا يجب إجراء فحص شامل (منع الفحص المتكرر خلال فترة قصيرة)
+    if (!isOnline) {
+      console.log('لا يوجد اتصال بالإنترنت');
+      setNetworkStatus({ hasInternet: false, hasServerAccess: false });
+      toast({
+        title: "انقطع الاتصال",
+        description: "أنت الآن في وضع عدم الاتصال. سيتم استخدام البيانات المخزنة محليًا.",
+        variant: "destructive",
+      });
+      setCheckAttempts(0);
+      setIsChecking(false);
+      return false;
+    }
+    
     const currentTime = Date.now();
-    const shouldDoFullCheck = isOnline && 
-      (currentTime - lastCheckTime > 30000 || checkAttempts < 2);
+    const shouldDoFullCheck = currentTime - lastCheckTime > 30000 || checkAttempts < 2;
     
     if (shouldDoFullCheck) {
       try {
+        console.log('بدء الفحص الشامل للاتصال...');
         setLastCheckTime(currentTime);
         setCheckAttempts(prev => prev + 1);
         
-        // البدء بفحص سريع للاتصال
         const quickCheck = await quickConnectivityCheck();
+        console.log('نتيجة الفحص السريع:', quickCheck);
         
         if (!quickCheck) {
+          console.log('فشل الفحص السريع');
           setNetworkStatus({ hasInternet: true, hasServerAccess: false });
           setIsChecking(false);
           return isOnline;
         }
         
-        // عند استعادة الاتصال، تحقق من مشاكل الاتصال المحتملة
+        console.log('بدء فحص مشاكل الاتصال...');
         const status = await checkConnectivityIssues();
+        console.log('نتيجة فحص الاتصال:', status);
         setNetworkStatus(status);
         
-        if (status.hasInternet) {
+        if (status.hasInternet && status.hasServerAccess && !networkStatus.hasServerAccess) {
           toast({
             title: "تم استعادة الاتصال",
-            description: status.hasServerAccess 
-              ? "جاري تحديث البيانات من المصادر المتاحة..." 
-              : "تم استعادة الاتصال المحلي فقط. سيتم الاعتماد على البيانات المخزنة.",
-            duration: 4000,
+            description: "جاري تحديث البيانات من المصادر المتاحة...",
+          });
+        } else if (status.hasInternet && !status.hasServerAccess) {
+          toast({
+            title: "اتصال محدود",
+            description: "يمكن الوصول للإنترنت ولكن ليس للخادم. سيتم الاعتماد على البيانات المخزنة.",
+            variant: "destructive",
           });
         }
       } catch (error) {
         console.error('خطأ في فحص الشبكة:', error);
-        // في حالة الفشل، نفترض أن لدينا اتصال أساسي فقط
         setNetworkStatus({ hasInternet: isOnline, hasServerAccess: false });
       }
-    } else if (!isOnline) {
-      toast({
-        title: "انقطع الاتصال",
-        description: "أنت الآن في وضع عدم الاتصال. سيتم استخدام البيانات المخزنة محليًا.",
-        variant: "destructive",
-        duration: 5000,
-      });
-      
-      // إعادة تعيين عدد المحاولات عند انقطاع الاتصال
-      setCheckAttempts(0);
-      setNetworkStatus({ hasInternet: false, hasServerAccess: false });
     }
     
     setIsChecking(false);
     return isOnline;
-  }, [toast, checkAttempts, lastCheckTime, isChecking]);
-  
-  // وظيفة لإعادة محاولة فحص الاتصال يدوياً
+  }, [toast, checkAttempts, lastCheckTime, isChecking, networkStatus.hasServerAccess]);
+
   const retryConnection = useCallback(async () => {
-    // إعادة تعيين عداد المحاولات للسماح بإجراء فحص كامل
     setCheckAttempts(0);
     return await handleNetworkChange();
   }, [handleNetworkChange]);
-  
-  // إضافة استمعات لتغييرات حالة الشبكة
+
   useEffect(() => {
+    console.log('إعداد مراقبة حالة الشبكة');
     const onlineHandler = () => handleNetworkChange();
     const offlineHandler = () => handleNetworkChange();
     
     window.addEventListener('online', onlineHandler);
     window.addEventListener('offline', offlineHandler);
     
-    // التحقق من حالة الشبكة عند التحميل
     handleNetworkChange();
     
     return () => {
@@ -101,7 +104,7 @@ export const useNetworkStatus = () => {
       window.removeEventListener('offline', offlineHandler);
     };
   }, [handleNetworkChange]);
-  
+
   return { 
     isOffline, 
     networkStatus, 
