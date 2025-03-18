@@ -1,26 +1,18 @@
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getChannels, getCategories, getCountries, getRecentlyWatchedChannels } from '@/services/api';
-import { syncWithBladiInfo } from '@/services/sync';
 import { playChannel, toggleFavoriteChannel } from '@/services/channelService';
 import { Channel } from '@/types';
-import ChannelsList from '@/components/channel/ChannelsList';
-import HomeHeader from '@/components/header/HomeHeader';
-import RecentlyWatchedChannels from '@/components/recently-watched/RecentlyWatchedChannels';
 import AdvancedSearch from '@/components/search/AdvancedSearch';
 import LoadingIndicator from '@/components/LoadingIndicator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Search, RefreshCw } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import HomeHeader from '@/components/header/HomeHeader';
+import RecentlyWatchedChannels from '@/components/recently-watched/RecentlyWatchedChannels';
+import HomeTitleSection from '@/components/home/HomeTitleSection';
+import CategoryTabs from '@/components/home/CategoryTabs';
 
 const Home: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [isSyncing, setIsSyncing] = useState(false);
-  const navigate = useNavigate();
-  const { toast } = useToast();
 
   const { 
     data: channels,
@@ -55,50 +47,6 @@ const Home: React.FC = () => {
     queryFn: getRecentlyWatchedChannels,
   });
 
-  // تحديث صفحة البحث
-  const handleOpenSearch = () => {
-    navigate('/advanced');
-  };
-
-  // مزامنة القنوات مع مصادر BLADI
-  const handleSync = async () => {
-    setIsSyncing(true);
-    
-    try {
-      toast({
-        title: "جاري المزامنة",
-        description: "جاري جلب أحدث القنوات من المصادر الخارجية..."
-      });
-      
-      const result = await syncWithBladiInfo(true);
-      
-      if (result) {
-        toast({
-          title: "تمت المزامنة بنجاح",
-          description: "تم تحديث القنوات بنجاح"
-        });
-        
-        // إعادة تحميل القنوات
-        await refetchChannels();
-      } else {
-        toast({
-          title: "تعذرت المزامنة",
-          description: "لم يتم العثور على تحديثات جديدة",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error("خطأ في المزامنة:", error);
-      toast({
-        title: "خطأ في المزامنة",
-        description: "تعذر الاتصال بمصادر البيانات الخارجية",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   // Handle playing a channel
   const handlePlayChannel = (channel: Channel) => {
     playChannel(channel.id).catch(console.error);
@@ -131,31 +79,7 @@ const Home: React.FC = () => {
       <HomeHeader />
       
       <div className="mb-4">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold">جميع القنوات</h1>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSync}
-              disabled={isSyncing}
-              className="flex items-center gap-1"
-            >
-              <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span>تحديث</span>
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleOpenSearch}
-              className="flex items-center gap-1"
-            >
-              <Search className="h-4 w-4" />
-              <span>بحث متقدم</span>
-            </Button>
-          </div>
-        </div>
-        
+        <HomeTitleSection refetchChannels={refetchChannels} />
         <AdvancedSearch className="mb-6" />
       </div>
       
@@ -171,31 +95,15 @@ const Home: React.FC = () => {
       )}
 
       {/* تبويبات الفئات */}
-      <Tabs defaultValue="all" value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
-        <TabsList className="mb-4 flex flex-wrap h-auto py-1 px-1 gap-1">
-          <TabsTrigger value="all" className="rounded-md">جميع القنوات</TabsTrigger>
-          {categories?.map((category) => (
-            <TabsTrigger 
-              key={category.id} 
-              value={category.id}
-              className="rounded-md"
-            >
-              {category.name}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        
-        <TabsContent value={selectedCategory} className="mt-0">
-          <ChannelsList 
-            channels={filteredChannels}
-            countries={countries || []}
-            activeCountry={null}
-            isLoading={false}
-            onPlayChannel={handlePlayChannel}
-            onToggleFavorite={handleToggleFavorite}
-          />
-        </TabsContent>
-      </Tabs>
+      <CategoryTabs 
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+        categories={categories}
+        filteredChannels={filteredChannels}
+        countries={countries}
+        onPlayChannel={handlePlayChannel}
+        onToggleFavorite={handleToggleFavorite}
+      />
     </div>
   );
 };
