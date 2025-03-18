@@ -11,7 +11,7 @@ interface SyncStatusInfoProps {
   isChecking: boolean;
   lastSync?: string | null;
   lastSyncDuration?: number;
-  formatLastSync?: () => string | undefined;
+  formatLastSync?: (() => string) | undefined;
 }
 
 const SyncStatusInfo: React.FC<SyncStatusInfoProps> = ({
@@ -49,7 +49,6 @@ const SyncStatusInfo: React.FC<SyncStatusInfoProps> = ({
         )}
       </div>
       
-      {/* إضافة معلومات المزامنة إذا كانت متوفرة */}
       {lastSync && formatLastSync && (
         <TooltipProvider>
           <Tooltip>

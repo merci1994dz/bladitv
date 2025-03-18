@@ -1,8 +1,9 @@
+
 /**
  * مكون حالة المزامنة المحسن مع معالجة أفضل للأخطاء
  */
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { useQuery } from '@tanstack/react-query';
 import { getLastSyncTime } from '@/services/sync/status/timestamp';
@@ -95,7 +96,7 @@ export function SyncStatus() {
     
     try {
       const date = typeof lastSync === 'string' ? new Date(lastSync) : new Date();
-      return new Intl.DateTimeFormat('ar-SA', {
+      const formatted = new Intl.DateTimeFormat('ar-SA', {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
@@ -103,6 +104,8 @@ export function SyncStatus() {
         month: '2-digit',
         year: 'numeric'
       }).format(date);
+      
+      return formatted;
     } catch (e) {
       return undefined;
     }
@@ -115,9 +118,9 @@ export function SyncStatus() {
       <SyncStatusInfo 
         networkStatus={networkStatus}
         isChecking={isSyncing || isForceSyncing}
-        lastSync={lastSync ?? undefined}
+        lastSync={lastSync}
         lastSyncDuration={lastSyncDuration}
-        formatLastSync={lastSync ? formatLastSync : undefined}
+        formatLastSync={formatLastSync}
       />
       
       <SyncActions 
