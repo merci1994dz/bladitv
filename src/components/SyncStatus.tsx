@@ -1,4 +1,3 @@
-
 /**
  * مكون حالة المزامنة المحسن مع معالجة أفضل للأخطاء
  */
@@ -125,16 +124,10 @@ export function SyncStatus() {
       {/* Display error notification if there's an error */}
       <SyncErrorDisplay syncError={syncError} />
       
-      {/* Status information section */}
+      {/* Status information section - updated to match props interface */}
       <SyncStatusInfo 
-        lastSync={lastSync}
-        formatLastSync={formatLastSync}
         networkStatus={networkStatus}
-        syncError={syncError}
-        cacheCleared={cacheCleared}
-        deploymentPlatform={deploymentPlatform}
-        isSyncing={isSyncing || isForceSyncing}
-        lastSyncDuration={lastSyncDuration}
+        isChecking={isSyncing || isForceSyncing}
       />
       
       {/* Sync action buttons */}
