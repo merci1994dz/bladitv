@@ -20,96 +20,81 @@ export const fetchRemoteData = async (url: string, options: RequestInit = {}): P
     url = alternativeUrl;
   }
   
-  // تحاول الاتصال المباشر أولاً مع تحديد المهلة
-  try {
-    console.log('جاري محاولة الاتصال المباشر بالمصدر...');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    
-    const response = await fetch(url, {
-      ...options,
-      cache: 'no-store',
-      headers: {
-        ...options.headers,
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
-      },
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`استجابة غير ناجحة: ${response.status} ${response.statusText}`);
+  // آليات التحميل المختلفة التي سيتم تجربتها بالترتيب
+  const fetchStrategies = [
+    {
+      name: 'مباشر',
+      fetch: () => fetchDirectly(url, options),
+      maxAttempts: 2
+    },
+    {
+      name: 'بروكسي CORS',
+      fetch: () => fetchViaProxy(url, options),
+      maxAttempts: 3
+    },
+    {
+      name: 'JSONP',
+      fetch: () => fetchViaJsonp(url),
+      maxAttempts: 1
     }
+  ];
+  
+  // تحديد ما إذا كان من المحتمل أن نحتاج إلى البروكسي وإعادة ترتيب الاستراتيجيات
+  try {
+    const needsProxy = await isProxyRequired(url);
+    if (needsProxy) {
+      // ضع استراتيجية البروكسي أولاً إذا كان من المتوقع أن نحتاج إليها
+      const proxyStrategy = fetchStrategies.splice(1, 1)[0];
+      fetchStrategies.unshift(proxyStrategy);
+    }
+  } catch (error) {
+    // في حالة الفشل، استمر في الترتيب الافتراضي
+    console.warn('فشل في تحديد حاجة البروكسي:', error);
+  }
+  
+  // صفيف لتتبع جميع الأخطاء التي حدثت
+  const errors: Error[] = [];
+  
+  // تجربة كل استراتيجية واحدة تلو الأخرى حتى ينجح واحد
+  for (const strategy of fetchStrategies) {
+    let attemptsLeft = strategy.maxAttempts;
     
-    return await response.json();
-  } catch (directError) {
-    console.warn('فشل الاتصال المباشر، جاري محاولة الطرق البديلة:', directError);
-    
-    // آليات التحميل البديلة التي سيتم تجربتها بالترتيب
-    const fetchStrategies = [
-      {
-        name: 'مباشر مع no-cors',
-        fetch: () => fetchDirectly(url, { ...options, mode: 'no-cors' }),
-        maxAttempts: 1
-      },
-      {
-        name: 'بروكسي CORS',
-        fetch: () => fetchViaProxy(url, options),
-        maxAttempts: 3
-      },
-      {
-        name: 'JSONP',
-        fetch: () => fetchViaJsonp(url),
-        maxAttempts: 1
-      }
-    ];
-    
-    // صفيف لتتبع جميع الأخطاء التي حدثت
-    const errors: Error[] = [];
-    
-    // تجربة كل استراتيجية واحدة تلو الأخرى حتى ينجح واحد
-    for (const strategy of fetchStrategies) {
-      let attemptsLeft = strategy.maxAttempts;
-      
-      while (attemptsLeft > 0) {
-        try {
-          console.log(`محاولة استخدام استراتيجية ${strategy.name} (${attemptsLeft} محاولات متبقية)`);
-          
-          const result = await strategy.fetch();
-          console.log(`نجحت استراتيجية ${strategy.name}`);
-          
-          // التحقق من صحة البيانات المستلمة
-          if (!result) {
-            throw new Error(`استراتيجية ${strategy.name} أعادت بيانات فارغة`);
-          }
-          
-          return result;
-        } catch (error) {
-          console.warn(`فشلت محاولة استراتيجية ${strategy.name}:`, error);
-          errors.push(error as Error);
-          attemptsLeft--;
-          
-          // انتظار قليلاً قبل المحاولة التالية
-          if (attemptsLeft > 0) {
-            console.log(`الانتظار قبل إعادة محاولة استراتيجية ${strategy.name}...`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
+    while (attemptsLeft > 0) {
+      try {
+        console.log(`محاولة استخدام استراتيجية ${strategy.name} (${attemptsLeft} محاولات متبقية)`);
+        
+        const result = await strategy.fetch();
+        console.log(`نجحت استراتيجية ${strategy.name}`);
+        
+        // التحقق من صحة البيانات المستلمة
+        if (!result) {
+          throw new Error(`استراتيجية ${strategy.name} أعادت بيانات فارغة`);
+        }
+        
+        return result;
+      } catch (error) {
+        console.warn(`فشلت محاولة استراتيجية ${strategy.name}:`, error);
+        errors.push(error as Error);
+        attemptsLeft--;
+        
+        // انتظار قليلاً قبل المحاولة التالية
+        if (attemptsLeft > 0) {
+          console.log(`الانتظار قبل إعادة محاولة استراتيجية ${strategy.name}...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
-      
-      console.warn(`فشلت جميع محاولات استراتيجية ${strategy.name}`);
     }
     
-    // إذا وصلنا إلى هنا، فشلت جميع الاستراتيجيات
-    const finalError = new Error('فشلت جميع استراتيجيات الاتصال في هذه المحاولة');
-    
-    // تحسين رسالة الخطأ للتصحيح
-    const enhancedError = enhanceFetchError(finalError, url, errors);
-    
-    throw enhancedError;
+    console.warn(`فشلت جميع محاولات استراتيجية ${strategy.name}`);
   }
+  
+  // إذا وصلنا إلى هنا، فشلت جميع الاستراتيجيات
+  const finalError = new Error('فشلت جميع استراتيجيات الاتصال في هذه المحاولة');
+  
+  // تحسين رسالة الخطأ للتصحيح
+  const enhancedError = enhanceFetchError(finalError, url, errors);
+  
+  throw enhancedError;
 };
 
 // إضافة خيار للتحقق مما إذا كان عنوان URL متاحًا دون تنزيل البيانات بالكامل

@@ -1,127 +1,197 @@
 
 /**
- * وظائف للتعامل مع البروكسي لتجاوز قيود CORS
- * Functions for handling proxies to bypass CORS restrictions
+ * أدوات استخدام خدمات البروكسي CORS للتغلب على قيود CORS
+ * CORS proxy utility functions to overcome CORS restrictions
  */
 
-// قائمة بروكسيات CORS التي يمكن استخدامها
-// List of CORS proxies that can be used
-const CORS_PROXIES = [
-  {
-    name: 'allorigins.win',
-    getUrl: (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    reliability: 3,
-  },
-  {
-    name: 'cors.sh',
-    getUrl: (url: string) => `https://proxy.cors.sh/${url}`,
-    reliability: 2,
-  },
-  {
-    name: 'thingproxy',
-    getUrl: (url: string) => `https://thingproxy.freeboard.io/fetch/${url}`,
-    reliability: 2,
-  },
-  {
-    name: 'cors-proxy',
-    getUrl: (url: string) => `https://cdn.jsdelivr.net/gh/bladitv/cors-proxy@main/proxy.php?url=${encodeURIComponent(url)}`,
-    reliability: 1,
-  },
+const PROXY_SERVICES = [
   {
     name: 'crossorigin.me',
-    getUrl: (url: string) => `https://crossorigin.me/${url}`,
-    reliability: 1,
+    url: 'https://crossorigin.me/',
+    encode: (url: string) => url,
+    maxRetries: 2
   },
   {
     name: 'corsproxy.io',
-    getUrl: (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-    reliability: 2,
+    url: 'https://corsproxy.io/?',
+    encode: (url: string) => encodeURIComponent(url),
+    maxRetries: 2
   },
+  {
+    name: 'allorigins.win',
+    url: 'https://api.allorigins.win/raw?url=',
+    encode: (url: string) => encodeURIComponent(url),
+    maxRetries: 2
+  },
+  {
+    name: 'cors.sh',
+    url: 'https://proxy.cors.sh/',
+    encode: (url: string) => url,
+    maxRetries: 2
+  },
+  // الخدمات الاحتياطية
+  {
+    name: 'thingproxy',
+    url: 'https://thingproxy.freeboard.io/fetch/',
+    encode: (url: string) => url,
+    maxRetries: 1
+  },
+  {
+    name: 'github-jsdelivr',
+    url: 'https://cdn.jsdelivr.net/gh/bladitv/cors-proxy@main/proxy.php?url=',
+    encode: (url: string) => encodeURIComponent(url),
+    maxRetries: 1
+  }
 ];
 
-// مصادر بديلة معروفة للتغلب على الحجب
-// Known alternative sources to overcome blocking
-const ALTERNATIVE_SOURCES: Record<string, string> = {
-  'https://cdn.jsdelivr.net/gh/bladitv/channels@master/channels.json': 'https://fastly.jsdelivr.net/gh/bladitv/channels@master/channels.json',
-  'https://raw.githubusercontent.com/bladitv/channels/master/channels.json': 'https://bladitv.github.io/channels/channels.json',
-};
-
 /**
- * الحصول على مصدر بديل لعنوان URL إذا كان معروفًا
- * Get alternative source for URL if known
+ * محاولة جلب البيانات عبر خدمة بروكسي CORS
+ * Attempt to fetch data via a CORS proxy service
  */
-export const getAlternativeSourceUrl = (url: string): string | null => {
-  return ALTERNATIVE_SOURCES[url] || null;
-};
-
-/**
- * تمرير طلب عبر بروكسي CORS
- * Pass request through CORS proxy
- */
-export const fetchViaProxy = async (url: string, options: RequestInit = {}): Promise<any> => {
-  // ترتيب البروكسيات حسب الموثوقية
-  // Sort proxies by reliability
-  const sortedProxies = [...CORS_PROXIES].sort((a, b) => b.reliability - a.reliability);
+export const fetchViaProxy = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  // الاحتفاظ بقائمة أخطاء الخدمات التي تم تجربتها
+  const errors: Error[] = [];
   
-  // تجربة كل بروكسي بالترتيب
-  // Try each proxy in order
-  for (const proxy of sortedProxies) {
-    const proxyUrl = proxy.getUrl(url);
-    try {
-      console.log(`محاولة استخدام بروكسي CORS: ${proxyUrl}`);
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      
-      const response = await fetch(proxyUrl, {
-        ...options,
-        cache: 'no-store',
-        headers: {
-          ...options.headers,
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`استجابة غير ناجحة: ${response.status} ${response.statusText}`);
+  // تجربة كل خدمة بروكسي مع تكرار المحاولات إذا لزم الأمر
+  for (const proxyService of PROXY_SERVICES) {
+    let retriesLeft = proxyService.maxRetries;
+    
+    while (retriesLeft > 0) {
+      try {
+        const proxyUrl = `${proxyService.url}${proxyService.encode(url)}`;
+        console.log(`محاولة استخدام بروكسي CORS: ${proxyUrl}`);
+        
+        // إضافة خيارات إضافية للتحكم في التخزين المؤقت
+        const fetchOptions = {
+          ...options,
+          headers: {
+            ...options.headers,
+            'Accept': 'application/json, text/plain, */*',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        };
+        
+        // استخدام AbortController لتجنب التعليق لفترة طويلة
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        fetchOptions.signal = controller.signal;
+        
+        // محاولة الجلب عبر البروكسي
+        const response = await fetch(proxyUrl, fetchOptions);
+        
+        // إلغاء المؤقت لتجنب التسريب
+        clearTimeout(timeoutId);
+        
+        // التحقق من نجاح الاستجابة
+        if (response.ok) {
+          console.log(`نجح استخدام بروكسي ${proxyService.name}`);
+          return response;
+        } else {
+          console.warn(`فشل استخدام بروكسي ${proxyService.name}: ${response.status} ${response.statusText}`);
+          retriesLeft--;
+        }
+      } catch (error) {
+        console.warn(`فشل استخدام بروكسي ${proxyService.name}:`, error);
+        errors.push(error as Error);
+        retriesLeft--;
       }
       
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.warn(`فشل استخدام بروكسي ${proxy.name}:`, error);
+      // انتظار قبل إعادة المحاولة
+      if (retriesLeft > 0) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
   }
   
-  throw new Error('فشلت جميع محاولات البروكسي');
+  // إذا وصلنا إلى هنا، فهذا يعني أن جميع محاولات البروكسي قد فشلت
+  console.warn('فشلت جميع محاولات البروكسي CORS');
+  
+  // محاولة الوصول إلى CDNs المعروفة كبديل نهائي
+  try {
+    // بدلًا من الرابط الأصلي، نحاول مع CDNs المعروفة
+    let cdnUrl = url;
+    
+    // تحويل روابط bladitv إلى CDN
+    if (url.includes('bladitv.lovable.app') && url.includes('channels.json')) {
+      // استخدام GitHub/JSDelivr كبديل
+      cdnUrl = 'https://cdn.jsdelivr.net/gh/bladitv/channels@master/channels.json';
+      console.log(`محاولة استخدام CDN بديل: ${cdnUrl}`);
+      
+      const fetchOptions = {
+        ...options,
+        headers: {
+          ...options.headers,
+          'Accept': 'application/json, text/plain, */*',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      };
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      fetchOptions.signal = controller.signal;
+      
+      const response = await fetch(cdnUrl, fetchOptions);
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        console.log(`نجح استخدام CDN بديل`);
+        return response;
+      }
+    }
+  } catch (cdnError) {
+    console.warn('فشل استخدام CDN البديل:', cdnError);
+  }
+  
+  // إذا وصلنا إلى هنا، فهذا يعني أن جميع المحاولات قد فشلت
+  throw new Error('فشلت جميع محاولات الوصول إلى البيانات');
 };
 
 /**
- * التحقق إذا كان البروكسي مطلوبًا لهذا العنوان
- * Check if proxy is required for this URL
+ * التحقق مما إذا كان عنوان URL يمكن الوصول إليه
+ * Check if a URL is accessible
  */
 export const isProxyRequired = async (url: string): Promise<boolean> => {
   try {
-    // محاولة طلب بسيط للتحقق من قيود CORS
-    // Try a simple request to check for CORS restrictions
+    // محاولة جلب مباشرة بدون أي بيانات كاملة
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
     
-    await fetch(url, {
+    const response = await fetch(url, {
       method: 'HEAD',
       cache: 'no-store',
       signal: controller.signal,
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      }
     });
     
     clearTimeout(timeoutId);
-    return false; // لا توجد قيود CORS
+    return false; // لا يلزم وجود بروكسي
   } catch (error) {
-    console.log('CORS يبدو مطلوبًا:', error);
-    return true; // على الأرجح هناك قيود CORS
+    // الجلب المباشر فشل، يلزم وجود بروكسي
+    return true;
   }
+};
+
+/**
+ * تعديل الرابط لاستخدام مصادر بديلة إذا كان ذلك ممكنًا
+ * Modify URL to use alternative sources if possible
+ */
+export const getAlternativeSourceUrl = (url: string): string | null => {
+  // تحويل روابط Bladi TV إلى مصادر بديلة
+  if (url.includes('bladitv.lovable.app') && url.includes('channels.json')) {
+    return 'https://cdn.jsdelivr.net/gh/bladitv/channels@master/channels.json';
+  }
+  
+  // يمكن إضافة المزيد من التحويلات المعروفة هنا
+  
+  return null; // لا يوجد بديل معروف
 };
