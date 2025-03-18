@@ -15,7 +15,7 @@ export const checkConnectivityIssues = async (): Promise<{
   }
 
   try {
-    // تجربة نقطة نهاية واحدة موثوقة مع مهلة قصيرة
+    // تجربة نقطة نهاية موثوقة مع مهلة قصيرة
     const endpoint = 'https://www.cloudflare.com/cdn-cgi/trace';
     
     try {
