@@ -9,9 +9,9 @@ interface SyncStatusInfoProps {
     hasServerAccess: boolean;
   };
   isChecking: boolean;
-  lastSync?: string;
+  lastSync?: string | null;
   lastSyncDuration?: number;
-  formatLastSync?: () => string;
+  formatLastSync?: () => string | undefined;
 }
 
 const SyncStatusInfo: React.FC<SyncStatusInfoProps> = ({

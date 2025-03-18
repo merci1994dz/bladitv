@@ -1,4 +1,3 @@
-
 /**
  * مكون حالة المزامنة المحسن مع معالجة أفضل للأخطاء
  */
@@ -22,14 +21,12 @@ export function SyncStatus() {
   const [syncStartTime, setSyncStartTime] = useState<number>(0);
   const [lastSyncDuration, setLastSyncDuration] = useState<number>(0);
   
-  // جلب آخر وقت مزامنة
   const { data: lastSync, refetch: refetchLastSync } = useQuery({
     queryKey: ['lastSync'],
     queryFn: getLastSyncTime,
     staleTime: 60 * 1000, // دقيقة واحدة
   });
 
-  // استخدام طلبات المزامنة المتغيرة مع التعديلات لتتبع مدة المزامنة
   const { runSync, isSyncing, runForceSync, isForceSyncing } = useSyncMutations(refetchLastSync, {
     onSyncStart: () => setSyncStartTime(Date.now()),
     onSyncEnd: () => {
@@ -39,7 +36,6 @@ export function SyncStatus() {
     }
   });
 
-  // تتبع بداية ونهاية المزامنة لحساب المدة
   useEffect(() => {
     if (isSyncing && syncStartTime === 0) {
       setSyncStartTime(Date.now());
@@ -49,9 +45,7 @@ export function SyncStatus() {
     }
   }, [isSyncing, syncStartTime]);
 
-  // التحقق من بيئة النشر
   useEffect(() => {
-    // التحقق من وجود بيئة Vercel
     if (typeof window !== 'undefined') {
       if (window.location.hostname.includes('vercel.app')) {
         setDeploymentPlatform('Vercel');
@@ -65,7 +59,6 @@ export function SyncStatus() {
     }
   }, []);
 
-  // التحقق من مصدر البيانات المتاح عند التحميل
   useEffect(() => {
     async function checkAvailability() {
       try {
@@ -79,17 +72,14 @@ export function SyncStatus() {
     checkAvailability();
   }, [checkSourceAvailability]);
 
-  // إضافة مؤقت للتحقق الدوري من المزامنة عند النشر على Vercel
   useEffect(() => {
     if (deploymentPlatform === 'Vercel') {
-      // تنفيذ مزامنة أولية بعد التحميل
       setTimeout(() => {
         if (!isSyncing && !isForceSyncing) {
           runSync();
         }
       }, 3000);
       
-      // إعداد مؤقت للتحقق الدوري كل 5 دقائق
       const intervalId = setInterval(() => {
         if (!isSyncing && !isForceSyncing && networkStatus.hasInternet) {
           runSync();
@@ -100,12 +90,10 @@ export function SyncStatus() {
     }
   }, [deploymentPlatform, isSyncing, isForceSyncing, networkStatus.hasInternet, runSync]);
 
-  // عرض آخر وقت مزامنة بتنسيق مناسب
   const formatLastSync = () => {
-    if (!lastSync) return 'لم تتم المزامنة بعد';
+    if (!lastSync) return undefined;
     
     try {
-      // التحقق من أن lastSync هو سلسلة نصية قبل تمريره إلى Date
       const date = typeof lastSync === 'string' ? new Date(lastSync) : new Date();
       return new Intl.DateTimeFormat('ar-SA', {
         hour: '2-digit',
@@ -116,25 +104,22 @@ export function SyncStatus() {
         year: 'numeric'
       }).format(date);
     } catch (e) {
-      return 'غير معروف';
+      return undefined;
     }
   };
 
   return (
     <div className="flex flex-col space-y-2 p-4 border rounded-lg bg-background shadow-sm">
-      {/* Display error notification if there's an error */}
       <SyncErrorDisplay syncError={syncError} />
       
-      {/* Status information section - تمرير جميع المعلومات المطلوبة */}
       <SyncStatusInfo 
         networkStatus={networkStatus}
         isChecking={isSyncing || isForceSyncing}
-        lastSync={lastSync}
+        lastSync={lastSync ?? undefined}
         lastSyncDuration={lastSyncDuration}
-        formatLastSync={formatLastSync}
+        formatLastSync={lastSync ? formatLastSync : undefined}
       />
       
-      {/* Sync action buttons */}
       <SyncActions 
         isSyncing={isSyncing}
         isForceSyncing={isForceSyncing}
@@ -146,7 +131,6 @@ export function SyncStatus() {
         showAdvanced={showAdvanced}
       />
       
-      {/* Advanced options section */}
       <SyncAdvancedOptions 
         showAdvanced={showAdvanced}
         availableSource={availableSource}
