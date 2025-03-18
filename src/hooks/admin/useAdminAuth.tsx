@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
-import { verifyAdminSession, logoutAdmin, hasFullAccess } from '@/services/adminService';
 import { useToast } from '@/hooks/use-toast';
+import { verifyAdminSession, logoutAdmin, hasFullAccess } from '@/services/adminService';
 
 export const useAdminAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -9,7 +9,7 @@ export const useAdminAuth = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
 
-  // Check authentication status on component load
+  // التحقق من حالة المصادقة عند تحميل المكون
   useEffect(() => {
     const checkAuth = async () => {
       setIsLoading(true);
@@ -19,7 +19,7 @@ export const useAdminAuth = () => {
         setHasFullAccessEnabled(hasFullAccess());
         
         if (isValid) {
-          // Set up periodic session validation
+          // تحقق دوري من صلاحية الجلسة
           const interval = setInterval(() => {
             if (!verifyAdminSession()) {
               setIsAuthenticated(false);
@@ -30,7 +30,7 @@ export const useAdminAuth = () => {
                 variant: "destructive",
               });
             }
-          }, 60000); // Check every minute
+          }, 60000); // التحقق كل دقيقة
           
           return () => clearInterval(interval);
         }
@@ -70,11 +70,10 @@ export const useAdminAuth = () => {
 
   return {
     isAuthenticated,
-    setIsAuthenticated,
     hasFullAccessEnabled,
-    setHasFullAccessEnabled,
     isLoading,
     handleLoginSuccess,
-    handleLogout
+    handleLogout,
+    setHasFullAccessEnabled
   };
 };

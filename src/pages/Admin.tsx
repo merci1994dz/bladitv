@@ -1,37 +1,44 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import AdminLogin from '@/components/AdminLogin';
 import AdminLoading from '@/components/admin/AdminLoading';
 import AdminContent from '@/components/admin/AdminContent';
-import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { useAdminAuth } from '@/hooks/admin/useAdminAuth';
 
 const Admin: React.FC = () => {
-  const {
-    isAuthenticated,
-    hasFullAccessEnabled,
-    setHasFullAccessEnabled,
-    isLoading,
-    handleLoginSuccess,
-    handleLogout
+  // استخدام hook المصادقة المخصص
+  const { 
+    isAuthenticated, 
+    hasFullAccessEnabled, 
+    isLoading, 
+    handleLoginSuccess, 
+    handleLogout,
+    setHasFullAccessEnabled 
   } = useAdminAuth();
+  
+  const [activeTab, setActiveTab] = useState<string>('channels');
 
-  // Show loading indicator while checking authentication
+  // عرض مؤشر التحميل أثناء فحص حالة المصادقة
   if (isLoading) {
     return <AdminLoading />;
   }
 
-  // Show login screen if not authenticated
+  // عرض شاشة تسجيل الدخول إذا لم يتم المصادقة
   if (!isAuthenticated) {
     return <AdminLogin onLoginSuccess={handleLoginSuccess} />;
   }
 
-  // Show admin dashboard if authenticated
+  // عرض لوحة الإدارة إذا تم المصادقة
   return (
-    <AdminContent
-      hasFullAccessEnabled={hasFullAccessEnabled}
-      setHasFullAccessEnabled={setHasFullAccessEnabled}
-      handleLogout={handleLogout}
-    />
+    <div className="container max-w-6xl mx-auto px-4 pb-32 pt-4">
+      <AdminContent 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab}
+        hasFullAccessEnabled={hasFullAccessEnabled}
+        setHasFullAccessEnabled={setHasFullAccessEnabled}
+        handleLogout={handleLogout}
+      />
+    </div>
   );
 };
 

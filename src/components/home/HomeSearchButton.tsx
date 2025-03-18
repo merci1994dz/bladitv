@@ -8,12 +8,7 @@ const HomeSearchButton: React.FC = () => {
   const navigate = useNavigate();
 
   const handleOpenSearch = () => {
-    // تضمين معلمة للإشارة إلى أن هذا انتقال صحيح وليس خطأً
-    // Include a parameter to indicate this is a valid transition, not an error
-    navigate('/advanced', { 
-      state: { from: 'home' },
-      replace: false
-    });
+    navigate('/advanced');
   };
 
   return (
