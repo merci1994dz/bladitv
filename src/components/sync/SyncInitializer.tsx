@@ -1,8 +1,9 @@
 
-import React, { useEffect, useRef } from 'react';
-import { syncWithSupabase, setupRealtimeSync } from '@/services/sync/supabase';
+import React, { useEffect, useRef, useState } from 'react';
+import { syncWithSupabase, setupRealtimeSync } from '@/services/sync/supabaseSync';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { useToast } from '@/hooks/use-toast';
+import { loadFromLocalStorage } from '@/services/dataStore/storage';
 
 interface SyncInitializerProps {
   children: React.ReactNode;
@@ -22,10 +23,17 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
   const syncAttemptsRef = useRef(0);
   const realtimeUnsubscribeRef = useRef<() => void | null>(null);
   const isMountedRef = useRef(true);
+  const lastSyncTimeRef = useRef(0);
+  const [hasSynced, setHasSynced] = useState(false);
   
   // تهيئة المزامنة مع آلية إعادة المحاولة المحسنة
   useEffect(() => {
-    // تعيين مؤقت للتهيئة الأولية مع تأخير لمنع التعارضات
+    // تحميل البيانات من التخزين المحلي أولاً - فوري
+    // Load data from local storage first - immediate
+    loadFromLocalStorage();
+    
+    // تعيين مؤقت للتهيئة الأولية مع تأخير قصير لمنع التعارضات
+    // Set timer for initial sync with short delay to prevent conflicts
     const initialSyncTimeout = setTimeout(async () => {
       if (!isMountedRef.current) return;
       
@@ -42,6 +50,7 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
           if (supabaseInitialized) {
             // تنفيذ المزامنة الأولية
             await performInitialSync();
+            setHasSynced(true);
           } else {
             // إعادة المحاولة بعد تأخير إذا فشلت تهيئة Supabase
             setTimeout(() => {
@@ -72,23 +81,41 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
               variant: "destructive",
               duration: 7000,
             });
+            
+            // محاولة تحميل البيانات المحلية مرة أخرى
+            loadFromLocalStorage();
           }
         }
       };
       
       initialize();
-    }, 3000);
+    }, 1500); // تقليل التأخير إلى 1.5 ثانية فقط
     
-    // إعداد مزامنة دورية كل 5 دقائق مع إضافة عشوائية لمنع التزامن
-    const randomInterval = 5 * 60 * 1000 + (Math.random() * 30 * 1000);
+    // إعداد مزامنة دورية بوقت عشوائي لمنع تزامن الطلبات من عدة مستخدمين
+    const randomInterval = 10 * 60 * 1000 + (Math.random() * 2 * 60 * 1000);
+    
     const syncInterval = setInterval(() => {
-      if (isMountedRef.current && !isSyncing) {
-        console.log('تنفيذ المزامنة الدورية مع Supabase');
-        syncWithSupabase(false).catch(console.error);
-        
-        // إعادة التحقق من المصادر المتاحة دوريًا
-        checkSourceAvailability().catch(console.error);
+      if (!isMountedRef.current || isSyncing) return;
+      
+      // تجنب المزامنة المتكررة جدًا
+      // Avoid too frequent sync
+      const now = Date.now();
+      if (now - lastSyncTimeRef.current < 5 * 60 * 1000) {
+        console.log('تم تخطي المزامنة الدورية: لم يمر وقت كافٍ منذ آخر مزامنة');
+        return;
       }
+      
+      console.log('تنفيذ المزامنة الدورية مع Supabase');
+      lastSyncTimeRef.current = now;
+      
+      syncWithSupabase(false).catch(error => {
+        console.error('خطأ في المزامنة الدورية:', error);
+        // محاولة تحميل البيانات المحلية في حالة فشل المزامنة
+        loadFromLocalStorage();
+      });
+      
+      // إعادة التحقق من المصادر المتاحة دوريًا
+      checkSourceAvailability().catch(console.error);
     }, randomInterval);
     
     // إعداد مستمعي الشبكة

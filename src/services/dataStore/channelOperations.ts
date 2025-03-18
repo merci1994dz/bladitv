@@ -23,8 +23,9 @@ const isDuplicateChannel = (newChannel: Channel): boolean => {
 // تحسين: إضافة وظيفة للتحقق من القناة مكررة والحصول على المكررة
 const findDuplicateChannel = (newChannel: Channel): Channel | null => {
   return channels.find(c => 
-    c.name.toLowerCase() === newChannel.name.toLowerCase() || 
-    c.streamUrl === newChannel.streamUrl
+    (c.id !== newChannel.id) && 
+    (c.name.toLowerCase() === newChannel.name.toLowerCase() || 
+     c.streamUrl === newChannel.streamUrl)
   ) || null;
 };
 
@@ -34,12 +35,12 @@ export const addChannelToMemory = (channel: Channel, options?: { preventDuplicat
   const existingIndex = channels.findIndex(c => c.id === channel.id);
   
   // التحقق من وجود نسخة مكررة
-  if (options?.preventDuplicates) {
-    const duplicate = findDuplicateChannel(channel);
-    if (duplicate) {
-      console.log(`تم تجاهل قناة مكررة: ${channel.name} (موجودة بالفعل: ${duplicate.name})`);
-      return null;
-    }
+  const duplicate = findDuplicateChannel(channel);
+  const shouldPreventDuplicates = options?.preventDuplicates !== false; // افتراضيًا true إلا إذا تم تعيينه صراحةً على false
+  
+  if (shouldPreventDuplicates && duplicate) {
+    console.log(`تم تجاهل قناة مكررة: ${channel.name} (موجودة بالفعل: ${duplicate.name})`);
+    return duplicate; // إرجاع القناة الموجودة بدلاً من إضافة نسخة مكررة
   }
   
   if (existingIndex >= 0) {
@@ -91,10 +92,16 @@ export const removeChannelFromMemory = (channelId: string) => {
 
 // Function to update a channel in memory
 export const updateChannelInMemory = (channel: Channel, options?: { preventDuplicates?: boolean }) => {
-  // التحقق من وجود نسخة مشابهة
-  if (options?.preventDuplicates && isDuplicateChannel(channel)) {
-    console.log(`تم تجاهل تحديث قناة مكررة: ${channel.name}`);
-    return false;
+  // التحقق من وجود نسخة مشابهة (بنفس الاسم أو الرابط ولكن بمعرف مختلف)
+  // Check for similar channels (same name or URL but different ID)
+  const shouldPreventDuplicates = options?.preventDuplicates !== false;
+  
+  if (shouldPreventDuplicates) {
+    const duplicate = findDuplicateChannel(channel);
+    if (duplicate) {
+      console.log(`تم تجاهل تحديث قناة مكررة: ${channel.name} (متشابهة مع: ${duplicate.name})`);
+      return false;
+    }
   }
   
   const index = channels.findIndex(c => c.id === channel.id);
