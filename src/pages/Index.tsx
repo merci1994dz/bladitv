@@ -10,7 +10,7 @@ const Index: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // التوجيه الفوري إلى الصفحة الرئيسية
+    // التوجيه الفوري إلى الصفحة الرئيسية بدون تأخير
     console.log('التوجيه إلى الصفحة الرئيسية فوراً...');
     navigate('/home', { replace: true });
   }, [navigate]);
