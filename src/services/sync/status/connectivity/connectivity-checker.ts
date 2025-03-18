@@ -79,46 +79,43 @@ export const checkConnectivityIssues = async (): Promise<{
     // Using Promise.race with timeout instead of Promise.any for better compatibility
     try {
       // إنشاء مصفوفة من الوعود للتحقق من كل نقطة نهاية
-      const checkPromises = appEndpoints.map(endpoint => {
-        return new Promise(async (resolve, reject) => {
-          try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => {
-              controller.abort();
-              reject(new Error(`Timeout for ${endpoint}`));
-            }, 3000); // وقت انتظار أقصر لكل طلب
-            
-            const response = await fetch(endpoint, {
-              method: 'HEAD',
-              cache: 'no-store',
-              signal: controller.signal,
-              headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-              }
-            });
-            
-            clearTimeout(timeoutId);
-            
-            if (response.ok || response.status === 204) {
-              resolve(true);
-            } else {
-              reject(new Error(`Status ${response.status} for ${endpoint}`));
-            }
-          } catch (error) {
-            reject(error);
-          }
-        });
-      });
+      // Create promises array for each endpoint with individual timeouts
+      let hadSuccess = false;
       
-      // تنفيذ جميع الوعود وانتظار أي نتيجة ناجحة
-      // Run all promises and look for any successful result
-      const results = await Promise.allSettled(checkPromises);
-      const hasSuccessfulEndpoint = results.some(result => result.status === 'fulfilled');
+      // استخدام مقاربة متتالية بدلاً من متوازية للتقليل من طلبات الشبكة المتزامنة
+      // Use sequential approach to reduce simultaneous network requests
+      for (const endpoint of appEndpoints) {
+        if (hadSuccess) break;
+        
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
+          
+          const response = await fetch(endpoint, {
+            method: 'HEAD',
+            cache: 'no-store',
+            signal: controller.signal,
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (response.ok || response.status === 204) {
+            hadSuccess = true;
+            console.log(`نجح الاتصال بنقطة النهاية: ${endpoint}`);
+          }
+        } catch (error) {
+          console.warn(`فشل الاتصال بنقطة النهاية: ${endpoint}`, error);
+          // نواصل مع النقطة التالية
+        }
+      }
       
       return { 
         hasInternet: true, 
-        hasServerAccess: hasSuccessfulEndpoint 
+        hasServerAccess: hadSuccess 
       };
     } catch (error) {
       console.log('فشل الوصول إلى جميع نقاط نهاية التطبيق:', error);
@@ -154,38 +151,34 @@ export const quickConnectivityCheck = async (): Promise<boolean> => {
       'https://httpbin.org/ip'
     ];
     
-    // التحقق بشكل متوازٍ من جميع نقاط النهاية
-    const allPromises = quickEndpoints.map(endpoint => {
-      return new Promise<boolean>(async (resolve) => {
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => {
-            controller.abort();
-            resolve(false);
-          }, 2000); // وقت انتظار أقصر للفحص السريع
-          
-          await fetch(endpoint, {
-            method: 'HEAD',
-            cache: 'no-store',
-            mode: 'no-cors',
-            signal: controller.signal,
-            headers: {
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache'
-            }
-          });
-          
-          clearTimeout(timeoutId);
-          resolve(true);
-        } catch (error) {
-          resolve(false);
-        }
-      });
-    });
+    // التحقق من كل نقطة نهاية بالتتالي وليس بالتوازي لتقليل الحمل
+    // Check each endpoint sequentially, not in parallel to reduce load
+    for (const endpoint of quickEndpoints) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        
+        await fetch(endpoint, {
+          method: 'HEAD',
+          cache: 'no-store',
+          mode: 'no-cors',
+          signal: controller.signal,
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        clearTimeout(timeoutId);
+        return true; // نجاح الوصول إلى أي نقطة نهاية
+      } catch (error) {
+        // نستمر مع النقطة التالية
+        continue;
+      }
+    }
     
-    // انتظار كافة الوعود واختيار أفضل نتيجة
-    const results = await Promise.all(allPromises);
-    return results.some(result => result === true);
+    // فشل الوصول إلى جميع نقاط النهاية
+    return false;
     
   } catch (error) {
     return false;

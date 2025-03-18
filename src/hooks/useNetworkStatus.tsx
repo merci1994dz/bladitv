@@ -24,6 +24,20 @@ export const useNetworkStatus = () => {
     const isOnline = navigator.onLine;
     setIsOffline(!isOnline);
     
+    // إذا كان الاتصال مفقود، قم بتحديث الحالة على الفور
+    if (!isOnline) {
+      setNetworkStatus({ hasInternet: false, hasServerAccess: false });
+      toast({
+        title: "انقطع الاتصال",
+        description: "أنت الآن في وضع عدم الاتصال. سيتم استخدام البيانات المخزنة محليًا.",
+        variant: "destructive",
+        duration: 5000,
+      });
+      setCheckAttempts(0);
+      setIsChecking(false);
+      return false;
+    }
+    
     // تحقق مما إذا يجب إجراء فحص شامل (منع الفحص المتكرر خلال فترة قصيرة)
     const currentTime = Date.now();
     const shouldDoFullCheck = isOnline && 
@@ -47,13 +61,18 @@ export const useNetworkStatus = () => {
         const status = await checkConnectivityIssues();
         setNetworkStatus(status);
         
-        if (status.hasInternet) {
+        if (status.hasInternet && status.hasServerAccess && !networkStatus.hasServerAccess) {
           toast({
             title: "تم استعادة الاتصال",
-            description: status.hasServerAccess 
-              ? "جاري تحديث البيانات من المصادر المتاحة..." 
-              : "تم استعادة الاتصال المحلي فقط. سيتم الاعتماد على البيانات المخزنة.",
+            description: "جاري تحديث البيانات من المصادر المتاحة...",
             duration: 4000,
+          });
+        } else if (status.hasInternet && !status.hasServerAccess) {
+          toast({
+            title: "اتصال محدود",
+            description: "يمكن الوصول للإنترنت ولكن ليس للخادم. سيتم الاعتماد على البيانات المخزنة.",
+            variant: "warning",
+            duration: 5000,
           });
         }
       } catch (error) {
@@ -61,22 +80,11 @@ export const useNetworkStatus = () => {
         // في حالة الفشل، نفترض أن لدينا اتصال أساسي فقط
         setNetworkStatus({ hasInternet: isOnline, hasServerAccess: false });
       }
-    } else if (!isOnline) {
-      toast({
-        title: "انقطع الاتصال",
-        description: "أنت الآن في وضع عدم الاتصال. سيتم استخدام البيانات المخزنة محليًا.",
-        variant: "destructive",
-        duration: 5000,
-      });
-      
-      // إعادة تعيين عدد المحاولات عند انقطاع الاتصال
-      setCheckAttempts(0);
-      setNetworkStatus({ hasInternet: false, hasServerAccess: false });
     }
     
     setIsChecking(false);
     return isOnline;
-  }, [toast, checkAttempts, lastCheckTime, isChecking]);
+  }, [toast, checkAttempts, lastCheckTime, isChecking, networkStatus.hasServerAccess]);
   
   // وظيفة لإعادة محاولة فحص الاتصال يدوياً
   const retryConnection = useCallback(async () => {
