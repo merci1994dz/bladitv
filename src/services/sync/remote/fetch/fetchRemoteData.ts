@@ -5,7 +5,7 @@
  */
 
 import { fetchDirectly } from './fetchStrategies';
-import { fetchViaProxy, isProxyRequired } from './proxyUtils';
+import { fetchViaProxy, isProxyRequired, getAlternativeSourceUrl } from './proxyUtils';
 import { fetchViaJsonp } from './jsonpFallback';
 import { enhanceFetchError } from './errorHandling';
 
@@ -13,12 +13,19 @@ import { enhanceFetchError } from './errorHandling';
 export const fetchRemoteData = async (url: string, options: RequestInit = {}): Promise<any> => {
   console.log(`محاولة جلب البيانات من: ${url}`);
   
+  // التحقق من وجود مصادر بديلة معروفة
+  const alternativeUrl = getAlternativeSourceUrl(url);
+  if (alternativeUrl) {
+    console.log(`استخدام مصدر بديل: ${alternativeUrl}`);
+    url = alternativeUrl;
+  }
+  
   // آليات التحميل المختلفة التي سيتم تجربتها بالترتيب
   const fetchStrategies = [
     {
       name: 'مباشر',
       fetch: () => fetchDirectly(url, options),
-      maxAttempts: 3
+      maxAttempts: 2
     },
     {
       name: 'بروكسي CORS',
@@ -28,7 +35,7 @@ export const fetchRemoteData = async (url: string, options: RequestInit = {}): P
     {
       name: 'JSONP',
       fetch: () => fetchViaJsonp(url),
-      maxAttempts: 2
+      maxAttempts: 1
     }
   ];
   
@@ -93,23 +100,56 @@ export const fetchRemoteData = async (url: string, options: RequestInit = {}): P
 // إضافة خيار للتحقق مما إذا كان عنوان URL متاحًا دون تنزيل البيانات بالكامل
 export const isRemoteUrlAccessible = async (url: string): Promise<boolean> => {
   try {
+    // التحقق من وجود مصادر بديلة معروفة
+    const alternativeUrl = getAlternativeSourceUrl(url);
+    if (alternativeUrl) {
+      console.log(`استخدام مصدر بديل للتحقق من الإتاحة: ${alternativeUrl}`);
+      url = alternativeUrl;
+    }
+    
     // استخدام AbortController للتحكم في المهلة
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
     
     // استخدام طلب HEAD فقط لمعرفة ما إذا كان URL متاحًا
-    const response = await fetch(url, {
-      method: 'HEAD',
-      cache: 'no-store',
-      signal: controller.signal,
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
+    try {
+      const response = await fetch(url, {
+        method: 'HEAD',
+        cache: 'no-store',
+        signal: controller.signal,
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      return response.ok;
+    } catch (directError) {
+      // إذا فشلت المحاولة المباشرة، نحاول مع وضع no-cors
+      try {
+        const noCorsController = new AbortController();
+        const noCorsTimeoutId = setTimeout(() => noCorsController.abort(), 5000);
+        
+        await fetch(url, {
+          method: 'HEAD',
+          cache: 'no-store',
+          signal: noCorsController.signal,
+          mode: 'no-cors',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        clearTimeout(noCorsTimeoutId);
+        return true; // أي استجابة في وضع no-cors تعتبر نجاحًا
+      } catch (noCorsError) {
+        clearTimeout(timeoutId);
+        console.warn(`URL غير متاح حتى مع وضع no-cors: ${url}`);
+        return false;
       }
-    });
-    
-    clearTimeout(timeoutId);
-    return response.ok;
+    }
   } catch (error) {
     console.warn(`URL غير متاح: ${url}`, error);
     return false;

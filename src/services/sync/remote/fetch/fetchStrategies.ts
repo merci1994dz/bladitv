@@ -14,7 +14,22 @@ export const tryProxyStrategy = async (url: string, options: RequestInit = {}): 
   
   try {
     const response = await fetchViaProxy(url, options);
-    return await response.json();
+    
+    // التحقق من نوع المحتوى للتعامل معه بشكل مناسب
+    const contentType = response.headers.get('content-type') || '';
+    
+    if (contentType.includes('application/json')) {
+      return await response.json();
+    } else {
+      // محاولة تحليل النص كـ JSON
+      const text = await response.text();
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        // إرجاع النص كما هو إذا لم يكن JSON
+        return text;
+      }
+    }
   } catch (error) {
     throw error;
   }
@@ -33,6 +48,7 @@ export const fetchDirectly = async (url: string, options: RequestInit = {}): Pro
       ...options,
       headers: {
         ...options.headers,
+        'Accept': 'application/json, text/plain, */*',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0'
@@ -56,7 +72,21 @@ export const fetchDirectly = async (url: string, options: RequestInit = {}): Pro
       throw new Error(`فشل الطلب المباشر: ${response.status} ${response.statusText}`);
     }
     
-    return await response.json();
+    // التعامل مع أنواع المحتوى المختلفة
+    const contentType = response.headers.get('content-type') || '';
+    
+    if (contentType.includes('application/json')) {
+      return await response.json();
+    } else {
+      // محاولة تحليل النص كـ JSON
+      const text = await response.text();
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        // إرجاع النص كما هو إذا لم يكن JSON
+        return text;
+      }
+    }
   } catch (error) {
     console.warn('فشل الجلب المباشر:', error);
     throw error;
@@ -90,8 +120,17 @@ export const fetchWithFlexibleFormat = async (url: string): Promise<any> => {
         console.log(`محاولة استخدام معلمة format=json: ${queryUrl}`);
         return await fetchDirectly(queryUrl);
       } catch (queryError) {
-        // إذا فشلت جميع المحاولات، ارفع الخطأ الأصلي
-        throw originalError;
+        // محاولة أخيرة: استخدام URLSearchParams للتعامل مع المعلمات بشكل صحيح
+        try {
+          const urlObj = new URL(url);
+          urlObj.searchParams.append('format', 'json');
+          urlObj.searchParams.append('_', Date.now().toString());
+          console.log(`محاولة استخدام URL مُحسّن: ${urlObj.toString()}`);
+          return await fetchDirectly(urlObj.toString());
+        } catch (finalError) {
+          // إذا فشلت جميع المحاولات، ارفع الخطأ الأصلي
+          throw originalError;
+        }
       }
     }
   }

@@ -23,57 +23,77 @@ export const checkConnectivityIssues = async (): Promise<{
   // التحقق من الوصول إلى خوادم معروفة
   // Check access to known servers
   try {
-    // استخدام AbortController بدلاً من .timeout()
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    // استخدام عدة خوادم للتحقق من الاتصال
+    const testEndpoints = [
+      'https://www.google.com/generate_204',
+      'https://www.cloudflare.com/cdn-cgi/trace',
+      'https://www.microsoft.com/favicon.ico'
+    ];
     
-    // محاولة إجراء طلب بسيط إلى موقع خارجي موثوق
-    // Attempt a simple request to a reliable external site
-    const response = await fetch('https://www.google.com/generate_204', {
-      method: 'HEAD',
-      cache: 'no-store',
-      signal: controller.signal
-    });
+    // نحاول الوصول إلى نقطة نهاية واحدة على الأقل
+    let hasGeneralInternet = false;
     
-    clearTimeout(timeoutId);
-    
-    // إذا كان الرد ناجحًا، نتحقق من الوصول إلى الخادم المستهدف
-    // If the response is successful, check access to the target server
-    if (response.ok || response.status === 204) {
+    for (const endpoint of testEndpoints) {
       try {
-        // فحص الوصول إلى خادم التطبيق
-        // Check access to app server
-        const serverController = new AbortController();
-        const serverTimeoutId = setTimeout(() => serverController.abort(), 5000);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        // اختبار الوصول إلى نقطة نهاية بسيطة في الخادم المستهدف
-        // Test access to a simple endpoint on the target server
-        const serverResponse = await fetch('https://bladitv.lovable.app/ping', {
+        const response = await fetch(endpoint, {
           method: 'HEAD',
+          mode: 'no-cors', // هذا مهم للتغلب على قيود CORS
           cache: 'no-store',
-          signal: serverController.signal
+          signal: controller.signal
         });
         
-        clearTimeout(serverTimeoutId);
-        return { 
-          hasInternet: true, 
-          hasServerAccess: serverResponse.ok 
-        };
-      } catch (serverError) {
-        console.log('تعذر الوصول إلى خادم التطبيق:', serverError);
-        return { hasInternet: true, hasServerAccess: false };
+        clearTimeout(timeoutId);
+        hasGeneralInternet = true;
+        break; // نجاح في الوصول إلى إحدى نقاط النهاية
+      } catch (error) {
+        console.log(`تعذر الوصول إلى ${endpoint}:`, error);
+        // نستمر في المحاولة مع النقطة التالية
       }
     }
     
-    // الوصول إلى الإنترنت محدود
-    // Internet access is limited
+    if (!hasGeneralInternet) {
+      return { hasInternet: false, hasServerAccess: false };
+    }
+    
+    // الآن نتحقق من الوصول إلى خوادم التطبيق
+    // لنستخدم CDN لتجنب مشاكل CORS
+    const appEndpoints = [
+      'https://cdn.jsdelivr.net/gh/bladitv/channels@master/channels.json',
+      'https://raw.githubusercontent.com/bladitv/channels/master/channels.json'
+    ];
+    
+    for (const endpoint of appEndpoints) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch(endpoint, {
+          method: 'HEAD',
+          cache: 'no-store',
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok || response.status === 204) {
+          return { hasInternet: true, hasServerAccess: true };
+        }
+      } catch (error) {
+        console.log(`تعذر الوصول إلى خادم التطبيق ${endpoint}:`, error);
+        // نستمر في المحاولة مع النقطة التالية
+      }
+    }
+    
+    // الوصول إلى الإنترنت محدود، لكن لا يمكن الوصول إلى خوادم التطبيق
     return { hasInternet: true, hasServerAccess: false };
   } catch (error) {
     console.log('خطأ في فحص الاتصال بالإنترنت:', error);
     
-    // في حالة حدوث خطأ، نفترض أن هناك اتصالًا بالإنترنت ولكن لا يمكن الوصول إلى الخادم
-    // In case of error, assume there's internet but no server access
-    return { hasInternet: true, hasServerAccess: false };
+    // في حالة حدوث خطأ، نفترض أن هناك اتصالًا محدودًا بالإنترنت
+    return { hasInternet: isOnline, hasServerAccess: false };
   }
 };
 
@@ -89,19 +109,42 @@ export const quickConnectivityCheck = async (): Promise<boolean> => {
   }
   
   try {
+    // نحاول الوصول بشكل بسيط إلى موارد معروفة
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
     
-    // استخدام عنوان URL بسيط ورد سريع
-    // Use a simple URL with fast response
-    const response = await fetch('https://www.google.com/generate_204', {
-      method: 'HEAD',
-      cache: 'no-store',
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
-    return response.ok || response.status === 204;
+    try {
+      await fetch('https://cdn.jsdelivr.net/gh/bladitv/channels@master/channels.json', {
+        method: 'HEAD',
+        cache: 'no-store',
+        mode: 'no-cors',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      return true;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      // نحاول مرة أخرى مع نقطة نهاية أخرى
+      const backupController = new AbortController();
+      const backupTimeoutId = setTimeout(() => backupController.abort(), 3000);
+      
+      try {
+        await fetch('https://www.google.com/generate_204', {
+          method: 'HEAD',
+          cache: 'no-store',
+          mode: 'no-cors',
+          signal: backupController.signal
+        });
+        
+        clearTimeout(backupTimeoutId);
+        return true;
+      } catch (backupError) {
+        clearTimeout(backupTimeoutId);
+        return false;
+      }
+    }
   } catch (error) {
     return false;
   }

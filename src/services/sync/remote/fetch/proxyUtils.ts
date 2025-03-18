@@ -6,6 +6,12 @@
 
 const PROXY_SERVICES = [
   {
+    name: 'crossorigin.me',
+    url: 'https://crossorigin.me/',
+    encode: (url: string) => url,
+    maxRetries: 2
+  },
+  {
     name: 'corsproxy.io',
     url: 'https://corsproxy.io/?',
     encode: (url: string) => encodeURIComponent(url),
@@ -25,9 +31,15 @@ const PROXY_SERVICES = [
   },
   // الخدمات الاحتياطية
   {
-    name: 'cors-anywhere',
-    url: 'https://cors-anywhere.herokuapp.com/',
+    name: 'thingproxy',
+    url: 'https://thingproxy.freeboard.io/fetch/',
     encode: (url: string) => url,
+    maxRetries: 1
+  },
+  {
+    name: 'github-jsdelivr',
+    url: 'https://cdn.jsdelivr.net/gh/bladitv/cors-proxy@main/proxy.php?url=',
+    encode: (url: string) => encodeURIComponent(url),
     maxRetries: 1
   }
 ];
@@ -46,14 +58,15 @@ export const fetchViaProxy = async (url: string, options: RequestInit = {}): Pro
     
     while (retriesLeft > 0) {
       try {
-        console.log(`محاولة استخدام بروكسي CORS: ${proxyService.url}${proxyService.encode(url)}`);
+        const proxyUrl = `${proxyService.url}${proxyService.encode(url)}`;
+        console.log(`محاولة استخدام بروكسي CORS: ${proxyUrl}`);
         
         // إضافة خيارات إضافية للتحكم في التخزين المؤقت
         const fetchOptions = {
           ...options,
           headers: {
             ...options.headers,
-            'Accept': 'application/json',
+            'Accept': 'application/json, text/plain, */*',
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache',
             'Expires': '0',
@@ -68,7 +81,7 @@ export const fetchViaProxy = async (url: string, options: RequestInit = {}): Pro
         fetchOptions.signal = controller.signal;
         
         // محاولة الجلب عبر البروكسي
-        const response = await fetch(`${proxyService.url}${proxyService.encode(url)}`, fetchOptions);
+        const response = await fetch(proxyUrl, fetchOptions);
         
         // إلغاء المؤقت لتجنب التسريب
         clearTimeout(timeoutId);
@@ -94,8 +107,50 @@ export const fetchViaProxy = async (url: string, options: RequestInit = {}): Pro
     }
   }
   
-  console.warn('فشلت محاولات البروكسي');
-  throw new Error('فشلت جميع محاولات البروكسي CORS');
+  // إذا وصلنا إلى هنا، فهذا يعني أن جميع محاولات البروكسي قد فشلت
+  console.warn('فشلت جميع محاولات البروكسي CORS');
+  
+  // محاولة الوصول إلى CDNs المعروفة كبديل نهائي
+  try {
+    // بدلًا من الرابط الأصلي، نحاول مع CDNs المعروفة
+    let cdnUrl = url;
+    
+    // تحويل روابط bladitv إلى CDN
+    if (url.includes('bladitv.lovable.app') && url.includes('channels.json')) {
+      // استخدام GitHub/JSDelivr كبديل
+      cdnUrl = 'https://cdn.jsdelivr.net/gh/bladitv/channels@master/channels.json';
+      console.log(`محاولة استخدام CDN بديل: ${cdnUrl}`);
+      
+      const fetchOptions = {
+        ...options,
+        headers: {
+          ...options.headers,
+          'Accept': 'application/json, text/plain, */*',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      };
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      fetchOptions.signal = controller.signal;
+      
+      const response = await fetch(cdnUrl, fetchOptions);
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        console.log(`نجح استخدام CDN بديل`);
+        return response;
+      }
+    }
+  } catch (cdnError) {
+    console.warn('فشل استخدام CDN البديل:', cdnError);
+  }
+  
+  // إذا وصلنا إلى هنا، فهذا يعني أن جميع المحاولات قد فشلت
+  throw new Error('فشلت جميع محاولات الوصول إلى البيانات');
 };
 
 /**
@@ -124,4 +179,19 @@ export const isProxyRequired = async (url: string): Promise<boolean> => {
     // الجلب المباشر فشل، يلزم وجود بروكسي
     return true;
   }
+};
+
+/**
+ * تعديل الرابط لاستخدام مصادر بديلة إذا كان ذلك ممكنًا
+ * Modify URL to use alternative sources if possible
+ */
+export const getAlternativeSourceUrl = (url: string): string | null => {
+  // تحويل روابط Bladi TV إلى مصادر بديلة
+  if (url.includes('bladitv.lovable.app') && url.includes('channels.json')) {
+    return 'https://cdn.jsdelivr.net/gh/bladitv/channels@master/channels.json';
+  }
+  
+  // يمكن إضافة المزيد من التحويلات المعروفة هنا
+  
+  return null; // لا يوجد بديل معروف
 };

@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { checkConnectivityIssues } from '@/services/sync/status/connectivity/connectivity-checker';
+import { checkConnectivityIssues, quickConnectivityCheck } from '@/services/sync/status/connectivity/connectivity-checker';
 
 export const useNetworkStatus = () => {
   const { toast } = useToast();
@@ -34,6 +34,15 @@ export const useNetworkStatus = () => {
       try {
         setLastCheckTime(currentTime);
         setCheckAttempts(prev => prev + 1);
+        
+        // البدء بفحص سريع للاتصال
+        const quickCheck = await quickConnectivityCheck();
+        
+        if (!quickCheck) {
+          setNetworkStatus({ hasInternet: true, hasServerAccess: false });
+          setIsChecking(false);
+          return isOnline;
+        }
         
         // عند استعادة الاتصال، تحقق من مشاكل الاتصال المحتملة
         const status = await checkConnectivityIssues();
