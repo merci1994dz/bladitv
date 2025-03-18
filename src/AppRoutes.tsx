@@ -16,6 +16,7 @@ import UserSettings from './pages/UserSettings';
 import Advanced from './pages/Advanced';
 import Navigation from './components/Navigation';
 import Index from './pages/Index';
+import { verifyAdminSession } from './services/adminService';
 
 // تعريف المسارات
 const routes = {
@@ -42,7 +43,7 @@ const AppRoutes: React.FC = () => {
       <Route path={routes.index} element={<Navigate to={routes.splash} replace />} />
       <Route path={routes.splash} element={<SplashScreen />} />
       
-      {/* الصفحات مع شريط التنقل */}
+      {/* الصفحات مع إمكانية إظهار شريط التنقل للمسؤولين فقط */}
       <Route path={routes.home} element={
         <>
           <Home />
