@@ -4,15 +4,21 @@
  */
 
 import { channels, countries, categories } from '../../dataStore';
+import { addChannelToMemory, updateChannelInMemory } from '../../dataStore/channelOperations';
 import { STORAGE_KEYS } from '../../config';
 import { updateLastSyncTime } from '../config';
 import { updateRemoteConfigLastSync } from '../remote';
+import { Channel } from '@/types';
 
 /**
  * Processes and stores the data from remote sources
  * @returns true if successful, false otherwise
  */
-export const storeRemoteData = async (data: any, remoteUrl?: string): Promise<boolean> => {
+export const storeRemoteData = async (
+  data: any, 
+  remoteUrl?: string, 
+  options?: { preventDuplicates?: boolean }
+): Promise<boolean> => {
   // حفظ نسخة احتياطية من البيانات الحالية قبل تحديثها
   const backupData = {
     channels: [...channels],
@@ -25,13 +31,55 @@ export const storeRemoteData = async (data: any, remoteUrl?: string): Promise<bo
     if (Array.isArray(data.channels)) {
       console.log(`تم استلام ${data.channels.length} قناة من المصدر الخارجي`);
       
-      // مسح القنوات الحالية وإضافة القنوات الجديدة
-      channels.length = 0;
-      channels.push(...data.channels);
+      if (options?.preventDuplicates) {
+        // إضافة القنوات مع منع التكرار
+        let addedCount = 0;
+        let ignoredCount = 0;
+        
+        for (const channelData of data.channels) {
+          // إنشاء كائن القناة بالتنسيق المناسب
+          const channel: Channel = {
+            id: channelData.id || `channel-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            name: channelData.name,
+            logo: channelData.logo,
+            streamUrl: channelData.stream_url || channelData.streamUrl,
+            category: channelData.category,
+            country: channelData.country,
+            isFavorite: channelData.is_favorite || channelData.isFavorite || false,
+            externalLinks: channelData.external_links || channelData.externalLinks || []
+          };
+          
+          // محاولة إضافة القناة مع منع التكرار
+          const result = addChannelToMemory(channel, { preventDuplicates: true });
+          
+          if (result) {
+            addedCount++;
+          } else {
+            ignoredCount++;
+          }
+        }
+        
+        console.log(`تم إضافة ${addedCount} قناة وتجاهل ${ignoredCount} قناة متكررة`);
+      } else {
+        // مسح القنوات الحالية وإضافة القنوات الجديدة
+        channels.length = 0;
+        channels.push(...data.channels.map((ch: any) => ({
+          id: ch.id || `channel-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          name: ch.name,
+          logo: ch.logo,
+          streamUrl: ch.stream_url || ch.streamUrl,
+          category: ch.category,
+          country: ch.country,
+          isFavorite: ch.is_favorite || ch.isFavorite || false,
+          externalLinks: ch.external_links || ch.externalLinks || []
+        })));
+        
+        console.log(`تم استبدال ${channels.length} قناة`);
+      }
       
       // حفظ في مخزن محلي
       try {
-        localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(data.channels));
+        localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
         console.log(`تم تحديث ${channels.length} قناة بنجاح`);
       } catch (storageError) {
         console.error('خطأ في تخزين القنوات محليًا:', storageError);

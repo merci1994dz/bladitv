@@ -3,14 +3,37 @@ import { Channel } from '@/types';
 import { channels } from './state';
 import { saveChannelsToStorage } from './storage';
 
-// Function to add a channel to memory
-export const addChannelToMemory = (channel: Channel) => {
-  // Check if channel already exists
-  const index = channels.findIndex(c => c.id === channel.id);
+// وظيفة للتحقق من وجود قناة مشابهة
+const isDuplicateChannel = (newChannel: Channel): boolean => {
+  // التحقق من وجود قناة بنفس الاسم
+  const nameExists = channels.some(c => 
+    c.name.toLowerCase() === newChannel.name.toLowerCase() && 
+    c.id !== newChannel.id
+  );
   
-  if (index >= 0) {
+  // التحقق من وجود قناة بنفس رابط البث
+  const streamUrlExists = channels.some(c => 
+    c.streamUrl === newChannel.streamUrl && 
+    c.id !== newChannel.id
+  );
+  
+  return nameExists || streamUrlExists;
+};
+
+// Function to add a channel to memory with duplicate checking
+export const addChannelToMemory = (channel: Channel, options?: { preventDuplicates?: boolean }) => {
+  // التحقق من وجود القناة بالفعل
+  const existingIndex = channels.findIndex(c => c.id === channel.id);
+  
+  // التحقق من وجود نسخة مشابهة
+  if (options?.preventDuplicates && isDuplicateChannel(channel)) {
+    console.log(`تم تجاهل قناة مكررة: ${channel.name}`);
+    return null;
+  }
+  
+  if (existingIndex >= 0) {
     // Update existing channel
-    channels[index] = { ...channel };
+    channels[existingIndex] = { ...channel };
     console.log(`تم تحديث القناة: ${channel.name}`);
   } else {
     // Add new channel
@@ -56,7 +79,13 @@ export const removeChannelFromMemory = (channelId: string) => {
 };
 
 // Function to update a channel in memory
-export const updateChannelInMemory = (channel: Channel) => {
+export const updateChannelInMemory = (channel: Channel, options?: { preventDuplicates?: boolean }) => {
+  // التحقق من وجود نسخة مشابهة
+  if (options?.preventDuplicates && isDuplicateChannel(channel)) {
+    console.log(`تم تجاهل تحديث قناة مكررة: ${channel.name}`);
+    return false;
+  }
+  
   const index = channels.findIndex(c => c.id === channel.id);
   if (index >= 0) {
     channels[index] = { ...channel };
