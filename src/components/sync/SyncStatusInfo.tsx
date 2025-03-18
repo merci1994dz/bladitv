@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { Shield, Wifi, WifiOff } from 'lucide-react';
+import { Shield, Wifi, WifiOff, Clock } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface SyncStatusInfoProps {
   networkStatus: {
@@ -8,36 +9,64 @@ interface SyncStatusInfoProps {
     hasServerAccess: boolean;
   };
   isChecking: boolean;
+  lastSync?: string;
+  lastSyncDuration?: number;
+  formatLastSync?: () => string;
 }
 
 const SyncStatusInfo: React.FC<SyncStatusInfoProps> = ({
   networkStatus,
-  isChecking
+  isChecking,
+  lastSync,
+  lastSyncDuration,
+  formatLastSync
 }) => {
   return (
-    <div className="flex items-center space-x-4 space-x-reverse">
-      <div className="flex items-center">
-        {networkStatus.hasInternet ? (
-          <Wifi className="h-5 w-5 text-green-500" />
-        ) : (
-          <WifiOff className="h-5 w-5 text-red-500" />
-        )}
-        <span className="mr-2">
-          {networkStatus.hasInternet ? 'متصل بالإنترنت' : 'غير متصل بالإنترنت'}
-        </span>
-      </div>
-      
-      <div className="flex items-center">
-        <Shield className={`h-5 w-5 ${networkStatus.hasServerAccess ? 'text-green-500' : 'text-red-500'}`} />
-        <span className="mr-2">
-          {networkStatus.hasServerAccess ? 'متصل بالخادم' : 'لا يمكن الوصول للخادم'}
-        </span>
-      </div>
-      
-      {isChecking && (
-        <div className="animate-pulse text-muted-foreground">
-          جاري فحص الاتصال...
+    <div className="flex flex-col space-y-2">
+      <div className="flex items-center space-x-4 space-x-reverse">
+        <div className="flex items-center">
+          {networkStatus.hasInternet ? (
+            <Wifi className="h-5 w-5 text-green-500" />
+          ) : (
+            <WifiOff className="h-5 w-5 text-red-500" />
+          )}
+          <span className="mr-2">
+            {networkStatus.hasInternet ? 'متصل بالإنترنت' : 'غير متصل بالإنترنت'}
+          </span>
         </div>
+        
+        <div className="flex items-center">
+          <Shield className={`h-5 w-5 ${networkStatus.hasServerAccess ? 'text-green-500' : 'text-red-500'}`} />
+          <span className="mr-2">
+            {networkStatus.hasServerAccess ? 'متصل بالخادم' : 'لا يمكن الوصول للخادم'}
+          </span>
+        </div>
+        
+        {isChecking && (
+          <div className="animate-pulse text-muted-foreground">
+            جاري فحص الاتصال...
+          </div>
+        )}
+      </div>
+      
+      {/* إضافة معلومات المزامنة إذا كانت متوفرة */}
+      {lastSync && formatLastSync && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center text-sm text-muted-foreground">
+                <Clock className="h-4 w-4 ml-1" />
+                <span>آخر مزامنة: {formatLastSync()}</span>
+                {lastSyncDuration > 0 && (
+                  <span className="mr-2">({(lastSyncDuration / 1000).toFixed(1)} ثانية)</span>
+                )}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>وقت آخر مزامنة ناجحة مع الخادم</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       )}
     </div>
   );
