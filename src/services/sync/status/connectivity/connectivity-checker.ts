@@ -75,7 +75,8 @@ export const checkConnectivityIssues = async (): Promise<{
       'https://gcore.jsdelivr.net/gh/bladitv/channels@master/channels.json'
     ];
     
-    // استخدام Promise.any للتعامل مع أول استجابة ناجحة
+    // استخدام Promise.race مع timeout بدلاً من Promise.any
+    // Using Promise.race with timeout instead of Promise.any for better compatibility
     try {
       // إنشاء مصفوفة من الوعود للتحقق من كل نقطة نهاية
       const checkPromises = appEndpoints.map(endpoint => {
@@ -110,11 +111,17 @@ export const checkConnectivityIssues = async (): Promise<{
         });
       });
       
-      // استخدام Promise.any لانتظار أول نجاح (إذا كان متاحًا)
-      await Promise.any(checkPromises);
-      return { hasInternet: true, hasServerAccess: true };
-    } catch (aggregateError) {
-      console.log('فشل الوصول إلى جميع نقاط نهاية التطبيق:', aggregateError);
+      // تنفيذ جميع الوعود وانتظار أي نتيجة ناجحة
+      // Run all promises and look for any successful result
+      const results = await Promise.allSettled(checkPromises);
+      const hasSuccessfulEndpoint = results.some(result => result.status === 'fulfilled');
+      
+      return { 
+        hasInternet: true, 
+        hasServerAccess: hasSuccessfulEndpoint 
+      };
+    } catch (error) {
+      console.log('فشل الوصول إلى جميع نقاط نهاية التطبيق:', error);
       return { hasInternet: true, hasServerAccess: false };
     }
     
