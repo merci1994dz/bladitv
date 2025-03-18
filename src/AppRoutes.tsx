@@ -38,8 +38,8 @@ const routes = {
 const AppRoutes: React.FC = () => {
   return (
     <Routes>
-      {/* المسار الأساسي والصفحة الرئيسية */}
-      <Route path={routes.index} element={<Index />} />
+      {/* توجيه المسار الأساسي إلى شاشة البداية */}
+      <Route path={routes.index} element={<Navigate to={routes.splash} replace />} />
       <Route path={routes.splash} element={<SplashScreen />} />
       
       {/* الصفحات مع شريط التنقل */}

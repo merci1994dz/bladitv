@@ -4,15 +4,15 @@ import { useNavigate } from 'react-router-dom';
 import LoadingIndicator from '../components/LoadingIndicator';
 
 /**
- * صفحة المدخل الرئيسية التي توجه المستخدم إلى الصفحة المناسبة
+ * صفحة المدخل الرئيسية التي توجه المستخدم إلى صفحة البداية
  */
 const Index: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // التوجيه الفوري إلى الصفحة الرئيسية بدون تأخير
-    console.log('التوجيه إلى الصفحة الرئيسية فوراً...');
-    navigate('/home', { replace: true });
+    // التوجيه الفوري إلى صفحة البداية
+    console.log('التوجيه إلى صفحة البداية...');
+    navigate('/splash', { replace: true });
   }, [navigate]);
 
   return (
