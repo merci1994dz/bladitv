@@ -4,18 +4,11 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, Globe, Search, Heart, Settings, Video, PieChart, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDeviceType } from '@/hooks/use-tv';
-import { verifyAdminSession } from '@/services/adminService';
 
 const Navigation: React.FC = () => {
   const location = useLocation();
   const { isTV } = useDeviceType();
   const isActive = (path: string) => location.pathname.startsWith(path);
-  const isAdmin = verifyAdminSession();
-
-  // If not admin, don't render the navigation bar
-  if (!isAdmin) {
-    return null;
-  }
 
   const navigationItems = [
     { 
