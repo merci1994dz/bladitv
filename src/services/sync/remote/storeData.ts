@@ -39,9 +39,8 @@ export const storeRemoteData = async (
       // إنشاء مجموعة للاسماء وروابط البث الموجودة بالفعل
       const existingNames = new Set(channels.map(ch => ch.name.toLowerCase()));
       const existingUrls = new Set(channels.map(ch => ch.streamUrl));
-      const existingIds = new Set(channels.map(ch => ch.id));
       
-      if (options?.preventDuplicates !== false) { // تحسين المنطق - منع التكرار افتراضيًا
+      if (options?.preventDuplicates) {
         // إضافة القنوات مع منع التكرار
         for (const channelData of data.channels) {
           // إنشاء كائن القناة بالتنسيق المناسب
@@ -56,15 +55,13 @@ export const storeRemoteData = async (
             externalLinks: channelData.external_links || channelData.externalLinks || []
           };
           
-          // التحقق من وجود القناة بالمعرف أولاً ثم بالاسم أو رابط البث
-          const isDuplicate = existingIds.has(channel.id) || 
-                             existingNames.has(channel.name.toLowerCase()) || 
+          // التحقق من وجود القناة بالاسم أو رابط البث
+          const isDuplicate = existingNames.has(channel.name.toLowerCase()) || 
                              existingUrls.has(channel.streamUrl);
           
           if (isDuplicate) {
             // تجاهل القناة المكررة أو تحديثها إذا كانت موجودة بالفعل
             const existingChannel = channels.find(ch => 
-              ch.id === channel.id ||
               ch.name.toLowerCase() === channel.name.toLowerCase() || 
               ch.streamUrl === channel.streamUrl
             );
@@ -73,14 +70,12 @@ export const storeRemoteData = async (
               // تحديث القناة الموجودة فقط إذا كانت هناك تغييرات جوهرية
               if (existingChannel.logo !== channel.logo || 
                   existingChannel.category !== channel.category ||
-                  existingChannel.country !== channel.country ||
-                  existingChannel.streamUrl !== channel.streamUrl) {
+                  existingChannel.country !== channel.country) {
                 updateChannelInMemory({
                   ...existingChannel,
                   logo: channel.logo,
                   category: channel.category,
-                  country: channel.country,
-                  streamUrl: channel.streamUrl
+                  country: channel.country
                 });
                 updatedCount++;
               } else {
@@ -95,7 +90,6 @@ export const storeRemoteData = async (
             addedCount++;
             
             // تحديث المجموعات للاستخدام في التحقق اللاحق
-            existingIds.add(channel.id);
             existingNames.add(channel.name.toLowerCase());
             existingUrls.add(channel.streamUrl);
           }
@@ -136,30 +130,12 @@ export const storeRemoteData = async (
     if (Array.isArray(data.countries)) {
       console.log(`تم استلام ${data.countries.length} دولة من المصدر الخارجي`);
       
-      // منع التكرار للدول
-      if (options?.preventDuplicates !== false) {
-        // إنشاء مجموعة للمعرفات الموجودة بالفعل
-        const existingIds = new Set(countries.map(c => c.id));
-        const existingNames = new Set(countries.map(c => c.name.toLowerCase()));
-        
-        // فلترة الدول الجديدة فقط
-        const newCountries = data.countries.filter((country: any) => 
-          !existingIds.has(country.id) && 
-          !existingNames.has(country.name.toLowerCase())
-        );
-        
-        // إضافة الدول الجديدة فقط
-        countries.push(...newCountries);
-        console.log(`تم إضافة ${newCountries.length} دولة جديدة وتجاهل ${data.countries.length - newCountries.length} دولة مكررة`);
-      } else {
-        // مسح الدول الحالية وإضافة الدول الجديدة
-        countries.length = 0;
-        countries.push(...data.countries);
-        console.log(`تم استبدال جميع الدول بـ ${countries.length} دولة`);
-      }
+      // مسح الدول الحالية وإضافة الدول الجديدة
+      countries.length = 0;
+      countries.push(...data.countries);
       
       try {
-        localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(countries));
+        localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(data.countries));
         console.log(`تم تحديث ${countries.length} دولة بنجاح`);
       } catch (storageError) {
         console.error('خطأ في تخزين الدول محليًا:', storageError);
@@ -174,30 +150,12 @@ export const storeRemoteData = async (
     if (Array.isArray(data.categories)) {
       console.log(`تم استلام ${data.categories.length} فئة من المصدر الخارجي`);
       
-      // منع التكرار للفئات
-      if (options?.preventDuplicates !== false) {
-        // إنشاء مجموعة للمعرفات الموجودة بالفعل
-        const existingIds = new Set(categories.map(c => c.id));
-        const existingNames = new Set(categories.map(c => c.name.toLowerCase()));
-        
-        // فلترة الفئات الجديدة فقط
-        const newCategories = data.categories.filter((category: any) => 
-          !existingIds.has(category.id) && 
-          !existingNames.has(category.name.toLowerCase())
-        );
-        
-        // إضافة الفئات الجديدة فقط
-        categories.push(...newCategories);
-        console.log(`تم إضافة ${newCategories.length} فئة جديدة وتجاهل ${data.categories.length - newCategories.length} فئة مكررة`);
-      } else {
-        // مسح الفئات الحالية وإضافة الفئات الجديدة
-        categories.length = 0;
-        categories.push(...data.categories);
-        console.log(`تم استبدال جميع الفئات بـ ${categories.length} فئة`);
-      }
+      // مسح الفئات الحالية وإضافة الفئات الجديدة
+      categories.length = 0;
+      categories.push(...data.categories);
       
       try {
-        localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+        localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(data.categories));
         console.log(`تم تحديث ${categories.length} فئة بنجاح`);
       } catch (storageError) {
         console.error('خطأ في تخزين الفئات محليًا:', storageError);

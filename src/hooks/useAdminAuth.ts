@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { verifyAdminSession, logoutAdmin, hasFullAccess } from '@/services/adminService';
 import { useToast } from '@/hooks/use-toast';
 
@@ -9,34 +9,17 @@ export const useAdminAuth = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
 
-  // تحقق من حالة المصادقة بطريقة محسنة وأكثر كفاءة
-  const checkAuth = useCallback(async () => {
-    try {
-      const isValid = verifyAdminSession();
-      setIsAuthenticated(isValid);
-      
-      if (isValid) {
-        // التحقق من وجود صلاحيات كاملة بعد التأكد من صحة الجلسة
-        const hasFullAccessPermission = hasFullAccess();
-        setHasFullAccessEnabled(hasFullAccessPermission);
-      }
-      
-      return isValid;
-    } catch (error) {
-      console.error("خطأ في التحقق من المصادقة:", error);
-      return false;
-    }
-  }, []);
-
-  // التحقق من المصادقة عند تحميل المكون
+  // Check authentication status on component load
   useEffect(() => {
-    const initAuth = async () => {
+    const checkAuth = async () => {
       setIsLoading(true);
       try {
-        const isValid = await checkAuth();
+        const isValid = verifyAdminSession();
+        setIsAuthenticated(isValid);
+        setHasFullAccessEnabled(hasFullAccess());
         
         if (isValid) {
-          // إعداد التحقق الدوري للجلسة بفترات منتظمة
+          // Set up periodic session validation
           const interval = setInterval(() => {
             if (!verifyAdminSession()) {
               setIsAuthenticated(false);
@@ -47,36 +30,35 @@ export const useAdminAuth = () => {
                 variant: "destructive",
               });
             }
-          }, 60000); // التحقق كل دقيقة
+          }, 60000); // Check every minute
           
           return () => clearInterval(interval);
         }
       } catch (error) {
-        console.error("خطأ في التحقق الأولي من المصادقة:", error);
+        console.error("Error checking authentication:", error);
         toast({
           title: "خطأ في التحقق",
           description: "حدث خطأ أثناء التحقق من جلستك",
           variant: "destructive",
         });
       } finally {
-        // تأخير قصير لتجنب الوميض السريع لشاشة التحميل
-        setTimeout(() => setIsLoading(false), 300);
+        setIsLoading(false);
       }
     };
     
-    initAuth();
-  }, [toast, checkAuth]);
+    checkAuth();
+  }, [toast]);
 
-  const handleLoginSuccess = useCallback(() => {
+  const handleLoginSuccess = () => {
     setIsAuthenticated(true);
     setHasFullAccessEnabled(hasFullAccess());
     toast({
       title: "تم تسجيل الدخول بنجاح",
       description: "أهلاً بك في لوحة الإدارة",
     });
-  }, [toast]);
+  };
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = () => {
     logoutAdmin();
     setIsAuthenticated(false);
     setHasFullAccessEnabled(false);
@@ -84,7 +66,7 @@ export const useAdminAuth = () => {
       title: "تم تسجيل الخروج",
       description: "تم تسجيل الخروج بنجاح",
     });
-  }, [toast]);
+  };
 
   return {
     isAuthenticated,
@@ -93,7 +75,6 @@ export const useAdminAuth = () => {
     setHasFullAccessEnabled,
     isLoading,
     handleLoginSuccess,
-    handleLogout,
-    checkAuth
+    handleLogout
   };
 };
