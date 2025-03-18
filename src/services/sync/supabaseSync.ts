@@ -34,9 +34,15 @@ const checkSupabaseConnection = async (): Promise<boolean> => {
       return true;
     }
     
-    // التحقق من الاتصال بـ Supabase باستخدام استعلام بسيط
-    const { data, error } = await supabase.from('channels').select('count', { count: 'exact', head: true })
-      .timeout(5000); // إضافة مهلة زمنية قصيرة
+    // التحقق من الاتصال بـ Supabase باستخدام استعلام بسيط مع مهلة زمنية يدوية
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const { data, error } = await supabase
+      .from('channels')
+      .select('count', { count: 'exact', head: true });
+    
+    clearTimeout(timeoutId);
     
     if (error) {
       console.error("فشل التحقق من الاتصال بـ Supabase:", error);

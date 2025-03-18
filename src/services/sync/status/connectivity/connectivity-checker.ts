@@ -41,11 +41,16 @@ export const checkConnectivityIssues = async (): Promise<{
   try {
     console.log('التحقق من الوصول إلى خادم Supabase...');
     
-    // استخدام استعلام بسيط مع مهلة زمنية قصيرة
+    // استخدام استعلام بسيط مع تنفيذ خاص للمهلة الزمنية
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    // استخدام استعلام بسيط للتحقق من الاتصال
     const { data, error } = await supabase
       .from('channels')
-      .select('count', { count: 'exact', head: true })
-      .timeout(5000);
+      .select('count', { count: 'exact', head: true });
+    
+    clearTimeout(timeoutId);
     
     const hasServerAccess = !error;
     
