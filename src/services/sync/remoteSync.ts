@@ -1,12 +1,14 @@
-
 import { channels, countries, categories, setIsSyncing } from '../dataStore';
 import { fetchRemoteData } from './remote/fetch';
 import { storeRemoteData } from './remote/storeData';
 import { updateLastSyncTime } from './config';
-import { syncWithRemoteSource, checkBladiInfoAvailability } from './remote/sync/bladiInfoSync';
+import { syncWithRemoteSource as remoteSyncWithSource } from './remote/sync/syncWithRemote';
+import { checkBladiInfoAvailability } from './remote/sync/bladiInfoSync';
 
 // Re-export these functions to make them available to other modules
-export { syncWithRemoteSource, checkBladiInfoAvailability };
+export { checkBladiInfoAvailability };
+export const syncWithRemoteSource = remoteSyncWithSource;
+export { getSkewProtectionParams } from './remote/fetch/skewProtection';
 
 /**
  * المزامنة مع مواقع Bladi Info

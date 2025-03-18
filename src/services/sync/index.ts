@@ -8,5 +8,6 @@ export { performInitialSync } from './core/initialSync';
 export { publishChannelsToAllUsers } from './publish';
 
 // تصدير الوظائف المضافة حديثًا من الخدمات ذات الصلة
-export { checkBladiInfoAvailability, syncWithRemoteSource } from './remote/sync/bladiInfoSync';
+export { checkBladiInfoAvailability } from './remote/sync/bladiInfoSync';
+export { syncWithRemoteSource } from './remoteSync';
 export { getSkewProtectionParams } from './remote/fetch/skewProtection';

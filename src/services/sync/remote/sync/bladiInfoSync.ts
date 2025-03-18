@@ -1,4 +1,3 @@
-
 /**
  * Functionality for syncing with Bladi Info sources
  */
@@ -6,6 +5,9 @@
 import { STORAGE_KEYS } from '../../../config';
 import { syncWithRemoteSource } from './syncWithRemote';
 import { BLADI_INFO_SOURCES } from './sources';
+
+// Export for external use
+export { syncWithRemoteSource };
 
 /**
  * تنفيذ المزامنة مع Bladi Info - مع محاولات متعددة
@@ -101,4 +103,3 @@ export const checkBladiInfoAvailability = async (): Promise<string | null> => {
   
   return null;
 };
-
