@@ -13,6 +13,8 @@ interface SyncStatusInfoProps {
   syncError: string | null;
   cacheCleared: boolean;
   deploymentPlatform: string;
+  isSyncing?: boolean;
+  lastSyncDuration?: number;
 }
 
 const SyncStatusInfo: React.FC<SyncStatusInfoProps> = ({
@@ -21,7 +23,9 @@ const SyncStatusInfo: React.FC<SyncStatusInfoProps> = ({
   networkStatus,
   syncError,
   cacheCleared,
-  deploymentPlatform
+  deploymentPlatform,
+  isSyncing = false,
+  lastSyncDuration = 0
 }) => {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -35,6 +39,8 @@ const SyncStatusInfo: React.FC<SyncStatusInfoProps> = ({
         syncError={syncError} 
         cacheCleared={cacheCleared}
         deploymentPlatform={deploymentPlatform}
+        isSyncing={isSyncing}
+        lastSyncDuration={lastSyncDuration}
       />
     </div>
   );

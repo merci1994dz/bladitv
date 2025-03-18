@@ -3,7 +3,7 @@
  * مكون حالة المزامنة المحسن مع معالجة أفضل للأخطاء
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { useQuery } from '@tanstack/react-query';
 import { getLastSyncTime } from '@/services/sync/status/timestamp';
@@ -19,6 +19,8 @@ export function SyncStatus() {
   const [cacheCleared, setCacheCleared] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [deploymentPlatform, setDeploymentPlatform] = useState<string>('vercel');
+  const [syncStartTime, setSyncStartTime] = useState<number>(0);
+  const [lastSyncDuration, setLastSyncDuration] = useState<number>(0);
   
   // جلب آخر وقت مزامنة
   const { data: lastSync, refetch: refetchLastSync } = useQuery({
@@ -27,8 +29,25 @@ export function SyncStatus() {
     staleTime: 60 * 1000, // دقيقة واحدة
   });
 
-  // استخدام طلبات المزامنة المتغيرة
-  const { runSync, isSyncing, runForceSync, isForceSyncing } = useSyncMutations(refetchLastSync);
+  // استخدام طلبات المزامنة المتغيرة مع التعديلات لتتبع مدة المزامنة
+  const { runSync, isSyncing, runForceSync, isForceSyncing } = useSyncMutations(refetchLastSync, {
+    onSyncStart: () => setSyncStartTime(Date.now()),
+    onSyncEnd: () => {
+      if (syncStartTime > 0) {
+        setLastSyncDuration(Date.now() - syncStartTime);
+      }
+    }
+  });
+
+  // تتبع بداية ونهاية المزامنة لحساب المدة
+  useEffect(() => {
+    if (isSyncing && syncStartTime === 0) {
+      setSyncStartTime(Date.now());
+    } else if (!isSyncing && syncStartTime > 0) {
+      setLastSyncDuration(Date.now() - syncStartTime);
+      setSyncStartTime(0);
+    }
+  }, [isSyncing, syncStartTime]);
 
   // التحقق من بيئة النشر
   useEffect(() => {
@@ -114,6 +133,8 @@ export function SyncStatus() {
         syncError={syncError}
         cacheCleared={cacheCleared}
         deploymentPlatform={deploymentPlatform}
+        isSyncing={isSyncing || isForceSyncing}
+        lastSyncDuration={lastSyncDuration}
       />
       
       {/* Sync action buttons */}

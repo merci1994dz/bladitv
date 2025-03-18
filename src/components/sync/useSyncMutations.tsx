@@ -5,13 +5,22 @@ import { forceDataRefresh } from '@/services/sync';
 import { checkBladiInfoAvailability } from '@/services/sync/remote/syncOperations';
 import { useToast } from '@/hooks/use-toast';
 
-export const useSyncMutations = (refetchLastSync: () => void) => {
+interface SyncCallbacks {
+  onSyncStart?: () => void;
+  onSyncEnd?: () => void;
+}
+
+export const useSyncMutations = (refetchLastSync: () => void, callbacks?: SyncCallbacks) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
   // تشغيل المزامنة مع Supabase مع تحسين معالجة الأخطاء
   const { mutate: runSync, isPending: isSyncing } = useMutation({
-    mutationFn: () => syncWithSupabase(true),
+    mutationFn: () => {
+      // تشغيل وظيفة بدء المزامنة
+      callbacks?.onSyncStart?.();
+      return syncWithSupabase(true);
+    },
     onMutate: () => {
       // إظهار رسالة جاري المعالجة للمستخدم
       toast({
@@ -31,6 +40,9 @@ export const useSyncMutations = (refetchLastSync: () => void) => {
         title: "تمت المزامنة",
         description: "تم تحديث البيانات بنجاح من Supabase",
       });
+      
+      // تشغيل وظيفة انتهاء المزامنة
+      callbacks?.onSyncEnd?.();
     },
     onError: (error) => {
       console.error('خطأ في المزامنة:', error);
@@ -58,14 +70,24 @@ export const useSyncMutations = (refetchLastSync: () => void) => {
           runSync();
         }, 10000);
       }
+      
+      // تشغيل وظيفة انتهاء المزامنة
+      callbacks?.onSyncEnd?.();
     },
-    retry: 2, // محاولة مرتين إضافيتين في حالة الفشل
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // زيادة التأخير بين المحاولات
+    onSettled: () => {
+      // تشغيل وظيفة انتهاء المزامنة (للتأكد من تنفيذها في جميع الحالات)
+      callbacks?.onSyncEnd?.();
+    },
+    retry: 1, // تقليل عدد محاولات إعادة المحاولة التلقائية
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 15000), // تقليل زمن الانتظار بين المحاولات
   });
 
   // تشغيل المزامنة القسرية (للمشرفين فقط) مع تحسينات في معالجة الأخطاء
   const { mutate: runForceSync, isPending: isForceSyncing } = useMutation({
-    mutationFn: forceDataRefresh,
+    mutationFn: () => {
+      callbacks?.onSyncStart?.();
+      return forceDataRefresh();
+    },
     onMutate: () => {
       toast({
         title: "جاري التحديث القسري",
@@ -80,6 +102,8 @@ export const useSyncMutations = (refetchLastSync: () => void) => {
         title: "تم إعادة التحميل القسري",
         description: "تم مسح ذاكرة التخزين المؤقت وإعادة تحميل البيانات بنجاح",
       });
+      
+      callbacks?.onSyncEnd?.();
     },
     onError: (error) => {
       console.error('خطأ في التحديث القسري:', error);
@@ -91,8 +115,13 @@ export const useSyncMutations = (refetchLastSync: () => void) => {
         description: errorMessage,
         variant: "destructive",
       });
+      
+      callbacks?.onSyncEnd?.();
     },
-    retry: 1, // محاولة واحدة إضافية فقط للتحديث القسري
+    onSettled: () => {
+      callbacks?.onSyncEnd?.();
+    },
+    retry: 0, // لا توجد محاولات إعادة للتحديث القسري
   });
   
   return {

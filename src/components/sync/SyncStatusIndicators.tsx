@@ -1,147 +1,149 @@
 
 import React from 'react';
-import { Badge } from '@/components/ui/badge';
 import { 
-  Wifi, 
-  WifiOff, 
-  XCircle, 
-  CheckCircle2, 
+  Globe, 
   AlertTriangle, 
-  ServerIcon, 
-  ServerOffIcon 
+  Server, 
+  CheckCircle,
+  Clock
 } from 'lucide-react';
 import { 
-  Tooltip, 
-  TooltipContent, 
-  TooltipProvider, 
-  TooltipTrigger 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 
 interface SyncStatusIndicatorsProps {
   networkStatus: {
     hasInternet: boolean;
-    hasServerAccess?: boolean;
+    hasServerAccess: boolean;
   };
   syncError: string | null;
   cacheCleared: boolean;
-  deploymentPlatform?: string;
+  deploymentPlatform: string;
+  isSyncing?: boolean;
+  lastSyncDuration?: number;
 }
 
-export const SyncStatusIndicators: React.FC<SyncStatusIndicatorsProps> = ({ 
-  networkStatus, 
-  syncError, 
+export const SyncStatusIndicators: React.FC<SyncStatusIndicatorsProps> = ({
+  networkStatus,
+  syncError,
   cacheCleared,
-  deploymentPlatform = 'vercel'
+  deploymentPlatform,
+  isSyncing = false,
+  lastSyncDuration = 0
 }) => {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {/* مؤشر حالة الشبكة */}
-      <TooltipProvider>
+    <TooltipProvider>
+      <div className="flex items-center gap-1.5">
+        {/* Internet connection indicator */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Badge variant={networkStatus.hasInternet ? "outline" : "destructive"} className="gap-1 px-2">
-              {networkStatus.hasInternet ? (
-                <>
-                  <Wifi className="h-3 w-3" />
-                  <span>متصل</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="h-3 w-3" />
-                  <span>غير متصل</span>
-                </>
-              )}
-            </Badge>
+            <div>
+              <Globe 
+                className={`h-4 w-4 ${
+                  networkStatus.hasInternet 
+                    ? 'text-green-500'
+                    : 'text-red-500 animate-pulse'
+                }`} 
+              />
+            </div>
           </TooltipTrigger>
-          <TooltipContent>
-            <p>{networkStatus.hasInternet ? 'متصل بالإنترنت' : 'غير متصل بالإنترنت. سيتم استخدام البيانات المخزنة محلياً'}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      
-      {/* مؤشر حالة المزامنة */}
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge 
-              variant={syncError ? "destructive" : "outline"} 
-              className="gap-1 px-2"
-            >
-              {syncError ? (
-                <>
-                  <XCircle className="h-3 w-3" />
-                  <span>خطأ</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-3 w-3" />
-                  <span>متزامن</span>
-                </>
-              )}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{syncError ? `خطأ في المزامنة: ${syncError}` : 'البيانات متزامنة'}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      
-      {/* مؤشر التخزين المؤقت */}
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge 
-              variant={cacheCleared ? "outline" : "secondary"} 
-              className="gap-1 px-2"
-            >
-              {cacheCleared ? (
-                <>
-                  <CheckCircle2 className="h-3 w-3" />
-                  <span>تم مسح التخزين المؤقت</span>
-                </>
-              ) : (
-                <>
-                  <AlertTriangle className="h-3 w-3" />
-                  <span>التخزين المؤقت</span>
-                </>
-              )}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{cacheCleared ? 'تم مسح التخزين المؤقت. البيانات محدثة' : 'قد تكون البيانات مخزنة مؤقتًا'}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
-      {/* مؤشر بيئة النشر */}
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge 
-              variant="outline" 
-              className="gap-1 px-2"
-            >
-              {networkStatus.hasServerAccess ? (
-                <>
-                  <ServerIcon className="h-3 w-3" />
-                  <span>{deploymentPlatform}</span>
-                </>
-              ) : (
-                <>
-                  <ServerOffIcon className="h-3 w-3" />
-                  <span>وضع محلي</span>
-                </>
-              )}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{networkStatus.hasServerAccess 
-              ? `تم نشر التطبيق على ${deploymentPlatform}` 
-              : 'يعمل التطبيق في وضع عدم الاتصال'}
+          <TooltipContent side="bottom">
+            <p className="text-xs">
+              {networkStatus.hasInternet 
+                ? 'متصل بالإنترنت'
+                : 'غير متصل بالإنترنت'}
             </p>
           </TooltipContent>
         </Tooltip>
-      </TooltipProvider>
-    </div>
+        
+        {/* Server connection indicator */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div>
+              <Server 
+                className={`h-4 w-4 ${
+                  networkStatus.hasServerAccess
+                    ? 'text-green-500'
+                    : 'text-amber-500'
+                }`} 
+              />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p className="text-xs">
+              {networkStatus.hasServerAccess
+                ? 'متصل بالخادم'
+                : 'غير متصل بالخادم - سيتم استخدام البيانات المخزنة محليًا'}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+        
+        {/* Sync status indicator - NEW */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div>
+              {isSyncing ? (
+                <Clock className="h-4 w-4 text-blue-500 animate-spin" />
+              ) : (
+                <CheckCircle 
+                  className={`h-4 w-4 ${
+                    syncError
+                      ? 'text-red-500'
+                      : cacheCleared
+                        ? 'text-amber-500'
+                        : 'text-green-500'
+                  }`} 
+                />
+              )}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p className="text-xs">
+              {isSyncing 
+                ? 'جاري المزامنة...'
+                : syncError
+                  ? 'فشلت المزامنة'
+                  : cacheCleared
+                    ? 'تم مسح ذاكرة التخزين المؤقت'
+                    : 'تم المزامنة بنجاح'}
+            </p>
+            {lastSyncDuration > 0 && !isSyncing && (
+              <p className="text-xs text-muted-foreground">
+                استغرقت آخر مزامنة {(lastSyncDuration / 1000).toFixed(1)} ثانية
+              </p>
+            )}
+          </TooltipContent>
+        </Tooltip>
+        
+        {/* Error indicator */}
+        {syncError && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <AlertTriangle className="h-4 w-4 text-red-500" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p className="text-xs">خطأ في المزامنة</p>
+              {process.env.NODE_ENV === 'development' && (
+                <p className="text-xs max-w-[200px] truncate">{syncError}</p>
+              )}
+            </TooltipContent>
+          </Tooltip>
+        )}
+        
+        {/* Platform indicator */}
+        <Badge 
+          variant="outline" 
+          className="h-5 text-xs bg-background"
+        >
+          {deploymentPlatform}
+        </Badge>
+      </div>
+    </TooltipProvider>
   );
 };

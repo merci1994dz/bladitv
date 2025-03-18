@@ -12,7 +12,7 @@ let syncLockOwner = ''; // معرف للعملية التي تملك القفل
 
 // تقليل مهلة القفل لتحسين التعافي من الفشل
 // Reduce lock timeout to improve failure recovery
-export const LOCK_TIMEOUT = 25000; // 25 ثانية
+export const LOCK_TIMEOUT = 15000; // 15 ثانية بدلاً من 25 ثانية
 
 // التحقق مما إذا كانت المزامنة مقفلة
 // Check if sync is locked
@@ -51,6 +51,15 @@ export const setSyncLock = (owner = ''): boolean => {
       timeout: LOCK_TIMEOUT
     };
     sessionStorage.setItem('sync_lock_info', JSON.stringify(lockInfo));
+    
+    // تعيين مؤقت لتحرير القفل تلقائياً بعد انتهاء المهلة
+    // Set timer to automatically release lock after timeout
+    setTimeout(() => {
+      if (syncLocked && syncLockOwner === lockInfo.owner) {
+        console.warn(`تحرير القفل تلقائياً بعد انتهاء المهلة: ${LOCK_TIMEOUT}ms`);
+        releaseSyncLock(lockInfo.owner);
+      }
+    }, LOCK_TIMEOUT + 1000);
   } catch (e) {
     // تجاهل أخطاء التخزين
     // Ignore storage errors
