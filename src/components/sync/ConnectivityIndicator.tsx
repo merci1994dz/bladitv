@@ -4,6 +4,7 @@ import { Wifi, WifiOff, AlertCircle } from 'lucide-react';
 import { checkBladiInfoAvailability } from '@/services/sync/remote/syncOperations';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { checkConnectivityIssues } from '@/services/sync/status/connectivity/connectivity-checker';
 
 interface ConnectivityIndicatorProps {
   onRefresh?: () => void;
@@ -17,14 +18,26 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [activeSource, setActiveSource] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
+  const [serverAccess, setServerAccess] = useState<boolean | null>(null);
 
   const checkConnectivity = async () => {
     setIsChecking(true);
     try {
-      const source = await checkBladiInfoAvailability();
-      setActiveSource(source);
+      // First check Supabase connectivity
+      const { hasInternet, hasServerAccess } = await checkConnectivityIssues();
+      setIsOnline(hasInternet);
+      setServerAccess(hasServerAccess);
+      
+      // Then check external API sources if we have internet
+      if (hasInternet) {
+        const source = await checkBladiInfoAvailability();
+        setActiveSource(source);
+      } else {
+        setActiveSource(null);
+      }
     } catch (error) {
       console.error('خطأ في فحص الاتصال:', error);
+      setServerAccess(false);
     } finally {
       setIsChecking(false);
     }
@@ -35,6 +48,9 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
       setIsOnline(navigator.onLine);
       if (navigator.onLine) {
         checkConnectivity();
+      } else {
+        setServerAccess(false);
+        setActiveSource(null);
       }
     };
 
@@ -44,11 +60,19 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
     // فحص الاتصال عند التحميل
     checkConnectivity();
     
+    // إعداد مؤقت للتحقق الدوري من الاتصال (كل 5 دقائق)
+    const intervalId = setInterval(() => {
+      if (navigator.onLine && !isChecking) {
+        checkConnectivity();
+      }
+    }, 5 * 60 * 1000);
+    
     return () => {
       window.removeEventListener('online', handleOnlineChange);
       window.removeEventListener('offline', handleOnlineChange);
+      clearInterval(intervalId);
     };
-  }, []);
+  }, [isChecking]);
 
   const handleRefreshClick = () => {
     checkConnectivity();
@@ -65,6 +89,10 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
   } else if (!isOnline) {
     statusIcon = <WifiOff className="h-4 w-4 text-red-500" />;
     statusText = "أنت غير متصل بالإنترنت";
+    statusColor = "text-red-500";
+  } else if (serverAccess === false) {
+    statusIcon = <AlertCircle className="h-4 w-4 text-red-500" />;
+    statusText = "تعذر الاتصال بالخادم";
     statusColor = "text-red-500";
   } else if (activeSource) {
     statusIcon = <Wifi className="h-4 w-4 text-green-500" />;
@@ -118,6 +146,9 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
               المصدر: {activeSource}
             </p>
           )}
+          <p className="text-xs text-muted-foreground">
+            حالة الاتصال بالخادم: {serverAccess === true ? "متصل" : serverAccess === false ? "غير متصل" : "قيد التحقق"}
+          </p>
           <Button
             variant="link"
             size="sm"

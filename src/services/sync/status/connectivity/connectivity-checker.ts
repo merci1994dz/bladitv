@@ -28,6 +28,7 @@ export const checkConnectivityIssues = async (): Promise<{
   
   // إذا لم يكن هناك اتصال بالإنترنت، لا حاجة للتحقق من الوصول إلى الخادم
   if (!isOnline) {
+    console.log('الجهاز غير متصل بالإنترنت، تخطي فحص الخادم');
     return { hasInternet: false, hasServerAccess: false };
   }
   
