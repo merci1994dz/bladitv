@@ -2,6 +2,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { channels, countries, categories } from '../../dataStore';
 import { Channel, Country, Category } from '@/types';
+import { Json } from '@/integrations/supabase/types';
+import { StreamingLink } from '@/types/externalStreaming';
 
 /**
  * تهيئة جداول Supabase واستيراد البيانات إذا كانت فارغة
@@ -94,7 +96,7 @@ export const initializeSupabaseTables = async (): Promise<boolean> => {
       if (channelsCount === 0 && channels.length > 0) {
         console.log(`استيراد ${channels.length} قناة إلى Supabase...`);
         
-        // تحويل القنوات إلى التنسيق المتوافق مع Supabase - تحديث أسماء الحقول للتوافق
+        // تحويل القنوات إلى التنسيق المتوافق مع Supabase - مع معالجة external_links لتحويله إلى Json
         const channelsToUpload = channels.map(channel => ({
           id: channel.id,
           name: channel.name,
@@ -103,7 +105,8 @@ export const initializeSupabaseTables = async (): Promise<boolean> => {
           country: channel.country,
           category: channel.category,
           is_favorite: channel.isFavorite,
-          external_links: channel.externalLinks || null
+          last_watched: channel.lastWatched || null,
+          external_links: channel.externalLinks ? JSON.parse(JSON.stringify(channel.externalLinks)) as Json : null
         }));
         
         // نظرًا لأن عدد القنوات قد يكون كبيرًا، نقوم بإرسالها على دفعات

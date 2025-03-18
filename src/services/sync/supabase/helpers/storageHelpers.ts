@@ -7,6 +7,7 @@
 import { STORAGE_KEYS } from '../../../config';
 import { Channel, Country, Category } from '@/types';
 import { SupabaseChannel, toChannel } from '@/services/supabase/types/channelTypes';
+import { Json } from '@/integrations/supabase/types';
 
 /**
  * تحديث مخازن البيانات المحلية بالبيانات المستلمة من Supabase
