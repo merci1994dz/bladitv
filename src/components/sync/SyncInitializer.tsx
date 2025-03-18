@@ -17,7 +17,9 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
     handleOnline,
     handleFocus,
     isSyncing,
-    networkStatus
+    networkStatus,
+    syncError,
+    resetSyncError
   } = useAutoSync();
   
   const { toast } = useToast();
@@ -43,6 +45,8 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
         
         const initialize = async () => {
           try {
+            resetSyncError(); // إعادة تعيين أي خطأ سابق
+            
             // التحقق من توفر المصادر
             await checkSourceAvailability();
             
@@ -53,10 +57,16 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
               // تنفيذ المزامنة الأولية
               await performInitialSync();
               setHasSynced(true);
+              
+              toast({
+                title: "تم الاتصال بالخادم",
+                description: "تم الاتصال بخادم Supabase بنجاح وتحديث البيانات",
+                duration: 3000,
+              });
             } else {
               // إعادة المحاولة بعد تأخير إذا فشلت تهيئة Supabase
               setTimeout(() => {
-                if (isMountedRef.current) {
+                if (isMountedRef.current && syncAttemptsRef.current < 3) {
                   syncAttemptsRef.current++;
                   console.log(`إعادة محاولة المزامنة (المحاولة ${syncAttemptsRef.current}/3)`);
                   initialize();
@@ -139,9 +149,20 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
       console.log('لا يوجد اتصال بالإنترنت، استخدام البيانات المحلية فقط');
       loadFromLocalStorage();
       
+      toast({
+        title: "لا يوجد اتصال بالخادم",
+        description: "جاري استخدام البيانات المخزنة محليًا. سيتم المزامنة عند استعادة الاتصال.",
+        duration: 5000,
+      });
+      
       // إعداد مستمع للاتصال بالإنترنت لبدء المزامنة عند عودة الاتصال
       const onlineHandler = () => {
         console.log('تم استعادة الاتصال بالإنترنت، بدء المزامنة');
+        toast({
+          title: "تم استعادة الاتصال",
+          description: "جاري محاولة الاتصال بالخادم...",
+          duration: 3000,
+        });
         handleOnline();
       };
       
@@ -151,7 +172,20 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
         window.removeEventListener('online', onlineHandler);
       };
     }
-  }, [checkSourceAvailability, initializeSupabase, performInitialSync, handleOnline, handleFocus, isSyncing, toast, networkStatus]);
+  }, [checkSourceAvailability, initializeSupabase, performInitialSync, handleOnline, handleFocus, isSyncing, toast, networkStatus, resetSyncError]);
+  
+  // عرض رسالة خطأ المزامنة إذا كان هناك خطأ
+  useEffect(() => {
+    if (syncError) {
+      console.error('خطأ في المزامنة:', syncError);
+      toast({
+        title: "خطأ في المزامنة",
+        description: "تعذر الاتصال بالخادم. جاري استخدام البيانات المحلية.",
+        variant: "destructive",
+        duration: 5000,
+      });
+    }
+  }, [syncError, toast]);
   
   return <>{children}</>;
 };

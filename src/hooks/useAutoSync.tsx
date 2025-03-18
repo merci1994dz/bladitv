@@ -23,7 +23,9 @@ export const useAutoSync = () => {
   // التحقق من حالة الشبكة
   const checkNetworkStatus = useCallback(async () => {
     try {
+      console.log('التحقق من حالة الشبكة والوصول إلى الخادم...');
       const status = await checkConnectivityIssues();
+      console.log('نتائج فحص الشبكة:', status);
       setNetworkStatus(status);
       return status;
     } catch (error) {
@@ -41,6 +43,7 @@ export const useAutoSync = () => {
       
       if (!hasInternet || !hasServerAccess) {
         console.warn('تعذر الوصول إلى المصادر الخارجية بسبب مشاكل في الاتصال');
+        setSyncError('تعذر الوصول إلى المصادر الخارجية بسبب مشاكل في الاتصال');
         return null;
       }
       
@@ -49,35 +52,52 @@ export const useAutoSync = () => {
       
       if (availableUrl) {
         console.log(`وجدنا مصدر بيانات متاح: ${availableUrl}`);
+        resetSyncError();
       } else {
         console.warn('لم نتمكن من العثور على أي مصدر بيانات متاح');
+        setSyncError('لم نتمكن من العثور على أي مصدر بيانات متاح');
+        
+        toast({
+          title: "تنبيه",
+          description: "لم نتمكن من العثور على أي مصدر بيانات متاح",
+          variant: "destructive",
+          duration: 5000,
+        });
       }
       
       return availableUrl;
     } catch (error) {
       console.error('خطأ في التحقق من توفر المصادر:', error);
+      setSyncError(`خطأ في التحقق من توفر المصادر: ${String(error)}`);
       return null;
     }
-  }, [checkNetworkStatus]);
+  }, [checkNetworkStatus, resetSyncError, toast]);
   
   // تهيئة جداول Supabase
   const initializeSupabase = useCallback(async () => {
     try {
       setIsSyncing(true);
+      console.log('محاولة تهيئة جداول Supabase...');
+      
       const initialized = await initializeSupabaseTables();
       
       if (!initialized) {
         console.warn('فشل في تهيئة Supabase، قد تكون هناك حاجة لإعادة المحاولة');
+        setSyncError('فشل في تهيئة Supabase');
+      } else {
+        console.log('تم تهيئة Supabase بنجاح');
+        resetSyncError();
       }
       
       return initialized;
     } catch (error) {
       console.error('خطأ في تهيئة Supabase:', error);
+      setSyncError(`خطأ في تهيئة Supabase: ${String(error)}`);
       return false;
     } finally {
       setIsSyncing(false);
     }
-  }, []);
+  }, [resetSyncError]);
   
   // تنفيذ المزامنة الأولية مع Supabase
   const performInitialSync = useCallback(async () => {
@@ -88,7 +108,7 @@ export const useAutoSync = () => {
       
       if (success) {
         console.log('تمت المزامنة الأولية بنجاح مع Supabase');
-        setSyncError(null);
+        resetSyncError();
       } else {
         console.warn('فشلت المزامنة مع Supabase، جاري المحاولة مرة أخرى...');
         setSyncError('لم يمكن الاتصال بـ Supabase');
@@ -99,7 +119,7 @@ export const useAutoSync = () => {
             const retrySuccess = await syncWithSupabase(false);
             if (retrySuccess) {
               console.log('نجحت إعادة المحاولة للمزامنة مع Supabase');
-              setSyncError(null);
+              resetSyncError();
             }
           } catch (retryError) {
             console.error('فشلت إعادة محاولة المزامنة:', retryError);
@@ -115,7 +135,7 @@ export const useAutoSync = () => {
     } finally {
       setIsSyncing(false);
     }
-  }, []);
+  }, [resetSyncError]);
   
   // معالجة إعادة الاتصال بالشبكة
   const handleOnline = useCallback(() => {
@@ -152,7 +172,17 @@ export const useAutoSync = () => {
   
   // التحقق من حالة الشبكة عند تحميل المكون
   useEffect(() => {
+    console.log('تهيئة useAutoSync، التحقق من حالة الشبكة...');
     checkNetworkStatus().catch(console.error);
+    
+    // إعداد فحص دوري لحالة الشبكة
+    const networkCheckInterval = setInterval(() => {
+      checkNetworkStatus().catch(console.error);
+    }, 5 * 60 * 1000); // فحص كل 5 دقائق
+    
+    return () => {
+      clearInterval(networkCheckInterval);
+    };
   }, [checkNetworkStatus]);
   
   return {
