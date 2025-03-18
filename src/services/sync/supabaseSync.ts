@@ -10,7 +10,6 @@ import { executeRetryableSync } from './core/retryableSync';
 import { handleError } from '@/utils/errorHandling';
 import { syncAllData } from './core/syncOperations';
 import { setSyncTimestamp } from '@/services/sync/status/timestamp';
-import { loadFromLocalStorage } from '@/services/dataStore/storage';
 
 // تتبع آخر وقت تم فيه ربط الاتصال بـ Supabase بنجاح
 // Track the last time a connection to Supabase was successful
@@ -59,10 +58,8 @@ export async function syncWithSupabase(forceRefresh: boolean = false): Promise<b
   const isConnected = await checkSupabaseConnection();
   
   if (!isConnected) {
-    console.log('لا يوجد اتصال بـ Supabase، استخدام البيانات المحلية / No connection to Supabase, using local data');
-    // تحميل البيانات من التخزين المحلي بدلاً من ذلك
-    // Load data from local storage instead
-    return loadFromLocalStorage();
+    console.log('لا يوجد اتصال بـ Supabase، تعذر المزامنة / No connection to Supabase, sync failed');
+    return false; // عدم الرجوع إلى البيانات المحلية - لا نريد استخدام البيانات المحلية عند الاتصال بالإنترنت
   }
   
   // تنفيذ المزامنة مع آلية إعادة المحاولة
