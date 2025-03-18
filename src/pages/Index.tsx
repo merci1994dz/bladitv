@@ -10,13 +10,9 @@ const Index: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // إعادة توجيه المستخدم إلى الصفحة الرئيسية بعد تأخير قصير
-    const timer = setTimeout(() => {
-      console.log('التوجيه إلى الصفحة الرئيسية...');
-      navigate('/home', { replace: true });
-    }, 500);
-
-    return () => clearTimeout(timer);
+    // التوجيه الفوري إلى الصفحة الرئيسية
+    console.log('التوجيه إلى الصفحة الرئيسية فوراً...');
+    navigate('/home', { replace: true });
   }, [navigate]);
 
   return (

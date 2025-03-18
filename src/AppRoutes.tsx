@@ -17,7 +17,7 @@ import Advanced from './pages/Advanced';
 import Navigation from './components/Navigation';
 import Index from './pages/Index';
 
-// تعريف المسارات مع تعديل مسار الصفحة الرئيسية
+// تعريف المسارات
 const routes = {
   splash: '/splash',
   index: '/',
@@ -34,27 +34,13 @@ const routes = {
   backup: '/backup',
 };
 
-// تعريف الصفحات التي تحتاج إلى شريط التنقل
-const pagesWithNavigation = [
-  routes.home,
-  routes.favorites,
-  routes.countries,
-  routes.country,
-  routes.categories,
-  routes.search,
-  routes.advanced,
-  routes.settings,
-  routes.admin,
-];
-
 // مكون التطبيق الرئيسي
 const AppRoutes: React.FC = () => {
   return (
     <Routes>
-      {/* الصفحات الأساسية */}
-      <Route path={routes.splash} element={<SplashScreen />} />
+      {/* المسار الأساسي والصفحة الرئيسية */}
       <Route path={routes.index} element={<Index />} />
-      <Route path="*" element={<NotFound />} />
+      <Route path={routes.splash} element={<SplashScreen />} />
       
       {/* الصفحات مع شريط التنقل */}
       <Route path={routes.home} element={
@@ -115,6 +101,9 @@ const AppRoutes: React.FC = () => {
       {/* الصفحات بدون شريط التنقل */}
       <Route path={routes.remoteConfig} element={<RemoteConfig />} />
       <Route path={routes.backup} element={<BackupPage />} />
+      
+      {/* إذا لم يتم العثور على المسار، عرض صفحة 404 */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };

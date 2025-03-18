@@ -11,25 +11,31 @@ const NotFound = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // تسجيل الخطأ وعرض إشعار
     console.error(
       "404 Error: User attempted to access non-existent route:",
       location.pathname
     );
     
-    // تعرف على مسار الخطأ في وحدة التحكم للمساعدة في التشخيص
+    // عرض إشعار للمستخدم
     toast({
       title: "خطأ في الوصول للصفحة",
       description: `المسار غير موجود: ${location.pathname}`,
       variant: "destructive",
     });
-  }, [location.pathname]);
+    
+    // إذا تم الوصول للمسار الرئيسي، توجيه المستخدم إلى /home
+    if (location.pathname === "/") {
+      navigate("/home", { replace: true });
+    }
+  }, [location.pathname, navigate]);
 
   const handleGoBack = () => {
     navigate(-1);
   };
 
   const handleGoHome = () => {
-    navigate("/");
+    navigate("/home");
   };
 
   const handleRefresh = () => {
