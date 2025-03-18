@@ -5,13 +5,14 @@
  */
 
 // تصدير الوظائف الرئيسية
-export { fetchRemoteData, isRemoteUrlAccessible } from './fetchRemoteData';
+export { fetchRemoteData } from './fetchRemoteData';
+export { isRemoteUrlAccessible } from './accessibilityCheck';
 export { getSkewProtectionParams } from './skewProtection';
-export { fetchViaJsonp } from './jsonpFallback';
+export { loadWithJsonp } from './jsonpFallback';
 
 // تصدير الوظائف المساعدة للاستخدام المباشر إذا لزم الأمر
 export { addCacheBusterToUrl, createCacheBuster, exponentialBackoff } from './retryStrategies';
-export { fetchViaProxy, getAlternativeSourceUrl } from './proxyUtils';
-export { enhanceFetchError, isConnectivityError, getUserFriendlyErrorMessage } from './errorHandling';
+export { fetchViaProxy, getProxyUrls } from './proxyUtils';
+export { enhanceFetchError, processResponseError } from './errorHandling';
 export { fetchLocalFile } from './localFetch';
-export { tryProxyStrategy, fetchDirectly, fetchWithFlexibleFormat } from './fetchStrategies';
+export { tryDirectFetchStrategy, tryJsonpStrategy, tryProxyStrategy } from './fetchStrategies';

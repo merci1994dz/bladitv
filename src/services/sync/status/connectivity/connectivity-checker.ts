@@ -1,107 +1,104 @@
 
 /**
- * وظائف للتحقق من حالة الاتصال بالشبكة
- * Functions to check network connectivity status
+ * الوظيفة الرئيسية لفحص الاتصال واختبار توفر الخوادم
+ * Main function for connectivity checking and server availability testing
  */
 
-export const checkConnectivityIssues = async (): Promise<{
-  hasInternet: boolean;
-  hasServerAccess: boolean;
-}> => {
-  const isOnline = navigator.onLine;
+import { 
+  getCachedConnectivityResult, 
+  isRecentCheck, 
+  cacheConnectivityResult 
+} from './cache';
+import { checkEndpointsAccessibility } from './endpoint-checker';
+import { ConnectivityCheckResult } from './types';
+
+/**
+ * فحص ما إذا كانت هناك أي مشاكل اتصال تعرقل المزامنة
+ * Check if there are any connectivity issues hindering synchronization
+ * with enhanced retry support and detailed diagnostics
+ */
+export const checkConnectivityIssues = async (): Promise<{ hasInternet: boolean, hasServerAccess: boolean }> => {
+  // محاولة استرداد نتائج الفحص المخزنة وتقييم صلاحيتها
+  // Try to retrieve stored check results and evaluate their validity
+  const cachedResult = getCachedConnectivityResult();
   
-  if (!isOnline) {
-    return { hasInternet: false, hasServerAccess: false };
-  }
-
-  try {
-    // تجربة نقاط نهاية متعددة مع مهلة زمنية قصيرة
-    const testEndpoints = [
-      'https://www.google.com/favicon.ico',
-      'https://www.cloudflare.com/favicon.ico',
-      'https://cdn.jsdelivr.net/favicon.ico'
-    ];
-    
-    let hasGeneralInternet = false;
-    
-    for (const endpoint of testEndpoints) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000);
-        
-        const response = await fetch(endpoint, {
-          method: 'HEAD',
-          mode: 'no-cors',
-          cache: 'no-store',
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        hasGeneralInternet = true;
-        break;
-      } catch (error) {
-        console.log(`تعذر الوصول إلى ${endpoint}`);
-        continue;
-      }
-    }
-    
-    if (!hasGeneralInternet) {
-      return { hasInternet: false, hasServerAccess: false };
-    }
-
-    // التحقق من الوصول إلى خوادم التطبيق
-    const appEndpoints = [
-      'https://cdn.jsdelivr.net/gh/bladitv/channels@master/channels.json',
-      'https://fastly.jsdelivr.net/gh/bladitv/channels@master/channels.json',
-      'https://gcore.jsdelivr.net/gh/bladitv/channels@master/channels.json'
-    ];
-    
-    for (const endpoint of appEndpoints) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000);
-        
-        const response = await fetch(endpoint, {
-          method: 'HEAD',
-          cache: 'no-store',
-          signal: controller.signal,
-          mode: 'no-cors'
-        });
-        
-        clearTimeout(timeoutId);
-        return { hasInternet: true, hasServerAccess: true };
-      } catch (error) {
-        continue;
-      }
-    }
-    
-    return { hasInternet: true, hasServerAccess: false };
-    
-  } catch (error) {
-    console.error('خطأ في فحص الاتصال:', error);
-    return { hasInternet: isOnline, hasServerAccess: false };
-  }
-};
-
-export const quickConnectivityCheck = async (): Promise<boolean> => {
-  if (!navigator.onLine) {
-    return false;
+  // إذا كانت النتائج المخزنة حديثة وصالحة، استخدمها
+  // If stored results are recent and valid, use them
+  if (cachedResult && isRecentCheck(cachedResult.timestamp)) {
+    return {
+      hasInternet: cachedResult.hasInternet,
+      hasServerAccess: cachedResult.hasServerAccess
+    };
   }
   
+  // التحقق من حالة الإنترنت أولاً
+  // Check internet status first
+  const hasInternet = navigator.onLine;
+  
+  // إذا لم يكن هناك اتصال بالإنترنت، ارجع النتيجة على الفور
+  // If there is no internet connection, return the result immediately
+  if (!hasInternet) {
+    const result: ConnectivityCheckResult = { 
+      hasInternet: false, 
+      hasServerAccess: false,
+      timestamp: Date.now()
+    };
+    cacheConnectivityResult(result);
+    return result;
+  }
+  
+  // إذا كان هناك اتصال بالإنترنت، فحص الوصول إلى الخوادم
+  // If there is internet connection, check server access
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    // فحص الوصول إلى الخوادم باستخدام استراتيجية إعادة المحاولة التدريجية
+    // Check server access using progressive retry strategy
+    const endpoints = await checkEndpointsAccessibility();
     
-    await fetch('https://www.google.com/favicon.ico', {
-      method: 'HEAD',
-      mode: 'no-cors',
-      cache: 'no-store',
-      signal: controller.signal
-    });
+    // اعتبار الاتصال ناجحًا إذا نجح الوصول إلى خادم واحد على الأقل
+    // Consider connection successful if at least one server is accessible
+    const hasServerAccess = endpoints.some(endpoint => endpoint.success);
     
-    clearTimeout(timeoutId);
-    return true;
+    // تكوين نتيجة فحص الاتصال
+    // Configure connection check result
+    const result: ConnectivityCheckResult = {
+      hasInternet,
+      hasServerAccess,
+      timestamp: Date.now(),
+      endpoints
+    };
+    
+    // تخزين نتيجة الفحص للاستخدام لاحقًا
+    // Store check result for later use
+    cacheConnectivityResult(result);
+    
+    // ارجاع نتيجة فحص الاتصال
+    // Return connection check result
+    return {
+      hasInternet,
+      hasServerAccess
+    };
   } catch (error) {
-    return false;
+    console.warn('خطأ أثناء فحص الاتصال بالخوادم: / Error during server connection check:', error);
+    
+    // في حالة الخطأ، استخدم النتائج المخزنة إذا كانت متاحة
+    // In case of error, use stored results if available
+    if (cachedResult) {
+      return {
+        hasInternet: hasInternet,  // استخدم حالة الاتصال الحالية / Use current connection status
+        hasServerAccess: cachedResult.hasServerAccess
+      };
+    }
+    
+    // إذا لم تكن هناك نتائج مخزنة، افترض عدم وجود اتصال بالخادم
+    // If there are no stored results, assume no server connection
+    const result: ConnectivityCheckResult = {
+      hasInternet,
+      hasServerAccess: false,
+      timestamp: Date.now()
+    };
+    
+    cacheConnectivityResult(result);
+    
+    return result;
   }
 };

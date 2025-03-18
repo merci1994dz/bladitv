@@ -1,172 +1,124 @@
 
 /**
- * وظائف جلب البيانات من المصادر الخارجية
- * Functions for fetching data from remote sources
+ * وظيفة محسنة لجلب البيانات من مصادر خارجية
+ * Optimized function for fetching data from external sources
  */
 
-import { fetchDirectly } from './fetchStrategies';
-import { fetchViaProxy, isProxyRequired, getAlternativeSourceUrl } from './proxyUtils';
-import { fetchViaJsonp } from './jsonpFallback';
+import { validateRemoteData } from '../../remoteValidation';
+import { fetchLocalFile } from './localFetch';
+import { tryJsonpStrategy, tryProxyStrategy, tryDirectFetchStrategy } from './fetchStrategies';
+import { exponentialBackoff, addCacheBusterToUrl } from './retryStrategies';
 import { enhanceFetchError } from './errorHandling';
 
-// وظيفة جلب البيانات من المصدر الخارجي مع آليات النسخ الاحتياطي المتعددة
-export const fetchRemoteData = async (url: string, options: RequestInit = {}): Promise<any> => {
-  console.log(`محاولة جلب البيانات من: ${url}`);
-  
-  // التحقق من وجود مصادر بديلة معروفة
-  const alternativeUrl = getAlternativeSourceUrl(url);
-  if (alternativeUrl) {
-    console.log(`استخدام مصدر بديل: ${alternativeUrl}`);
-    url = alternativeUrl;
+/**
+ * جلب البيانات من مصدر خارجي مع آليات متعددة للمحاولة
+ * Fetch data from an external source with multiple retry mechanisms
+ * 
+ * @param remoteUrl رابط المصدر الخارجي / URL of the external source
+ * @returns وعد بالبيانات المجلوبة / Promise with the fetched data
+ */
+export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
+  // التعامل مع المصادر المحلية
+  if (remoteUrl.startsWith('/')) {
+    return fetchLocalFile(remoteUrl);
   }
   
-  // تحاول الاتصال المباشر أولاً مع تحديد المهلة
+  // ضمان وجود معلمات منع التخزين المؤقت في الرابط
+  const urlWithCacheBuster = addCacheBusterToUrl(remoteUrl);
+  
+  // إعداد مراقبة الوقت - تقليل وقت المهلة من 30 ثانية إلى 15 ثانية
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // مهلة 15 ثانية كحد أقصى
+  
   try {
-    console.log('جاري محاولة الاتصال المباشر بالمصدر...');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    console.log(`جاري تحميل البيانات من: ${urlWithCacheBuster}`);
     
-    const response = await fetch(url, {
-      ...options,
-      cache: 'no-store',
-      headers: {
-        ...options.headers,
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
-      },
-      signal: controller.signal
-    });
+    // إعداد محاولات متعددة - تقليل عدد المحاولات من 5 إلى 3
+    const MAX_RETRIES = 3;
+    let retries = MAX_RETRIES;
+    let lastError;
     
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`استجابة غير ناجحة: ${response.status} ${response.statusText}`);
-    }
-    
-    return await response.json();
-  } catch (directError) {
-    console.warn('فشل الاتصال المباشر، جاري محاولة الطرق البديلة:', directError);
-    
-    // آليات التحميل البديلة التي سيتم تجربتها بالترتيب
-    const fetchStrategies = [
-      {
-        name: 'مباشر مع no-cors',
-        fetch: () => fetchDirectly(url, { ...options, mode: 'no-cors' }),
-        maxAttempts: 1
-      },
-      {
-        name: 'بروكسي CORS',
-        fetch: () => fetchViaProxy(url, options),
-        maxAttempts: 3
-      },
-      {
-        name: 'JSONP',
-        fetch: () => fetchViaJsonp(url),
-        maxAttempts: 1
-      }
-    ];
-    
-    // صفيف لتتبع جميع الأخطاء التي حدثت
-    const errors: Error[] = [];
-    
-    // تجربة كل استراتيجية واحدة تلو الأخرى حتى ينجح واحد
-    for (const strategy of fetchStrategies) {
-      let attemptsLeft = strategy.maxAttempts;
-      
-      while (attemptsLeft > 0) {
-        try {
-          console.log(`محاولة استخدام استراتيجية ${strategy.name} (${attemptsLeft} محاولات متبقية)`);
-          
-          const result = await strategy.fetch();
-          console.log(`نجحت استراتيجية ${strategy.name}`);
-          
-          // التحقق من صحة البيانات المستلمة
-          if (!result) {
-            throw new Error(`استراتيجية ${strategy.name} أعادت بيانات فارغة`);
-          }
-          
-          return result;
-        } catch (error) {
-          console.warn(`فشلت محاولة استراتيجية ${strategy.name}:`, error);
-          errors.push(error as Error);
-          attemptsLeft--;
-          
-          // انتظار قليلاً قبل المحاولة التالية
-          if (attemptsLeft > 0) {
-            console.log(`الانتظار قبل إعادة محاولة استراتيجية ${strategy.name}...`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        }
-      }
-      
-      console.warn(`فشلت جميع محاولات استراتيجية ${strategy.name}`);
-    }
-    
-    // إذا وصلنا إلى هنا، فشلت جميع الاستراتيجيات
-    const finalError = new Error('فشلت جميع استراتيجيات الاتصال في هذه المحاولة');
-    
-    // تحسين رسالة الخطأ للتصحيح
-    const enhancedError = enhanceFetchError(finalError, url, errors);
-    
-    throw enhancedError;
-  }
-};
-
-// إضافة خيار للتحقق مما إذا كان عنوان URL متاحًا دون تنزيل البيانات بالكامل
-export const isRemoteUrlAccessible = async (url: string): Promise<boolean> => {
-  try {
-    // التحقق من وجود مصادر بديلة معروفة
-    const alternativeUrl = getAlternativeSourceUrl(url);
-    if (alternativeUrl) {
-      console.log(`استخدام مصدر بديل للتحقق من الإتاحة: ${alternativeUrl}`);
-      url = alternativeUrl;
-    }
-    
-    // استخدام AbortController للتحكم في المهلة
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    
-    // استخدام طلب HEAD فقط لمعرفة ما إذا كان URL متاحًا
-    try {
-      const response = await fetch(url, {
-        method: 'HEAD',
-        cache: 'no-store',
-        signal: controller.signal,
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      });
-      
-      clearTimeout(timeoutId);
-      return response.ok;
-    } catch (directError) {
-      // إذا فشلت المحاولة المباشرة، نحاول مع وضع no-cors
+    while (retries > 0) {
       try {
-        const noCorsController = new AbortController();
-        const noCorsTimeoutId = setTimeout(() => noCorsController.abort(), 5000);
+        let data;
         
-        await fetch(url, {
-          method: 'HEAD',
-          cache: 'no-store',
-          signal: noCorsController.signal,
-          mode: 'no-cors',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
+        // تغيير ترتيب الاستراتيجيات: البدء بالطلب المباشر أولاً
+        // محاولة الطلب المباشر كخيار أول
+        try {
+          data = await tryDirectFetchStrategy(
+            urlWithCacheBuster, 
+            retries, 
+            controller.signal
+          );
+          
+          // التحقق من صحة البيانات
+          if (validateRemoteData(data)) {
+            clearTimeout(timeoutId);
+            return data;
           }
-        });
+        } catch (directError) {
+          console.warn('فشلت المحاولة المباشرة، المتابعة باستراتيجيات أخرى');
+        }
         
-        clearTimeout(noCorsTimeoutId);
-        return true; // أي استجابة في وضع no-cors تعتبر نجاحًا
-      } catch (noCorsError) {
-        clearTimeout(timeoutId);
-        console.warn(`URL غير متاح حتى مع وضع no-cors: ${url}`);
-        return false;
+        // محاولة استخدام JSONP ثانياً
+        if (retries <= 2) {
+          try {
+            data = await tryJsonpStrategy(urlWithCacheBuster);
+            console.log('نجحت محاولة JSONP');
+            clearTimeout(timeoutId);
+            
+            // التحقق من صحة البيانات
+            if (validateRemoteData(data)) {
+              return data;
+            }
+          } catch (jsonpError) {
+            console.warn('فشلت محاولة JSONP، المتابعة باستراتيجيات أخرى');
+          }
+        }
+        
+        // محاولة استخدام بروكسي CORS أخيراً
+        if (retries <= 1) {
+          try {
+            data = await tryProxyStrategy(urlWithCacheBuster, controller.signal);
+            console.log('نجحت محاولة البروكسي');
+            clearTimeout(timeoutId);
+            
+            // التحقق من صحة البيانات
+            if (validateRemoteData(data)) {
+              return data;
+            }
+          } catch (proxyError) {
+            console.warn('فشلت محاولات البروكسي');
+          }
+        }
+        
+        // إذا وصلنا إلى هنا، فإن جميع الاستراتيجيات قد فشلت في هذه المحاولة
+        throw new Error('فشلت جميع استراتيجيات الاتصال في هذه المحاولة');
+        
+      } catch (error) {
+        console.warn(`فشلت المحاولة ${MAX_RETRIES - retries + 1}/${MAX_RETRIES} للاتصال بـ ${urlWithCacheBuster}:`, error);
+        lastError = error;
+        retries--;
+        
+        if (retries > 0) {
+          // تقليل وقت الانتظار بين المحاولات لتسريع العملية
+          const waitTime = 2000 * (MAX_RETRIES - retries); // وقت انتظار أقصر
+          console.log(`الانتظار ${waitTime}ms قبل المحاولة التالية...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          
+          // تحديث معلمات منع التخزين المؤقت لكل محاولة
+          const newCacheUrl = addCacheBusterToUrl(remoteUrl);
+          console.log(`محاولة جديدة مع معلمات منع التخزين المؤقت: ${newCacheUrl}`);
+        }
       }
     }
+    
+    // إذا فشلت جميع المحاولات
+    clearTimeout(timeoutId);
+    throw lastError || new Error('فشلت جميع محاولات الاتصال بالمصدر الخارجي');
+    
   } catch (error) {
-    console.warn(`URL غير متاح: ${url}`, error);
-    return false;
+    clearTimeout(timeoutId);
+    throw enhanceFetchError(error);
   }
 };

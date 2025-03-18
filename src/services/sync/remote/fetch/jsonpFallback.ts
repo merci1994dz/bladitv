@@ -1,74 +1,79 @@
 
 /**
- * استخدام JSONP كآلية احتياطية عندما تفشل محاولات fetch العادية
- * Use JSONP as a fallback mechanism when regular fetch attempts fail
+ * JSONP fallback for CORS issues
  */
-
-// يتم استخدام هذا للتعامل مع مشاكل CORS التي لا يمكن حلها بطرق أخرى
-// This is used to handle CORS issues that cannot be resolved by other means
-
-// إعداد معرف عالمي فريد للمعاملات
-// Set up a unique global identifier for callbacks
-const JSONP_CALLBACK_PREFIX = '__jsonp_callback_';
 
 /**
- * تنظيف موارد JSONP بأمان
- * Safely clean up JSONP resources
+ * Loads data using JSONP as fallback for CORS issues
+ * 
+ * @param url URL to load data from
+ * @returns Promise resolving with the loaded data
  */
-const cleanup = (callbackName: string, script: HTMLScriptElement) => {
-  try {
-    // حذف الدالة العالمية التي تم إنشاؤها
-    delete (window as any)[callbackName];
-    
-    // إزالة عنصر النص من المستند إذا كان لا يزال موجودًا
-    if (script.parentNode) {
-      script.parentNode.removeChild(script);
-    }
-  } catch (error) {
-    console.warn('خطأ أثناء تنظيف موارد JSONP:', error);
-  }
-};
-
-/**
- * تنفيذ طلب JSONP
- * Execute a JSONP request
- */
-export const fetchViaJsonp = (url: string, timeout = 10000): Promise<any> => {
+export const loadWithJsonp = (url: string): Promise<any> => {
   return new Promise((resolve, reject) => {
-    // إنشاء اسم معاودة اتصال فريد
-    const callbackName = `${JSONP_CALLBACK_PREFIX}${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    // إنشاء اسم دالة فريد لتجنب التعارضات
+    const callbackName = `jsonp_callback_${Math.random().toString(36).substring(2, 15)}`;
     
-    // تعيين معلمة JSONP وظيفة معاودة الاتصال
-    const jsonpParam = url.includes('?') ? '&' : '?';
-    const jsonpUrl = `${url}${jsonpParam}callback=${callbackName}&_=${Date.now()}`;
+    // إضافة معلمة callback إلى الرابط
+    const jsonpUrl = url.includes('?') 
+      ? `${url}&callback=${callbackName}` 
+      : `${url}?callback=${callbackName}`;
     
-    // إنشاء عنصر البرنامج النصي
+    // إنشاء عنصر script لتحميل البيانات
     const script = document.createElement('script');
     script.src = jsonpUrl;
     script.async = true;
-    script.type = 'text/javascript';
     
-    // إعداد مؤقت المهلة
+    // إعداد مهلة زمنية (15 ثانية)
     const timeoutId = setTimeout(() => {
-      cleanup(callbackName, script);
-      reject(new Error('انتهت مهلة طلب JSONP'));
-    }, timeout);
+      cleanup();
+      reject(new Error('تجاوز الوقت المخصص لطلب JSONP'));
+    }, 15000);
     
-    // إعداد دالة معاودة الاتصال العالمية
-    (window as any)[callbackName] = (data: any) => {
+    // دالة التنظيف
+    const cleanup = () => {
+      document.body.removeChild(script);
+      delete (window as any)[callbackName];
       clearTimeout(timeoutId);
-      cleanup(callbackName, script);
+    };
+    
+    // تعريف دالة رد النداء العالمية
+    (window as any)[callbackName] = (data: any) => {
+      cleanup();
       resolve(data);
     };
     
-    // معالجة أخطاء تحميل البرنامج النصي
+    // معالجة أخطاء التحميل
     script.onerror = () => {
-      clearTimeout(timeoutId);
-      cleanup(callbackName, script);
-      reject(new Error('فشل تحميل JSONP'));
+      cleanup();
+      reject(new Error('فشل تحميل البيانات باستخدام JSONP'));
     };
     
-    // إضافة البرنامج النصي إلى المستند
-    document.head.appendChild(script);
+    // إضافة العنصر إلى المستند
+    document.body.appendChild(script);
+    
+    console.log(`تم إنشاء طلب JSONP: ${jsonpUrl}`);
   });
+};
+
+/**
+ * تحقق مما إذا كان المصدر يدعم JSONP
+ */
+export const isJsonpSupported = async (url: string): Promise<boolean> => {
+  try {
+    // محاولة اكتشاف ما إذا كان المصدر يدعم JSONP عن طريق فحص الرد على طلب استعلام
+    const testUrl = url.includes('?') 
+      ? `${url}&callback=test` 
+      : `${url}?callback=test`;
+    
+    const response = await fetch(testUrl, { 
+      method: 'HEAD', 
+      mode: 'no-cors',
+      cache: 'no-store'
+    });
+    
+    return true; // إذا لم يتم رفض الطلب، فقد يدعم JSONP
+  } catch (error) {
+    return false; // في حالة حدوث خطأ، افترض أن JSONP غير مدعوم
+  }
 };

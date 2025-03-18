@@ -12,8 +12,8 @@ const Navigation: React.FC = () => {
   const isActive = (path: string) => location.pathname.startsWith(path);
   const isAdmin = verifyAdminSession();
 
-  // إذا كنت في مسار الإدارة ولست مسؤولاً، لا تعرض شريط التنقل
-  if (location.pathname === '/admin' && !isAdmin) {
+  // If not admin, don't render the navigation bar
+  if (!isAdmin) {
     return null;
   }
 
@@ -53,18 +53,14 @@ const Navigation: React.FC = () => {
       icon: <Settings strokeWidth={2} size={24} />, 
       label: 'الإعدادات', 
       active: isActive('/settings') 
-    }
-  ];
-  
-  // إضافة زر المشرف فقط إذا كان المستخدم مسؤولاً
-  if (isAdmin) {
-    navigationItems.push({ 
+    },
+    { 
       to: '/admin', 
       icon: <Shield strokeWidth={2} size={24} />, 
       label: 'المشرف', 
       active: isActive('/admin') 
-    });
-  }
+    }
+  ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t shadow-lg pb-safe">
