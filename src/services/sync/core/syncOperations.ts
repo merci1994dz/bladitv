@@ -12,6 +12,7 @@ import { checkBladiInfoAvailability } from '../remoteSync';
 import { createTimeoutPromise } from './helpers/timeoutHelper';
 import { executeSync } from './helpers/syncExecutor';
 import { syncWithLocalData } from '../local';
+import { toast } from '@/hooks/use-toast';
 
 // Re-export the performInitialSync function from initialSync.ts
 export { performInitialSync } from './initialSync';
@@ -62,25 +63,36 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     
     // محاولة المزامنة مع مواقع Bladi Info أولاً
     // Try to sync with Bladi Info sites first
-    const syncPromise = executeSync(availableSource, forceRefresh || true, fullCacheBuster, skewParam); // دائمًا استخدم forceRefresh=true
-    
-    // تنفيذ المزامنة مع مهلة زمنية
-    // Execute sync with timeout
-    const result = await Promise.race([syncPromise, timeoutPromise]);
-    
-    // إضافة علامة للتحديث الإجباري في التخزين المحلي
-    // Add a forced refresh flag in local storage
-    if (result) {
-      try {
-        localStorage.setItem('force_browser_refresh', 'true');
-        localStorage.setItem('nocache_version', Date.now().toString());
-        localStorage.setItem('data_version', Date.now().toString());
-      } catch (e) {
-        console.error('فشل في تعيين علامات التحديث', e);
+    try {
+      const syncPromise = executeSync(availableSource, forceRefresh || true, fullCacheBuster, skewParam); // دائمًا استخدم forceRefresh=true
+      
+      // تنفيذ المزامنة مع مهلة زمنية
+      // Execute sync with timeout
+      const result = await Promise.race([syncPromise, timeoutPromise]);
+      
+      // إضافة علامة للتحديث الإجباري في التخزين المحلي
+      // Add a forced refresh flag in local storage
+      if (result) {
+        try {
+          localStorage.setItem('force_browser_refresh', 'true');
+          localStorage.setItem('nocache_version', Date.now().toString());
+          localStorage.setItem('data_version', Date.now().toString());
+        } catch (e) {
+          console.error('فشل في تعيين علامات التحديث', e);
+        }
+        
+        return result;
+      } else {
+        // المزامنة فشلت، محاولة استخدام البيانات المحلية
+        throw new Error('Remote sync failed, falling back to local data');
       }
+    } catch (error) {
+      console.error('خطأ أثناء المزامنة: / Error during sync:', error);
+      
+      // محاولة استخدام البيانات المحلية عند فشل المزامنة
+      console.log('محاولة استخدام البيانات المحلية... / Trying to use local data...');
+      return await syncWithLocalData(forceRefresh || true);
     }
-    
-    return result;
     
   } catch (error) {
     console.error('خطأ غير متوقع أثناء المزامنة: / Unexpected error during sync:', error);
@@ -88,6 +100,7 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     // محاولة استخدام البيانات المحلية في حالة الخطأ
     // Try to use local data in case of error
     try {
+      console.log('خطأ المزامنة، استخدام البيانات المحلية... / Sync error, using local data...');
       return await syncWithLocalData(forceRefresh || true); // دائمًا استخدم forceRefresh=true
     } catch (e) {
       console.error('فشل الرجوع للبيانات المحلية: / Failed to fallback to local data:', e);
