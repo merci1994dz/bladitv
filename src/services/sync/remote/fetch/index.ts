@@ -8,11 +8,12 @@
 export { fetchRemoteData } from './fetchRemoteData';
 export { isRemoteUrlAccessible } from './accessibilityCheck';
 export { getSkewProtectionParams } from './skewProtection';
-export { loadWithJsonp } from './jsonpFallback';
+export { fetchViaJsonp } from './jsonpFallback';
 
 // تصدير الوظائف المساعدة للاستخدام المباشر إذا لزم الأمر
 export { addCacheBusterToUrl, createCacheBuster, exponentialBackoff } from './retryStrategies';
-export { fetchViaProxy, getProxyUrls } from './proxyUtils';
-export { enhanceFetchError, processResponseError } from './errorHandling';
+export { fetchViaProxy } from './proxyUtils';
+export { enhanceFetchError, isConnectivityError, getUserFriendlyErrorMessage } from './errorHandling';
 export { fetchLocalFile } from './localFetch';
-export { tryDirectFetchStrategy, tryJsonpStrategy, tryProxyStrategy } from './fetchStrategies';
+export { tryProxyStrategy, fetchDirectly, fetchWithFlexibleFormat } from './fetchStrategies';
+
