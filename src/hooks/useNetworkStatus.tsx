@@ -15,13 +15,18 @@ export const useNetworkStatus = () => {
   const [isChecking, setIsChecking] = useState(false);
 
   const handleNetworkChange = useCallback(async () => {
-    if (isChecking) return navigator.onLine;
+    if (isChecking) {
+      console.log('فحص جارٍ بالفعل، تخطي...');
+      return navigator.onLine;
+    }
     
+    console.log('بدء فحص الاتصال...');
     setIsChecking(true);
     const isOnline = navigator.onLine;
     setIsOffline(!isOnline);
     
     if (!isOnline) {
+      console.log('لا يوجد اتصال بالإنترنت');
       setNetworkStatus({ hasInternet: false, hasServerAccess: false });
       toast({
         title: "انقطع الاتصال",
@@ -40,18 +45,23 @@ export const useNetworkStatus = () => {
     
     if (shouldDoFullCheck) {
       try {
+        console.log('بدء الفحص الشامل للاتصال...');
         setLastCheckTime(currentTime);
         setCheckAttempts(prev => prev + 1);
         
         const quickCheck = await quickConnectivityCheck();
+        console.log('نتيجة الفحص السريع:', quickCheck);
         
         if (!quickCheck) {
+          console.log('فشل الفحص السريع');
           setNetworkStatus({ hasInternet: true, hasServerAccess: false });
           setIsChecking(false);
           return isOnline;
         }
         
+        console.log('بدء فحص مشاكل الاتصال...');
         const status = await checkConnectivityIssues();
+        console.log('نتيجة فحص الاتصال:', status);
         setNetworkStatus(status);
         
         if (status.hasInternet && status.hasServerAccess && !networkStatus.hasServerAccess) {
@@ -84,6 +94,7 @@ export const useNetworkStatus = () => {
   }, [handleNetworkChange]);
   
   useEffect(() => {
+    console.log('إعداد مراقبة حالة الشبكة');
     const onlineHandler = () => handleNetworkChange();
     const offlineHandler = () => handleNetworkChange();
     
