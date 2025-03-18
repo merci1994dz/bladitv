@@ -1,104 +1,108 @@
 
 /**
- * الوظيفة الرئيسية لفحص الاتصال واختبار توفر الخوادم
- * Main function for connectivity checking and server availability testing
+ * وظائف للتحقق من حالة الاتصال بالشبكة
+ * Functions to check network connectivity status
  */
-
-import { 
-  getCachedConnectivityResult, 
-  isRecentCheck, 
-  cacheConnectivityResult 
-} from './cache';
-import { checkEndpointsAccessibility } from './endpoint-checker';
-import { ConnectivityCheckResult } from './types';
 
 /**
- * فحص ما إذا كانت هناك أي مشاكل اتصال تعرقل المزامنة
- * Check if there are any connectivity issues hindering synchronization
- * with enhanced retry support and detailed diagnostics
+ * التحقق من قضايا الاتصال المحتملة
+ * Check potential connectivity issues
  */
-export const checkConnectivityIssues = async (): Promise<{ hasInternet: boolean, hasServerAccess: boolean }> => {
-  // محاولة استرداد نتائج الفحص المخزنة وتقييم صلاحيتها
-  // Try to retrieve stored check results and evaluate their validity
-  const cachedResult = getCachedConnectivityResult();
+export const checkConnectivityIssues = async (): Promise<{
+  hasInternet: boolean;
+  hasServerAccess: boolean;
+}> => {
+  const isOnline = navigator.onLine;
   
-  // إذا كانت النتائج المخزنة حديثة وصالحة، استخدمها
-  // If stored results are recent and valid, use them
-  if (cachedResult && isRecentCheck(cachedResult.timestamp)) {
-    return {
-      hasInternet: cachedResult.hasInternet,
-      hasServerAccess: cachedResult.hasServerAccess
-    };
+  // إذا لم يكن هناك اتصال أساسي، لا داعي لإجراء المزيد من الفحوصات
+  // If there's no basic connection, no need for further checks
+  if (!isOnline) {
+    return { hasInternet: false, hasServerAccess: false };
   }
-  
-  // التحقق من حالة الإنترنت أولاً
-  // Check internet status first
-  const hasInternet = navigator.onLine;
-  
-  // إذا لم يكن هناك اتصال بالإنترنت، ارجع النتيجة على الفور
-  // If there is no internet connection, return the result immediately
-  if (!hasInternet) {
-    const result: ConnectivityCheckResult = { 
-      hasInternet: false, 
-      hasServerAccess: false,
-      timestamp: Date.now()
-    };
-    cacheConnectivityResult(result);
-    return result;
-  }
-  
-  // إذا كان هناك اتصال بالإنترنت، فحص الوصول إلى الخوادم
-  // If there is internet connection, check server access
+
+  // التحقق من الوصول إلى خوادم معروفة
+  // Check access to known servers
   try {
-    // فحص الوصول إلى الخوادم باستخدام استراتيجية إعادة المحاولة التدريجية
-    // Check server access using progressive retry strategy
-    const endpoints = await checkEndpointsAccessibility();
+    // استخدام AbortController بدلاً من .timeout()
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
     
-    // اعتبار الاتصال ناجحًا إذا نجح الوصول إلى خادم واحد على الأقل
-    // Consider connection successful if at least one server is accessible
-    const hasServerAccess = endpoints.some(endpoint => endpoint.success);
+    // محاولة إجراء طلب بسيط إلى موقع خارجي موثوق
+    // Attempt a simple request to a reliable external site
+    const response = await fetch('https://www.google.com/generate_204', {
+      method: 'HEAD',
+      cache: 'no-store',
+      signal: controller.signal
+    });
     
-    // تكوين نتيجة فحص الاتصال
-    // Configure connection check result
-    const result: ConnectivityCheckResult = {
-      hasInternet,
-      hasServerAccess,
-      timestamp: Date.now(),
-      endpoints
-    };
+    clearTimeout(timeoutId);
     
-    // تخزين نتيجة الفحص للاستخدام لاحقًا
-    // Store check result for later use
-    cacheConnectivityResult(result);
-    
-    // ارجاع نتيجة فحص الاتصال
-    // Return connection check result
-    return {
-      hasInternet,
-      hasServerAccess
-    };
-  } catch (error) {
-    console.warn('خطأ أثناء فحص الاتصال بالخوادم: / Error during server connection check:', error);
-    
-    // في حالة الخطأ، استخدم النتائج المخزنة إذا كانت متاحة
-    // In case of error, use stored results if available
-    if (cachedResult) {
-      return {
-        hasInternet: hasInternet,  // استخدم حالة الاتصال الحالية / Use current connection status
-        hasServerAccess: cachedResult.hasServerAccess
-      };
+    // إذا كان الرد ناجحًا، نتحقق من الوصول إلى الخادم المستهدف
+    // If the response is successful, check access to the target server
+    if (response.ok || response.status === 204) {
+      try {
+        // فحص الوصول إلى خادم التطبيق
+        // Check access to app server
+        const serverController = new AbortController();
+        const serverTimeoutId = setTimeout(() => serverController.abort(), 5000);
+        
+        // اختبار الوصول إلى نقطة نهاية بسيطة في الخادم المستهدف
+        // Test access to a simple endpoint on the target server
+        const serverResponse = await fetch('https://bladitv.lovable.app/ping', {
+          method: 'HEAD',
+          cache: 'no-store',
+          signal: serverController.signal
+        });
+        
+        clearTimeout(serverTimeoutId);
+        return { 
+          hasInternet: true, 
+          hasServerAccess: serverResponse.ok 
+        };
+      } catch (serverError) {
+        console.log('تعذر الوصول إلى خادم التطبيق:', serverError);
+        return { hasInternet: true, hasServerAccess: false };
+      }
     }
     
-    // إذا لم تكن هناك نتائج مخزنة، افترض عدم وجود اتصال بالخادم
-    // If there are no stored results, assume no server connection
-    const result: ConnectivityCheckResult = {
-      hasInternet,
-      hasServerAccess: false,
-      timestamp: Date.now()
-    };
+    // الوصول إلى الإنترنت محدود
+    // Internet access is limited
+    return { hasInternet: true, hasServerAccess: false };
+  } catch (error) {
+    console.log('خطأ في فحص الاتصال بالإنترنت:', error);
     
-    cacheConnectivityResult(result);
+    // في حالة حدوث خطأ، نفترض أن هناك اتصالًا بالإنترنت ولكن لا يمكن الوصول إلى الخادم
+    // In case of error, assume there's internet but no server access
+    return { hasInternet: true, hasServerAccess: false };
+  }
+};
+
+/**
+ * فحص بسيط لحالة الاتصال - نسخة أخف وأسرع
+ * Simple connectivity check - lighter and faster version
+ */
+export const quickConnectivityCheck = async (): Promise<boolean> => {
+  // التحقق من حالة الاتصال الأساسية
+  // Check basic connectivity status
+  if (!navigator.onLine) {
+    return false;
+  }
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
     
-    return result;
+    // استخدام عنوان URL بسيط ورد سريع
+    // Use a simple URL with fast response
+    const response = await fetch('https://www.google.com/generate_204', {
+      method: 'HEAD',
+      cache: 'no-store',
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    return response.ok || response.status === 204;
+  } catch (error) {
+    return false;
   }
 };

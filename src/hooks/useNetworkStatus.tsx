@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { checkConnectivityIssues } from '@/services/sync/status';
+import { checkConnectivityIssues } from '@/services/sync/status/connectivity/connectivity-checker';
 
 export const useNetworkStatus = () => {
   const { toast } = useToast();
@@ -14,9 +14,14 @@ export const useNetworkStatus = () => {
   // متغير للتحكم في عدد محاولات الفحص
   const [checkAttempts, setCheckAttempts] = useState(0);
   const [lastCheckTime, setLastCheckTime] = useState(0);
+  const [isChecking, setIsChecking] = useState(false);
 
-  // التعامل مع تغييرات حالة الشبكة
+  // التعامل مع تغييرات حالة الشبكة - مع حماية ضد الفحص المتكرر
   const handleNetworkChange = useCallback(async () => {
+    // تجنب تشغيل عمليات فحص متعددة في نفس الوقت
+    if (isChecking) return navigator.onLine;
+    
+    setIsChecking(true);
     const isOnline = navigator.onLine;
     setIsOffline(!isOnline);
     
@@ -61,8 +66,9 @@ export const useNetworkStatus = () => {
       setNetworkStatus({ hasInternet: false, hasServerAccess: false });
     }
     
+    setIsChecking(false);
     return isOnline;
-  }, [toast, checkAttempts, lastCheckTime]);
+  }, [toast, checkAttempts, lastCheckTime, isChecking]);
   
   // وظيفة لإعادة محاولة فحص الاتصال يدوياً
   const retryConnection = useCallback(async () => {
@@ -92,6 +98,7 @@ export const useNetworkStatus = () => {
     isOffline, 
     networkStatus, 
     handleNetworkChange, 
-    retryConnection 
+    retryConnection,
+    isChecking
   };
 };

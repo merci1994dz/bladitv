@@ -1,85 +1,98 @@
 
 /**
- * استراتيجيات مختلفة لجلب البيانات
- * Different strategies for fetching data
+ * استراتيجيات مختلفة لجلب البيانات من المصادر الخارجية
+ * Different strategies for fetching data from remote sources
  */
-
-import { loadWithJsonp } from './jsonpFallback';
-import { fetchViaProxy } from './proxyUtils';
-import { addCacheBusterToUrl } from './retryStrategies';
-import { adjustFetchOptionsForBrowser } from './browserDetection';
-import { processResponseError } from './errorHandling';
-import { addSkewProtectionHeaders } from './skewProtection';
 
 /**
- * محاولة جلب البيانات عبر JSONP
- * Try to fetch data via JSONP
+ * محاولة استراتيجية البروكسي
+ * Try proxy strategy
  */
-export const tryJsonpStrategy = async (url: string): Promise<any> => {
-  console.log(`محاولة استخدام JSONP للرابط: ${url}`);
-  return await loadWithJsonp(url);
-};
-
-/**
- * محاولة جلب البيانات عبر بروكسي
- * Try to fetch data via proxy
- */
-export const tryProxyStrategy = async (url: string, signal: AbortSignal): Promise<any> => {
-  const urlWithCache = addCacheBusterToUrl(url);
-  return await fetchViaProxy(urlWithCache, signal);
-};
-
-/**
- * محاولة جلب البيانات عبر طلب مباشر
- * Try to fetch data via direct request
- */
-export const tryDirectFetchStrategy = async (url: string, retryCount: number, signal: AbortSignal): Promise<any> => {
-  const urlWithCache = addCacheBusterToUrl(url);
-  console.log(`محاولة الطلب المباشر للرابط: ${urlWithCache}`);
+export const tryProxyStrategy = async (url: string, options: RequestInit = {}): Promise<any> => {
+  // دالة جلب البيانات عبر البروكسي تم نقلها إلى ملف proxyUtils.ts
+  const { fetchViaProxy } = await import('./proxyUtils');
   
-  // إنشاء الرؤوس الأساسية
-  let headers: Record<string, string> = {
-    'Accept': 'application/json, text/plain, */*',
-    'Cache-Control': 'no-cache, no-store, must-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0',
-    'X-Requested-With': 'XMLHttpRequest',
-    'Origin': window.location.origin,
-    'X-Timestamp': Date.now().toString(),
-    'X-Random': Math.random().toString(36).substring(2, 15)
-  };
-  
-  // إضافة رؤوس حماية التزامن
-  headers = addSkewProtectionHeaders(headers);
-  
-  // تكييف خيارات الطلب بناءً على المتصفح وعدد المحاولات
-  let fetchOptions: RequestInit = {
-    method: 'GET',
-    headers,
-    cache: 'no-store',
-    signal,
-    mode: retryCount > 6 ? 'cors' : 'no-cors',
-    credentials: 'omit',
-    referrer: window.location.origin,
-    referrerPolicy: 'origin'
-  };
-  
-  fetchOptions = adjustFetchOptionsForBrowser(fetchOptions, retryCount);
-  
-  // تنفيذ الطلب
-  const response = await fetch(urlWithCache, fetchOptions);
-  
-  if (!response.ok) {
-    const errorMessage = await processResponseError(response);
-    throw new Error(errorMessage);
-  }
-  
-  // تحليل البيانات
   try {
-    const text = await response.text();
-    return JSON.parse(text);
-  } catch (jsonError) {
-    console.error('خطأ في تحليل JSON:', jsonError);
-    throw new Error('تم استلام رد غير صالح من الخادم (بيانات JSON غير صالحة)');
+    const response = await fetchViaProxy(url, options);
+    return await response.json();
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
+ * جلب البيانات مباشرة (بدون بروكسي)
+ * Fetch data directly (without proxy)
+ */
+export const fetchDirectly = async (url: string, options: RequestInit = {}): Promise<any> => {
+  try {
+    console.log(`محاولة الجلب المباشر من: ${url}`);
+    
+    // إضافة المزيد من خيارات التحكم في التخزين المؤقت
+    const fetchOptions = {
+      ...options,
+      headers: {
+        ...options.headers,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    };
+    
+    // استخدام AbortController للتحكم في المهلة
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    fetchOptions.signal = controller.signal;
+    
+    // محاولة الجلب المباشر
+    const response = await fetch(url, fetchOptions);
+    
+    // إلغاء المؤقت لتجنب التسريب
+    clearTimeout(timeoutId);
+    
+    // التحقق من نجاح الاستجابة
+    if (!response.ok) {
+      throw new Error(`فشل الطلب المباشر: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.warn('فشل الجلب المباشر:', error);
+    throw error;
+  }
+};
+
+/**
+ * استخدام آلية استعلام مرنة تناسب أنواع مختلفة من الخوادم
+ * Use a flexible querying mechanism suitable for different server types
+ */
+export const fetchWithFlexibleFormat = async (url: string): Promise<any> => {
+  // تجربة عدة تنسيقات URL للتوافق مع أنواع مختلفة من الخوادم
+  
+  try {
+    // أولاً، حاول الوصول إلى URL كما هو
+    const originalResult = await fetchDirectly(url);
+    return originalResult;
+  } catch (originalError) {
+    try {
+      // جرب إضافة .json إذا لم يكن موجودًا بالفعل
+      if (!url.endsWith('.json')) {
+        const jsonUrl = `${url}.json`;
+        console.log(`محاولة استخدام تنسيق JSON: ${jsonUrl}`);
+        return await fetchDirectly(jsonUrl);
+      }
+      throw originalError;
+    } catch (jsonError) {
+      try {
+        // جرب إضافة ?format=json
+        const queryUrl = `${url}${url.includes('?') ? '&' : '?'}format=json`;
+        console.log(`محاولة استخدام معلمة format=json: ${queryUrl}`);
+        return await fetchDirectly(queryUrl);
+      } catch (queryError) {
+        // إذا فشلت جميع المحاولات، ارفع الخطأ الأصلي
+        throw originalError;
+      }
+    }
   }
 };

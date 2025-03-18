@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
-import { Wifi, WifiOff, AlertCircle } from 'lucide-react';
-import { checkBladiInfoAvailability } from '@/services/sync/remote/syncOperations';
+import { Wifi, WifiOff, AlertCircle, RefreshCw } from 'lucide-react';
+import { checkConnectivityIssues } from '@/services/sync/status/connectivity/connectivity-checker';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -15,16 +15,22 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
   className = ''
 }) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [activeSource, setActiveSource] = useState<string | null>(null);
+  const [hasServerAccess, setHasServerAccess] = useState<boolean | null>(null);
   const [isChecking, setIsChecking] = useState(false);
+  const [lastCheckTime, setLastCheckTime] = useState<Date | null>(null);
 
   const checkConnectivity = async () => {
+    if (isChecking) return;
+    
     setIsChecking(true);
     try {
-      const source = await checkBladiInfoAvailability();
-      setActiveSource(source);
+      const { hasInternet, hasServerAccess } = await checkConnectivityIssues();
+      setIsOnline(hasInternet);
+      setHasServerAccess(hasServerAccess);
+      setLastCheckTime(new Date());
     } catch (error) {
       console.error('خطأ في فحص الاتصال:', error);
+      setHasServerAccess(false);
     } finally {
       setIsChecking(false);
     }
@@ -35,6 +41,8 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
       setIsOnline(navigator.onLine);
       if (navigator.onLine) {
         checkConnectivity();
+      } else {
+        setHasServerAccess(false);
       }
     };
 
@@ -61,33 +69,22 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
   let statusColor = "text-amber-500";
 
   if (isChecking) {
-    statusIcon = <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-amber-500 animate-spin" />;
+    statusIcon = <RefreshCw className="h-4 w-4 text-amber-500 animate-spin" />;
   } else if (!isOnline) {
     statusIcon = <WifiOff className="h-4 w-4 text-red-500" />;
     statusText = "أنت غير متصل بالإنترنت";
     statusColor = "text-red-500";
-  } else if (activeSource) {
+  } else if (hasServerAccess === null) {
+    statusIcon = <AlertCircle className="h-4 w-4 text-amber-500" />;
+    statusText = "جاري التحقق...";
+    statusColor = "text-amber-500";
+  } else if (hasServerAccess) {
     statusIcon = <Wifi className="h-4 w-4 text-green-500" />;
-    
-    // تحديد نوع المصدر للعرض
-    const isLocalSource = activeSource.startsWith('/');
-    const isJsdelivr = activeSource.includes('jsdelivr');
-    const isBladiTv = activeSource.includes('bladitv');
-    
-    if (isLocalSource) {
-      statusText = "متصل (مصدر محلي)";
-    } else if (isJsdelivr) {
-      statusText = "متصل (CDN)";
-    } else if (isBladiTv) {
-      statusText = "متصل (BladiTV)";
-    } else {
-      statusText = "متصل (مصدر خارجي)";
-    }
-    
+    statusText = "متصل بالخادم";
     statusColor = "text-green-500";
   } else {
     statusIcon = <AlertCircle className="h-4 w-4 text-red-500" />;
-    statusText = "تعذر الاتصال بالمصادر الخارجية";
+    statusText = "تعذر الاتصال بالخادم";
     statusColor = "text-red-500";
   }
 
@@ -107,15 +104,15 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
               onClick={handleRefreshClick}
               disabled={isChecking}
             >
-              <Wifi className="h-3.5 w-3.5" />
+              <RefreshCw className={`h-3.5 w-3.5 ${isChecking ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </TooltipTrigger>
         <TooltipContent>
           <p>حالة الاتصال بمصادر البيانات</p>
-          {activeSource && (
-            <p className="text-xs opacity-80 max-w-52 truncate">
-              المصدر: {activeSource}
+          {lastCheckTime && (
+            <p className="text-xs opacity-80">
+              آخر فحص: {lastCheckTime.toLocaleTimeString()}
             </p>
           )}
           <Button
@@ -123,8 +120,9 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
             size="sm"
             className="h-auto p-0 text-xs underline"
             onClick={handleRefreshClick}
+            disabled={isChecking}
           >
-            إعادة فحص الاتصال
+            {isChecking ? 'جاري الفحص...' : 'إعادة فحص الاتصال'}
           </Button>
         </TooltipContent>
       </Tooltip>
