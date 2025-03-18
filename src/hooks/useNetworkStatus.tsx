@@ -20,7 +20,6 @@ export const useNetworkStatus = () => {
       return navigator.onLine;
     }
     
-    console.log('بدء فحص الاتصال...');
     setIsChecking(true);
     const isOnline = navigator.onLine;
     setIsOffline(!isOnline);
@@ -43,35 +42,31 @@ export const useNetworkStatus = () => {
     
     if (shouldDoFullCheck) {
       try {
-        console.log('بدء الفحص الشامل للاتصال...');
         setLastCheckTime(currentTime);
         setCheckAttempts(prev => prev + 1);
         
         const quickCheck = await quickConnectivityCheck();
-        console.log('نتيجة الفحص السريع:', quickCheck);
         
         if (!quickCheck) {
-          console.log('فشل الفحص السريع');
           setNetworkStatus({ hasInternet: true, hasServerAccess: false });
           setIsChecking(false);
           return isOnline;
         }
         
-        console.log('بدء فحص مشاكل الاتصال...');
         const status = await checkConnectivityIssues();
-        console.log('نتيجة فحص الاتصال:', status);
         setNetworkStatus(status);
         
         if (status.hasInternet && status.hasServerAccess && !networkStatus.hasServerAccess) {
           toast({
             title: "تم استعادة الاتصال",
             description: "جاري تحديث البيانات من المصادر المتاحة...",
+            variant: "default"
           });
         } else if (status.hasInternet && !status.hasServerAccess) {
           toast({
             title: "اتصال محدود",
             description: "يمكن الوصول للإنترنت ولكن ليس للخادم. سيتم الاعتماد على البيانات المخزنة.",
-            variant: "destructive",
+            variant: "destructive"
           });
         }
       } catch (error) {

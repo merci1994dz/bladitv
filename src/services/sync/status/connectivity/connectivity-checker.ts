@@ -15,68 +15,46 @@ export const checkConnectivityIssues = async (): Promise<{
   }
 
   try {
-    // تجربة نقاط نهاية متعددة مع مهلة زمنية قصيرة
-    const testEndpoints = [
-      'https://www.google.com/favicon.ico',
-      'https://www.cloudflare.com/favicon.ico',
-      'https://cdn.jsdelivr.net/favicon.ico'
-    ];
+    // تجربة نقطة نهاية واحدة موثوقة مع مهلة قصيرة
+    const endpoint = 'https://www.cloudflare.com/cdn-cgi/trace';
     
-    let hasGeneralInternet = false;
-    
-    for (const endpoint of testEndpoints) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000);
-        
-        const response = await fetch(endpoint, {
-          method: 'HEAD',
-          mode: 'no-cors',
-          cache: 'no-store',
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        hasGeneralInternet = true;
-        break;
-      } catch (error) {
-        console.log(`تعذر الوصول إلى ${endpoint}`);
-        continue;
-      }
-    }
-    
-    if (!hasGeneralInternet) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      
+      await fetch(endpoint, {
+        method: 'HEAD',
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+    } catch (error) {
+      console.log('فشل الاتصال بالإنترنت');
       return { hasInternet: false, hasServerAccess: false };
     }
 
     // التحقق من الوصول إلى خوادم التطبيق
-    const appEndpoints = [
-      'https://cdn.jsdelivr.net/gh/bladitv/channels@master/channels.json',
-      'https://fastly.jsdelivr.net/gh/bladitv/channels@master/channels.json',
-      'https://gcore.jsdelivr.net/gh/bladitv/channels@master/channels.json'
-    ];
+    const appEndpoint = 'https://ucmvhjawucyznchetekh.supabase.co/rest/v1/health';
     
-    for (const endpoint of appEndpoints) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000);
-        
-        const response = await fetch(endpoint, {
-          method: 'HEAD',
-          cache: 'no-store',
-          signal: controller.signal,
-          mode: 'no-cors'
-        });
-        
-        clearTimeout(timeoutId);
-        return { hasInternet: true, hasServerAccess: true };
-      } catch (error) {
-        continue;
-      }
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      
+      await fetch(appEndpoint, {
+        method: 'HEAD',
+        cache: 'no-store',
+        signal: controller.signal,
+        headers: {
+          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      return { hasInternet: true, hasServerAccess: true };
+    } catch (error) {
+      return { hasInternet: true, hasServerAccess: false };
     }
-    
-    return { hasInternet: true, hasServerAccess: false };
-    
   } catch (error) {
     console.error('خطأ في فحص الاتصال:', error);
     return { hasInternet: isOnline, hasServerAccess: false };
@@ -90,11 +68,10 @@ export const quickConnectivityCheck = async (): Promise<boolean> => {
   
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const timeoutId = setTimeout(() => controller.abort(), 1500);
     
-    await fetch('https://www.google.com/favicon.ico', {
+    await fetch('https://www.cloudflare.com/cdn-cgi/trace', {
       method: 'HEAD',
-      mode: 'no-cors',
       cache: 'no-store',
       signal: controller.signal
     });
