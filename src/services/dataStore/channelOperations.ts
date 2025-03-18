@@ -20,15 +20,26 @@ const isDuplicateChannel = (newChannel: Channel): boolean => {
   return nameExists || streamUrlExists;
 };
 
+// تحسين: إضافة وظيفة للتحقق من القناة مكررة والحصول على المكررة
+const findDuplicateChannel = (newChannel: Channel): Channel | null => {
+  return channels.find(c => 
+    c.name.toLowerCase() === newChannel.name.toLowerCase() || 
+    c.streamUrl === newChannel.streamUrl
+  ) || null;
+};
+
 // Function to add a channel to memory with duplicate checking
-export const addChannelToMemory = (channel: Channel, options?: { preventDuplicates?: boolean }) => {
-  // التحقق من وجود القناة بالفعل
+export const addChannelToMemory = (channel: Channel, options?: { preventDuplicates?: boolean }): Channel | null => {
+  // التحقق من وجود القناة بنفس المعرف
   const existingIndex = channels.findIndex(c => c.id === channel.id);
   
-  // التحقق من وجود نسخة مشابهة
-  if (options?.preventDuplicates && isDuplicateChannel(channel)) {
-    console.log(`تم تجاهل قناة مكررة: ${channel.name}`);
-    return null;
+  // التحقق من وجود نسخة مكررة
+  if (options?.preventDuplicates) {
+    const duplicate = findDuplicateChannel(channel);
+    if (duplicate) {
+      console.log(`تم تجاهل قناة مكررة: ${channel.name} (موجودة بالفعل: ${duplicate.name})`);
+      return null;
+    }
   }
   
   if (existingIndex >= 0) {

@@ -31,11 +31,17 @@ export const storeRemoteData = async (
     if (Array.isArray(data.channels)) {
       console.log(`تم استلام ${data.channels.length} قناة من المصدر الخارجي`);
       
+      // تسجيل أعداد البيانات
+      let addedCount = 0;
+      let updatedCount = 0;
+      let ignoredCount = 0;
+      
+      // إنشاء مجموعة للاسماء وروابط البث الموجودة بالفعل
+      const existingNames = new Set(channels.map(ch => ch.name.toLowerCase()));
+      const existingUrls = new Set(channels.map(ch => ch.streamUrl));
+      
       if (options?.preventDuplicates) {
         // إضافة القنوات مع منع التكرار
-        let addedCount = 0;
-        let ignoredCount = 0;
-        
         for (const channelData of data.channels) {
           // إنشاء كائن القناة بالتنسيق المناسب
           const channel: Channel = {
@@ -49,17 +55,47 @@ export const storeRemoteData = async (
             externalLinks: channelData.external_links || channelData.externalLinks || []
           };
           
-          // محاولة إضافة القناة مع منع التكرار
-          const result = addChannelToMemory(channel, { preventDuplicates: true });
+          // التحقق من وجود القناة بالاسم أو رابط البث
+          const isDuplicate = existingNames.has(channel.name.toLowerCase()) || 
+                             existingUrls.has(channel.streamUrl);
           
-          if (result) {
-            addedCount++;
+          if (isDuplicate) {
+            // تجاهل القناة المكررة أو تحديثها إذا كانت موجودة بالفعل
+            const existingChannel = channels.find(ch => 
+              ch.name.toLowerCase() === channel.name.toLowerCase() || 
+              ch.streamUrl === channel.streamUrl
+            );
+            
+            if (existingChannel) {
+              // تحديث القناة الموجودة فقط إذا كانت هناك تغييرات جوهرية
+              if (existingChannel.logo !== channel.logo || 
+                  existingChannel.category !== channel.category ||
+                  existingChannel.country !== channel.country) {
+                updateChannelInMemory({
+                  ...existingChannel,
+                  logo: channel.logo,
+                  category: channel.category,
+                  country: channel.country
+                });
+                updatedCount++;
+              } else {
+                ignoredCount++;
+              }
+            } else {
+              ignoredCount++;
+            }
           } else {
-            ignoredCount++;
+            // إضافة القناة الجديدة فقط
+            addChannelToMemory(channel);
+            addedCount++;
+            
+            // تحديث المجموعات للاستخدام في التحقق اللاحق
+            existingNames.add(channel.name.toLowerCase());
+            existingUrls.add(channel.streamUrl);
           }
         }
         
-        console.log(`تم إضافة ${addedCount} قناة وتجاهل ${ignoredCount} قناة متكررة`);
+        console.log(`تم إضافة ${addedCount} قناة، تحديث ${updatedCount} قناة، وتجاهل ${ignoredCount} قناة متكررة`);
       } else {
         // مسح القنوات الحالية وإضافة القنوات الجديدة
         channels.length = 0;

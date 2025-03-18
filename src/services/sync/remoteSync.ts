@@ -1,3 +1,4 @@
+
 import { channels, countries, categories, setIsSyncing } from '../dataStore';
 import { fetchRemoteData } from './remote/fetch';
 import { storeRemoteData } from './remote/storeData';
@@ -15,7 +16,7 @@ export { getSkewProtectionParams } from './remote/fetch/skewProtection';
  * Synchronize with Bladi Info websites
  * 
  * @param forceRefresh تجاهل التخزين المؤقت وفرض التحديث
- * @returns Promise<boolean | { updated: boolean, channelsCount: number }>
+ * @returns Promise<{ updated: boolean, channelsCount: number }>
  */
 export const syncWithBladiInfo = async (
   forceRefresh = false, 
@@ -52,8 +53,11 @@ export const syncWithBladiInfo = async (
     // حساب القنوات قبل التحديث
     const channelsCountBefore = channels.length;
     
-    // تخزين البيانات المستلمة مع منع القنوات المكررة إذا تم طلب ذلك
-    await storeRemoteData(data, availableSource, { preventDuplicates: options?.preventDuplicates });
+    // استخدام خيار منع التكرار دائمًا لتجنب القنوات المكررة
+    const usePreventDuplicates = options?.preventDuplicates !== false; // افتراضيًا true إلا إذا تم تعيينه صراحةً على false
+    
+    // تخزين البيانات المستلمة مع منع القنوات المكررة
+    await storeRemoteData(data, availableSource, { preventDuplicates: usePreventDuplicates });
     
     // حساب القنوات بعد التحديث
     const channelsCountAfter = channels.length;
