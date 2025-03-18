@@ -36,6 +36,16 @@ const Home: React.FC = () => {
           variant: "destructive",
         });
       }
+    },
+    onSettled: (data, error) => {
+      if (error) {
+        console.error("Error fetching channels:", error);
+        toast({
+          title: "خطأ في تحميل القنوات",
+          description: "حدث خطأ أثناء تحميل القنوات. يرجى المحاولة مرة أخرى لاحقًا.",
+          variant: "destructive",
+        });
+      }
     }
   });
 

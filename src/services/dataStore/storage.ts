@@ -1,63 +1,10 @@
-
 import { STORAGE_KEYS } from '../config';
 import { channels, countries, categories } from './state';
 import { fallbackChannels, fallbackCountries, fallbackCategories } from '../fallbackData';
-import { Channel, Country, Category } from '@/types';
-
-// وظيفة للتحقق من وجود تكرارات وإزالتها
-// Function to check for and remove duplicates
-const removeDuplicates = <T extends { id: string; name: string }>(items: T[]): T[] => {
-  const uniqueIds = new Set<string>();
-  const uniqueNames = new Set<string>();
-  const result: T[] = [];
-  
-  for (const item of items) {
-    const nameLC = item.name.toLowerCase();
-    if (!uniqueIds.has(item.id) && !uniqueNames.has(nameLC)) {
-      uniqueIds.add(item.id);
-      uniqueNames.add(nameLC);
-      result.push(item);
-    }
-  }
-  
-  return result;
-};
-
-// وظيفة للتحقق من وجود تكرارات في القنوات وإزالتها
-// Function to check for and remove duplicate channels (with additional URL check)
-const removeDuplicateChannels = (items: Channel[]): Channel[] => {
-  const uniqueIds = new Set<string>();
-  const uniqueNames = new Set<string>();
-  const uniqueUrls = new Set<string>();
-  const result: Channel[] = [];
-  
-  for (const item of items) {
-    const nameLC = item.name.toLowerCase();
-    if (!uniqueIds.has(item.id) && !uniqueNames.has(nameLC) && !uniqueUrls.has(item.streamUrl)) {
-      uniqueIds.add(item.id);
-      uniqueNames.add(nameLC);
-      uniqueUrls.add(item.streamUrl);
-      result.push(item);
-    }
-  }
-  
-  return result;
-};
 
 // Function to save channels to local storage
 export const saveChannelsToStorage = () => {
   try {
-    // تنقية القنوات من التكرارات قبل الحفظ
-    // Remove duplicates before saving
-    const uniqueChannels = removeDuplicateChannels(channels);
-    
-    // إذا كانت هناك تكرارات، تحديث المصفوفة الأصلية
-    if (uniqueChannels.length < channels.length) {
-      console.log(`تمت إزالة ${channels.length - uniqueChannels.length} قناة مكررة قبل الحفظ`);
-      channels.length = 0;
-      channels.push(...uniqueChannels);
-    }
-    
     console.log(`حفظ ${channels.length} قناة إلى التخزين المحلي للنشر للجميع`);
     
     // Save data in JSON format
@@ -123,12 +70,8 @@ export const loadFromLocalStorage = () => {
       try {
         const parsedChannels = JSON.parse(storedChannels);
         if (Array.isArray(parsedChannels) && parsedChannels.length > 0) {
-          // إزالة التكرارات قبل الإضافة للذاكرة
-          // Remove duplicates before adding to memory
-          const uniqueChannels = removeDuplicateChannels(parsedChannels);
-          channels.push(...uniqueChannels);
-          
-          console.log(`تم تحميل ${channels.length} قناة من التخزين المحلي (تم إزالة ${parsedChannels.length - uniqueChannels.length} قناة مكررة)`);
+          channels.push(...parsedChannels);
+          console.log(`تم تحميل ${channels.length} قناة من التخزين المحلي`);
         } else {
           throw new Error('تنسيق القنوات غير صالح');
         }
@@ -147,12 +90,8 @@ export const loadFromLocalStorage = () => {
       try {
         const parsedCountries = JSON.parse(storedCountries);
         if (Array.isArray(parsedCountries) && parsedCountries.length > 0) {
-          // إزالة التكرارات قبل الإضافة للذاكرة
-          // Remove duplicates before adding to memory
-          const uniqueCountries = removeDuplicates(parsedCountries);
-          countries.push(...uniqueCountries);
-          
-          console.log(`تم تحميل ${countries.length} دولة من التخزين المحلي (تم إزالة ${parsedCountries.length - uniqueCountries.length} دولة مكررة)`);
+          countries.push(...parsedCountries);
+          console.log(`تم تحميل ${countries.length} دولة من التخزين المحلي`);
         } else {
           throw new Error('تنسيق الدول غير صالح');
         }
@@ -170,12 +109,8 @@ export const loadFromLocalStorage = () => {
       try {
         const parsedCategories = JSON.parse(storedCategories);
         if (Array.isArray(parsedCategories) && parsedCategories.length > 0) {
-          // إزالة التكرارات قبل الإضافة للذاكرة
-          // Remove duplicates before adding to memory
-          const uniqueCategories = removeDuplicates(parsedCategories);
-          categories.push(...uniqueCategories);
-          
-          console.log(`تم تحميل ${categories.length} فئة من التخزين المحلي (تم إزالة ${parsedCategories.length - uniqueCategories.length} فئة مكررة)`);
+          categories.push(...parsedCategories);
+          console.log(`تم تحميل ${categories.length} فئة من التخزين المحلي`);
         } else {
           throw new Error('تنسيق الفئات غير صالح');
         }

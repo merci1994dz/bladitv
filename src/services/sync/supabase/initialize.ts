@@ -1,141 +1,119 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { channels, countries, categories } from '../../dataStore';
-import { Channel, Country, Category } from '@/types';
-import { Json } from '@/integrations/supabase/types';
+import { STORAGE_KEYS } from '../../config';
+import { Channel } from '@/types';
 import { StreamingLink } from '@/types/externalStreaming';
 
 /**
- * تهيئة جداول Supabase واستيراد البيانات إذا كانت فارغة
- * Initialize Supabase tables and import data if empty
+ * تهيئة الجداول في Supabase (للمرة الأولى)
  */
 export const initializeSupabaseTables = async (): Promise<boolean> => {
   try {
-    console.log('التحقق من حالة جداول Supabase وتهيئتها إذا لزم الأمر...');
-    
-    // التحقق من وجود جدول القنوات وتهيئته إذا كان فارغًا
-    const { count: channelsCount, error: channelsError } = await supabase
+    // تحقق مما إذا كانت الجداول موجودة بالفعل
+    const { data: channelsData, error: channelsError } = await supabase
       .from('channels')
-      .select('*', { count: 'exact', head: true });
+      .select('count', { count: 'exact', head: true });
     
     if (channelsError) {
-      console.error('خطأ في التحقق من جدول القنوات:', channelsError);
-      throw channelsError;
+      console.error('خطأ في التحقق من وجود جداول Supabase:', channelsError);
+      // ربما الجداول غير موجودة بعد
+      console.log('جداول Supabase ربما غير موجودة، جاري التهيئة...');
+      return false;
     }
     
-    // التحقق من وجود جدول البلدان وتهيئته إذا كان فارغًا
-    const { count: countriesCount, error: countriesError } = await supabase
-      .from('countries')
-      .select('*', { count: 'exact', head: true });
-    
-    if (countriesError) {
-      console.error('خطأ في التحقق من جدول البلدان:', countriesError);
-      throw countriesError;
-    }
-    
-    // التحقق من وجود جدول الفئات وتهيئته إذا كان فارغًا
-    const { count: categoriesCount, error: categoriesError } = await supabase
-      .from('categories')
-      .select('*', { count: 'exact', head: true });
-    
-    if (categoriesError) {
-      console.error('خطأ في التحقق من جدول الفئات:', categoriesError);
-      throw categoriesError;
-    }
-    
-    // إذا كانت الجداول فارغة، قم باستيراد البيانات من الذاكرة المحلية
-    if (channelsCount === 0 || countriesCount === 0 || categoriesCount === 0) {
-      console.log('تم اكتشاف جداول فارغة في Supabase. بدء استيراد البيانات...');
+    // تحميل البيانات المخزنة محليًا إلى Supabase إذا كانت الجداول فارغة
+    const countValue = typeof channelsData === 'object' && channelsData !== null ? (channelsData as any).count : 0;
+    if (countValue === 0) {
+      console.log('جداول Supabase فارغة، جاري تحميل البيانات المحلية...');
       
-      // استيراد الفئات إذا كان الجدول فارغًا
-      if (categoriesCount === 0 && categories.length > 0) {
-        console.log(`استيراد ${categories.length} فئة إلى Supabase...`);
-        
-        // تحويل الفئات إلى التنسيق المتوافق مع Supabase
-        const categoriesToUpload = categories.map(category => ({
-          id: category.id,
-          name: category.name,
-          icon: category.icon
-        }));
-        
-        const { error: importCategoriesError } = await supabase
-          .from('categories')
-          .insert(categoriesToUpload);
-        
-        if (importCategoriesError) {
-          console.error('خطأ في استيراد الفئات:', importCategoriesError);
-        } else {
-          console.log('تم استيراد الفئات بنجاح');
-        }
-      }
+      await uploadLocalDataToSupabase();
       
-      // استيراد البلدان إذا كان الجدول فارغًا
-      if (countriesCount === 0 && countries.length > 0) {
-        console.log(`استيراد ${countries.length} بلد إلى Supabase...`);
-        
-        // تحويل البلدان إلى التنسيق المتوافق مع Supabase
-        const countriesToUpload = countries.map(country => ({
-          id: country.id,
-          name: country.name,
-          flag: country.flag,
-          image: country.image
-        }));
-        
-        const { error: importCountriesError } = await supabase
-          .from('countries')
-          .insert(countriesToUpload);
-        
-        if (importCountriesError) {
-          console.error('خطأ في استيراد البلدان:', importCountriesError);
-        } else {
-          console.log('تم استيراد البلدان بنجاح');
-        }
-      }
-      
-      // استيراد القنوات إذا كان الجدول فارغًا
-      if (channelsCount === 0 && channels.length > 0) {
-        console.log(`استيراد ${channels.length} قناة إلى Supabase...`);
-        
-        // تحويل القنوات إلى التنسيق المتوافق مع Supabase - مع معالجة external_links لتحويله إلى Json
-        const channelsToUpload = channels.map(channel => ({
-          id: channel.id,
-          name: channel.name,
-          logo: channel.logo,
-          stream_url: channel.streamUrl,
-          country: channel.country,
-          category: channel.category,
-          is_favorite: channel.isFavorite,
-          last_watched: channel.lastWatched || null,
-          external_links: channel.externalLinks ? JSON.parse(JSON.stringify(channel.externalLinks)) as Json : null
-        }));
-        
-        // نظرًا لأن عدد القنوات قد يكون كبيرًا، نقوم بإرسالها على دفعات
-        const batchSize = 50;
-        
-        for (let i = 0; i < channelsToUpload.length; i += batchSize) {
-          const batch = channelsToUpload.slice(i, i + batchSize);
-          console.log(`إرسال مجموعة القنوات ${i / batchSize + 1}/${Math.ceil(channelsToUpload.length / batchSize)}`);
-          
-          const { error: importChannelsError } = await supabase
-            .from('channels')
-            .insert(batch);
-          
-          if (importChannelsError) {
-            console.error(`خطأ في استيراد مجموعة القنوات ${i / batchSize + 1}:`, importChannelsError);
-          } else {
-            console.log(`تم استيراد مجموعة القنوات ${i / batchSize + 1} بنجاح`);
-          }
-        }
-      }
-      
-      console.log('تم الانتهاء من استيراد البيانات إلى Supabase');
+      console.log('تم تحميل البيانات المحلية إلى Supabase بنجاح');
     } else {
-      console.log('جميع جداول Supabase تحتوي على بيانات. لا حاجة للاستيراد.');
+      console.log(`جداول Supabase تحتوي على بيانات بالفعل (${countValue} قناة)`);
     }
     
     return true;
   } catch (error) {
     console.error('خطأ في تهيئة جداول Supabase:', error);
     return false;
+  }
+};
+
+/**
+ * تحميل البيانات المخزنة محليًا إلى Supabase
+ */
+const uploadLocalDataToSupabase = async (): Promise<void> => {
+  const storedChannels = localStorage.getItem(STORAGE_KEYS.CHANNELS);
+  const storedCountries = localStorage.getItem(STORAGE_KEYS.COUNTRIES);
+  const storedCategories = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
+  
+  // تحميل القنوات
+  if (storedChannels) {
+    const parsedChannels = JSON.parse(storedChannels);
+    if (Array.isArray(parsedChannels) && parsedChannels.length > 0) {
+      // تحويل البيانات إلى صيغة Supabase
+      const supabaseChannels = parsedChannels.map(ch => {
+        // التأكد من أن المعرف بتنسيق UUID صالح
+        const channelId = ch.id.includes('-') ? ch.id : crypto.randomUUID();
+        
+        return {
+          id: channelId,
+          name: ch.name,
+          logo: ch.logo,
+          stream_url: ch.streamUrl,
+          category: ch.category,
+          country: ch.country,
+          is_favorite: ch.isFavorite, // تم التحديث من isfavorite إلى is_favorite
+          last_watched: ch.lastWatched, // تم التحديث من lastwatched إلى last_watched
+          external_links: ch.externalLinks || []
+        };
+      });
+      
+      const { error } = await supabase.from('channels').insert(supabaseChannels);
+      if (error) {
+        console.error('خطأ في تحميل القنوات إلى Supabase:', error);
+      } else {
+        console.log(`تم تحميل ${supabaseChannels.length} قناة إلى Supabase بنجاح`);
+      }
+    }
+  }
+  
+  // تحميل البلدان
+  if (storedCountries) {
+    const parsedCountries = JSON.parse(storedCountries);
+    if (Array.isArray(parsedCountries) && parsedCountries.length > 0) {
+      // التأكد من أن المعرفات بتنسيق UUID صالح
+      const supabaseCountries = parsedCountries.map(country => ({
+        ...country,
+        id: country.id.includes('-') ? country.id : crypto.randomUUID()
+      }));
+      
+      const { error } = await supabase.from('countries').insert(supabaseCountries);
+      if (error) {
+        console.error('خطأ في تحميل البلدان إلى Supabase:', error);
+      } else {
+        console.log('تم تحميل البلدان إلى Supabase بنجاح');
+      }
+    }
+  }
+  
+  // تحميل الفئات
+  if (storedCategories) {
+    const parsedCategories = JSON.parse(storedCategories);
+    if (Array.isArray(parsedCategories) && parsedCategories.length > 0) {
+      // التأكد من أن المعرفات بتنسيق UUID صالح
+      const supabaseCategories = parsedCategories.map(category => ({
+        ...category,
+        id: category.id.includes('-') ? category.id : crypto.randomUUID()
+      }));
+      
+      const { error } = await supabase.from('categories').insert(supabaseCategories);
+      if (error) {
+        console.error('خطأ في تحميل الفئات إلى Supabase:', error);
+      } else {
+        console.log('تم تحميل الفئات إلى Supabase بنجاح');
+      }
+    }
   }
 };
