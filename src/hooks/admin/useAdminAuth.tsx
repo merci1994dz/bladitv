@@ -28,7 +28,7 @@ export const useAdminAuth = () => {
               toast({
                 title: "وضع غير متصل",
                 description: "أنت تستخدم وضع المسؤول دون اتصال. بعض الميزات قد تكون محدودة.",
-                variant: "warning",
+                variant: "default", // Changed from "warning" to "default"
               });
             }
           }

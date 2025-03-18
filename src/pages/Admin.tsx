@@ -51,7 +51,7 @@ const Admin: React.FC = () => {
       <>
         {showNetworkAlert && (
           <div className="fixed top-0 left-0 right-0 z-50 p-2">
-            <Alert variant={isOffline ? "destructive" : "warning"} className="animate-in">
+            <Alert variant={isOffline ? "destructive" : "default"} className="animate-in">
               <div className="flex items-center">
                 {isOffline ? <WifiOff className="h-4 w-4 mr-2" /> : <Wifi className="h-4 w-4 mr-2" />}
                 <AlertTitle>
@@ -86,7 +86,7 @@ const Admin: React.FC = () => {
   return (
     <div className="container max-w-6xl mx-auto px-4 pb-32 pt-4">
       {showNetworkAlert && (
-        <Alert variant={isOffline ? "destructive" : "warning"} className="mb-4 animate-in">
+        <Alert variant={isOffline ? "destructive" : "default"} className="mb-4 animate-in">
           <div className="flex items-center">
             {isOffline ? <WifiOff className="h-4 w-4 mr-2" /> : <Wifi className="h-4 w-4 mr-2" />}
             <AlertTitle>
