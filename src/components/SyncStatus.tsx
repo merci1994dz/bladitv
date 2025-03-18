@@ -7,14 +7,11 @@ import React, { useEffect, useState } from 'react';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { useQuery } from '@tanstack/react-query';
 import { getLastSyncTime } from '@/services/sync/status/timestamp';
-import { toast } from '@/hooks/use-toast';
 import { useSyncMutations } from './sync/useSyncMutations';
-import SyncErrorNotification from './sync/SyncErrorNotification';
-import { immediateRefresh, clearPageCache, forceDataRefresh, resetAppData } from '../services/sync/forceRefresh';
-import SyncIndicators from './sync/SyncIndicators';
-import SyncButtons from './sync/SyncButtons';
-import AdvancedOptions from './sync/AdvancedOptions';
-import SyncInfo from './sync/SyncInfo';
+import SyncErrorDisplay from './sync/SyncErrorDisplay';
+import SyncActions from './sync/SyncActions';
+import SyncStatusInfo from './sync/SyncStatusInfo';
+import SyncAdvancedOptions from './sync/SyncAdvancedOptions';
 
 export function SyncStatus() {
   const { syncError, checkSourceAvailability, networkStatus } = useAutoSync();
@@ -104,127 +101,36 @@ export function SyncStatus() {
     }
   };
 
-  // معالجة نقر زر المزامنة
-  const handleSyncClick = () => {
-    if (isSyncing || isForceSyncing) return;
-    
-    toast({
-      title: "جاري المزامنة",
-      description: "جاري تحديث البيانات من المصادر المتاحة...",
-      duration: 3000,
-    });
-    
-    runSync();
-  };
-
-  // معالجة نقر زر تحديث البيانات
-  const handleForceDataRefresh = async () => {
-    toast({
-      title: "جاري تحديث البيانات",
-      description: "جاري تحديث البيانات مع منع التخزين المؤقت...",
-      duration: 3000,
-    });
-    
-    await forceDataRefresh();
-    runForceSync();
-  };
-
-  // معالجة نقر زر تحديث الصفحة
-  const handleForceRefresh = () => {
-    toast({
-      title: "جاري تحديث الصفحة",
-      description: "جاري مسح التخزين المؤقت وإعادة تحميل الصفحة...",
-      duration: 2000,
-    });
-    
-    // تنفيذ تحديث فوري مع مسح التخزين المؤقت
-    setTimeout(() => {
-      immediateRefresh();
-    }, 1000);
-  };
-
-  // معالجة مسح التخزين المؤقت
-  const handleClearCache = async () => {
-    toast({
-      title: "جاري مسح التخزين المؤقت",
-      description: "جاري مسح جميع بيانات التخزين المؤقت...",
-      duration: 2000,
-    });
-    
-    const result = await clearPageCache();
-    setCacheCleared(result);
-    
-    toast({
-      title: result ? "تم مسح التخزين المؤقت" : "فشل مسح التخزين المؤقت",
-      description: result ? "تم مسح التخزين المؤقت بنجاح" : "حدث خطأ أثناء مسح التخزين المؤقت",
-      duration: 3000,
-    });
-  };
-
-  // معالجة إعادة ضبط التطبيق
-  const handleResetApp = async () => {
-    const confirmReset = window.confirm("هل أنت متأكد من إعادة ضبط التطبيق؟ سيتم مسح جميع البيانات المخزنة محليًا.");
-    
-    if (confirmReset) {
-      toast({
-        title: "جاري إعادة ضبط التطبيق",
-        description: "جاري مسح جميع البيانات المخزنة وإعادة تحميل الصفحة...",
-        duration: 3000,
-      });
-      
-      await resetAppData();
-      
-      // إعادة تحميل الصفحة بعد مهلة قصيرة
-      setTimeout(() => {
-        window.location.href = window.location.origin + window.location.pathname + 
-          `?reset=${Date.now()}&nocache=true`;
-      }, 2000);
-    }
-  };
-
-  // معالجة تبديل عرض الخيارات المتقدمة
-  const toggleAdvancedOptions = () => {
-    setShowAdvanced(!showAdvanced);
-  };
-
   return (
     <div className="flex flex-col space-y-2 p-4 border rounded-lg bg-background shadow-sm">
-      {/* عرض إشعار الخطأ إذا وجد */}
-      {syncError && <SyncErrorNotification syncError={syncError} />}
+      {/* Display error notification if there's an error */}
+      <SyncErrorDisplay syncError={syncError} />
       
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        {/* معلومات المزامنة */}
-        <SyncInfo 
-          lastSync={lastSync} 
-          formatLastSync={formatLastSync} 
-        />
-        
-        {/* مؤشرات الحالة */}
-        <SyncIndicators 
-          networkStatus={networkStatus} 
-          syncError={syncError} 
-          cacheCleared={cacheCleared}
-          deploymentPlatform={deploymentPlatform}
-        />
-      </div>
+      {/* Status information section */}
+      <SyncStatusInfo 
+        lastSync={lastSync}
+        formatLastSync={formatLastSync}
+        networkStatus={networkStatus}
+        syncError={syncError}
+        cacheCleared={cacheCleared}
+        deploymentPlatform={deploymentPlatform}
+      />
       
-      {/* أزرار المزامنة والتحديث */}
-      <SyncButtons 
+      {/* Sync action buttons */}
+      <SyncActions 
         isSyncing={isSyncing}
         isForceSyncing={isForceSyncing}
         networkStatus={networkStatus}
-        handleSyncClick={handleSyncClick}
-        handleForceDataRefresh={handleForceDataRefresh}
-        handleForceRefresh={handleForceRefresh}
-        handleClearCache={handleClearCache}
-        toggleAdvancedOptions={toggleAdvancedOptions}
+        runSync={runSync}
+        runForceSync={runForceSync}
+        setCacheCleared={setCacheCleared}
+        toggleAdvanced={() => setShowAdvanced(!showAdvanced)}
         showAdvanced={showAdvanced}
       />
       
-      {/* الخيارات المتقدمة */}
-      <AdvancedOptions 
+      {/* Advanced options section */}
+      <SyncAdvancedOptions 
         showAdvanced={showAdvanced}
-        handleResetApp={handleResetApp}
         availableSource={availableSource}
       />
     </div>
