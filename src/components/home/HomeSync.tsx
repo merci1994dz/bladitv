@@ -58,10 +58,10 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
       size="sm"
       onClick={handleSync}
       disabled={isSyncing}
-      className="flex items-center gap-1 bg-background/80 hover:bg-background transition-all shadow-sm hover:shadow"
+      className="flex items-center gap-2 bg-background/90 hover:bg-background transition-all shadow-md hover:shadow-lg hover:scale-105 duration-200 rounded-lg border-primary/20"
     >
-      <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin text-primary' : ''}`} />
-      <span>{isSyncing ? "جاري التحديث..." : "تحديث"}</span>
+      <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin text-primary' : 'text-primary'}`} />
+      <span className="font-medium">{isSyncing ? "جاري التحديث..." : "تحديث"}</span>
     </Button>
   );
 };

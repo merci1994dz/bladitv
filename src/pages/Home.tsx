@@ -67,7 +67,7 @@ const Home: React.FC = () => {
     return (
       <div className="container mx-auto px-4 py-8">
         <HomeHeader />
-        <div className="flex justify-center items-center min-h-[50vh]">
+        <div className="flex justify-center items-center min-h-[60vh]">
           <LoadingIndicator size="large" text="جاري تحميل القنوات..." />
         </div>
       </div>
@@ -76,19 +76,19 @@ const Home: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-background/95">
-      <div className="container mx-auto px-4 py-4 pb-20">
+      <div className="container mx-auto px-4 py-6 pb-20">
         <HomeHeader />
         
-        <div className="mb-6 rounded-xl overflow-hidden shadow-sm">
+        <div className="mb-8 rounded-xl overflow-hidden shadow-lg">
           <HomeTitleSection refetchChannels={refetchChannels} />
-          <div className="bg-card/50 backdrop-blur-sm p-4 rounded-xl">
+          <div className="bg-card/50 backdrop-blur-sm p-5 rounded-xl border-t border-primary/10">
             <AdvancedSearch className="mb-2" />
           </div>
         </div>
         
         {/* Recently watched channels */}
         {recentlyWatched && recentlyWatched.length > 0 && (
-          <div className="mb-8 bg-gradient-to-r from-primary/5 via-primary/10 to-background p-4 rounded-xl shadow-sm">
+          <div className="mb-8 bg-gradient-to-r from-primary/10 via-primary/5 to-background p-5 rounded-xl shadow-md">
             <RecentlyWatchedChannels 
               channels={recentlyWatched} 
               isLoading={isLoadingRecent}

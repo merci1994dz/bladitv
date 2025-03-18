@@ -16,10 +16,10 @@ const HomeSearchButton: React.FC = () => {
       variant="outline"
       size="sm"
       onClick={handleOpenSearch}
-      className="flex items-center gap-1 bg-background/80 hover:bg-background transition-all shadow-sm hover:shadow"
+      className="flex items-center gap-2 bg-background/90 hover:bg-background transition-all shadow-md hover:shadow-lg hover:scale-105 duration-200 rounded-lg border-primary/20"
     >
-      <Search className="h-4 w-4" />
-      <span>بحث متقدم</span>
+      <Search className="h-4 w-4 text-primary" />
+      <span className="font-medium">بحث متقدم</span>
     </Button>
   );
 };

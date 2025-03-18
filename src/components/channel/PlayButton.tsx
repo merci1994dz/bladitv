@@ -58,9 +58,9 @@ const PlayButton: React.FC<PlayButtonProps> = ({ channel, onPlay }) => {
       {isLoading ? (
         <Loader2 size={18} className="animate-spin ml-2" />
       ) : (
-        <Tv size={18} className="ml-2" />
+        <Play size={18} className="ml-2" />
       )}
-      <span className={`${isTV ? 'text-lg' : 'text-base'}`}>{isLoading ? "جاري التحميل..." : "مشاهدة"}</span>
+      <span className={`${isTV ? 'text-lg' : 'text-base'} font-medium`}>{isLoading ? "جاري التحميل..." : "مشاهدة"}</span>
     </Button>
   );
 };

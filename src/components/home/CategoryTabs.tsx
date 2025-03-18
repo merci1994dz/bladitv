@@ -44,11 +44,11 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
 
   return (
     <Tabs defaultValue="all" value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
-      <div className="bg-gradient-to-r from-primary/5 to-background px-2 py-2 rounded-xl mb-6">
-        <TabsList className="flex flex-wrap h-auto py-2 px-2 gap-2 bg-background/50 backdrop-blur-sm rounded-lg">
+      <div className="bg-gradient-to-r from-primary/10 to-background p-4 rounded-xl mb-6 shadow-sm">
+        <TabsList className="flex flex-wrap h-auto py-2 px-2 gap-3 bg-background/70 backdrop-blur-sm rounded-xl shadow-inner">
           <TabsTrigger 
             value="all" 
-            className="rounded-md text-sm py-2 shadow-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            className="rounded-md text-sm py-2 px-4 font-medium shadow-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200 hover:scale-105"
           >
             جميع القنوات
           </TabsTrigger>
@@ -57,7 +57,7 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
             <TabsTrigger 
               key={category.id} 
               value={category.id}
-              className="rounded-md text-sm py-2 shadow-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              className="rounded-md text-sm py-2 px-4 font-medium shadow-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200 hover:scale-105"
             >
               {category.name}
             </TabsTrigger>
