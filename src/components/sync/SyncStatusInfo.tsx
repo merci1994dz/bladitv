@@ -2,6 +2,7 @@
 import React from 'react';
 import { Shield, Wifi, WifiOff, Clock } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Alert } from '@/components/ui/alert';
 
 interface SyncStatusInfoProps {
   networkStatus: {
@@ -21,6 +22,17 @@ const SyncStatusInfo: React.FC<SyncStatusInfoProps> = ({
   lastSyncDuration,
   formatLastSync
 }) => {
+  if (!networkStatus.hasServerAccess) {
+    return (
+      <Alert className="mb-4" variant="destructive">
+        <div className="flex items-center gap-2">
+          <WifiOff className="h-5 w-5" />
+          <span>تعذر الوصول للخادم - سيتم استخدام البيانات المخزنة محليًا</span>
+        </div>
+      </Alert>
+    );
+  }
+
   return (
     <div className="flex flex-col space-y-2">
       <div className="flex items-center space-x-4 space-x-reverse">
@@ -56,7 +68,7 @@ const SyncStatusInfo: React.FC<SyncStatusInfoProps> = ({
               <div className="flex items-center text-sm text-muted-foreground">
                 <Clock className="h-4 w-4 ml-1" />
                 <span>آخر مزامنة: {formatLastSync()}</span>
-                {lastSyncDuration > 0 && (
+                {lastSyncDuration && lastSyncDuration > 0 && (
                   <span className="mr-2">({(lastSyncDuration / 1000).toFixed(1)} ثانية)</span>
                 )}
               </div>

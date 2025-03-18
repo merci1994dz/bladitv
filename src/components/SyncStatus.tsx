@@ -12,20 +12,29 @@ import SyncErrorDisplay from './sync/SyncErrorDisplay';
 import SyncActions from './sync/SyncActions';
 import SyncStatusInfo from './sync/SyncStatusInfo';
 import SyncAdvancedOptions from './sync/SyncAdvancedOptions';
+import { useToast } from '@/hooks/use-toast';
 
 export function SyncStatus() {
   const { syncError, checkSourceAvailability, networkStatus } = useAutoSync();
   const [availableSource, setAvailableSource] = useState<string | null>(null);
   const [cacheCleared, setCacheCleared] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [deploymentPlatform, setDeploymentPlatform] = useState<string>('vercel');
   const [syncStartTime, setSyncStartTime] = useState<number>(0);
   const [lastSyncDuration, setLastSyncDuration] = useState<number>(0);
+  const { toast } = useToast();
   
   const { data: lastSync, refetch: refetchLastSync } = useQuery({
     queryKey: ['lastSync'],
     queryFn: getLastSyncTime,
-    staleTime: 60 * 1000, // دقيقة واحدة
+    staleTime: 60 * 1000,
+    retry: 1,
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "خطأ في الاتصال",
+        description: "تعذر الوصول للخادم. سيتم استخدام البيانات المخزنة محليًا."
+      });
+    }
   });
 
   const { runSync, isSyncing, runForceSync, isForceSyncing } = useSyncMutations(refetchLastSync, {
@@ -47,49 +56,22 @@ export function SyncStatus() {
   }, [isSyncing, syncStartTime]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if (window.location.hostname.includes('vercel.app')) {
-        setDeploymentPlatform('Vercel');
-      } else if (window.location.hostname.includes('netlify.app')) {
-        setDeploymentPlatform('Netlify');
-      } else if (window.location.hostname.includes('github.io')) {
-        setDeploymentPlatform('GitHub Pages');
-      } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        setDeploymentPlatform('محلي');
-      }
-    }
-  }, []);
-
-  useEffect(() => {
     async function checkAvailability() {
       try {
         const source = await checkSourceAvailability();
         setAvailableSource(source);
       } catch (error) {
         console.error('خطأ في التحقق من المصادر المتاحة:', error);
+        toast({
+          variant: "destructive",
+          title: "تعذر الوصول للمصادر",
+          description: "لا يمكن الاتصال بالخادم. سيتم استخدام البيانات المخزنة محليًا."
+        });
       }
     }
     
     checkAvailability();
-  }, [checkSourceAvailability]);
-
-  useEffect(() => {
-    if (deploymentPlatform === 'Vercel') {
-      setTimeout(() => {
-        if (!isSyncing && !isForceSyncing) {
-          runSync();
-        }
-      }, 3000);
-      
-      const intervalId = setInterval(() => {
-        if (!isSyncing && !isForceSyncing && networkStatus.hasInternet) {
-          runSync();
-        }
-      }, 5 * 60 * 1000);
-      
-      return () => clearInterval(intervalId);
-    }
-  }, [deploymentPlatform, isSyncing, isForceSyncing, networkStatus.hasInternet, runSync]);
+  }, [checkSourceAvailability, toast]);
 
   const formatLastSync = () => {
     if (!lastSync) return undefined;
