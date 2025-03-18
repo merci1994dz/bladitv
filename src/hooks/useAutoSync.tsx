@@ -33,7 +33,7 @@ export const useAutoSync = () => {
     }
   }, []);
   
-  // التحقق من مصادر البيانات المتاحة مع آلية تجنب الأخطاء
+  // التحقق من مصادر البيانات المتاحة
   const checkSourceAvailability = useCallback(async () => {
     try {
       // التحقق من حالة الشبكة أولاً
@@ -60,7 +60,7 @@ export const useAutoSync = () => {
     }
   }, [checkNetworkStatus]);
   
-  // تهيئة جداول Supabase مع محاولات إعادة
+  // تهيئة جداول Supabase
   const initializeSupabase = useCallback(async () => {
     try {
       setIsSyncing(true);
@@ -137,7 +137,7 @@ export const useAutoSync = () => {
     }).catch(console.error);
   }, [toast, checkNetworkStatus, checkSourceAvailability]);
   
-  // معالجة التركيز على التبويب (مع تأخير لمنع المزامنات المتعددة)
+  // معالجة التركيز على التبويب
   const handleFocus = useCallback(() => {
     setTimeout(() => {
       console.log('تم اكتشاف العودة إلى التبويب، جاري التحقق من التحديثات...');

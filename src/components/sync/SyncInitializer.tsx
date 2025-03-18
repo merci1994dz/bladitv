@@ -27,7 +27,7 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
   const lastSyncTimeRef = useRef(0);
   const [hasSynced, setHasSynced] = useState(false);
   
-  // تهيئة المزامنة - تحسين بحيث لا يستخدم البيانات المحلية إلا عند الضرورة فقط
+  // تهيئة المزامنة - استخدام Supabase فقط عند الاتصال بالإنترنت
   useEffect(() => {
     // فحص إذا كان الاتصال بالإنترنت متاح
     const hasInternetConnection = navigator.onLine && networkStatus.hasInternet;
@@ -36,7 +36,6 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
     if (hasInternetConnection) {
       console.log('تم اكتشاف اتصال بالإنترنت، البدء بالمزامنة مع Supabase');
       
-      // تعيين مؤقت للتهيئة الأولية مع تأخير قصير لمنع التعارضات
       const initialSyncTimeout = setTimeout(async () => {
         if (!isMountedRef.current) return;
         
@@ -77,8 +76,7 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
                 }
               }, 7000 * syncAttemptsRef.current); // زيادة التأخير مع كل محاولة
             } else {
-              // لا نستخدم البيانات المحلية عند وجود اتصال بالإنترنت ولكن فشلت المزامنة
-              // بدلاً من ذلك، نخبر المستخدم بالمشكلة
+              // عند فشل المزامنة، نبلغ المستخدم بدلاً من استخدام البيانات المحلية
               toast({
                 title: "تعذر المزامنة مع الخادم",
                 description: "هناك مشكلة في الاتصال بالخادم. الرجاء المحاولة مرة أخرى لاحقًا.",
@@ -90,9 +88,9 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
         };
         
         initialize();
-      }, 1000); // تقليل التأخير إلى 1 ثانية فقط
+      }, 1000);
       
-      // إعداد مزامنة دورية بوقت عشوائي لمنع تزامن الطلبات من عدة مستخدمين
+      // إعداد مزامنة دورية
       const randomInterval = 10 * 60 * 1000 + (Math.random() * 2 * 60 * 1000);
       
       const syncInterval = setInterval(() => {
