@@ -1,7 +1,5 @@
 
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getRecentlyWatchedChannels } from '@/services/api';
 import { Channel } from '@/types';
 import { History, Clock } from 'lucide-react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -29,13 +27,15 @@ const RecentlyWatchedChannels: React.FC<RecentlyWatchedChannelsProps> = ({
   };
 
   return (
-    <section className="mb-6 px-4">
+    <section className="mb-2">
       <div className="container mx-auto">
         <div className="flex items-center mb-4">
-          <div className="bg-gradient-to-r from-primary/80 to-primary rounded-full p-2 mr-2 shadow-sm">
-            <History className="h-5 w-5 text-white" />
+          <div className="bg-primary/20 rounded-full p-2 mr-2">
+            <History className="h-5 w-5 text-primary" />
           </div>
-          <h2 className="text-xl font-bold">شوهدت مؤخراً</h2>
+          <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
+            شوهدت مؤخراً
+          </h2>
         </div>
         
         <ScrollArea className="w-full whitespace-nowrap">
@@ -46,7 +46,7 @@ const RecentlyWatchedChannels: React.FC<RecentlyWatchedChannelsProps> = ({
                 className="w-28 shrink-0 transition-all hover:scale-105 cursor-pointer"
                 onClick={() => handleChannelClick(channel)}
               >
-                <div className="relative aspect-square overflow-hidden rounded-lg border border-border/50 shadow-md bg-card">
+                <div className="relative aspect-square overflow-hidden rounded-lg border border-border/30 shadow-md bg-card/80 backdrop-blur-sm hover:shadow-lg transition-all duration-200">
                   <img 
                     src={channel.logo} 
                     alt={channel.name} 

@@ -13,7 +13,7 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const { toast } = useToast();
 
-  // مزامنة القنوات مع مصادر BLADI
+  // Synchronize channels with BLADI sources
   const handleSync = async () => {
     setIsSyncing(true);
     
@@ -23,8 +23,7 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
         description: "جاري جلب أحدث القنوات من المصادر الخارجية..."
       });
       
-      // استدعاء وظيفة المزامنة مع وضع العلم على true لفرض التحديث
-      // وتجنب إضافة قنوات متشابهة
+      // Call sync function with force flag to update and prevent duplicates
       const result = await syncWithBladiInfo(true, { preventDuplicates: true });
       
       if (result.updated) {
@@ -33,7 +32,7 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
           description: `تم تحديث ${result.channelsCount} قناة بنجاح`
         });
         
-        // إعادة تحميل القنوات
+        // Reload channels
         await refetchChannels();
       } else {
         toast({
@@ -59,10 +58,10 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
       size="sm"
       onClick={handleSync}
       disabled={isSyncing}
-      className="flex items-center gap-1"
+      className="flex items-center gap-1 bg-background/80 hover:bg-background transition-all shadow-sm hover:shadow"
     >
-      <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-      <span>تحديث</span>
+      <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin text-primary' : ''}`} />
+      <span>{isSyncing ? "جاري التحديث..." : "تحديث"}</span>
     </Button>
   );
 };

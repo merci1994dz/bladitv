@@ -62,7 +62,7 @@ const Home: React.FC = () => {
     return channel.category === selectedCategory;
   }) || [];
 
-  // عرض مؤشر التحميل أثناء تحميل البيانات
+  // Show loading indicator while loading data
   if (isLoadingChannels || isLoadingCategories) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -75,35 +75,39 @@ const Home: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-4 pb-20">
-      <HomeHeader />
-      
-      <div className="mb-4">
-        <HomeTitleSection refetchChannels={refetchChannels} />
-        <AdvancedSearch className="mb-6" />
-      </div>
-      
-      {/* القنوات المشاهدة مؤخرًا */}
-      {recentlyWatched && recentlyWatched.length > 0 && (
-        <div className="mb-8">
-          <RecentlyWatchedChannels 
-            channels={recentlyWatched} 
-            isLoading={isLoadingRecent}
-            onChannelClick={handlePlayChannel} 
-          />
+    <div className="min-h-screen bg-gradient-to-b from-background to-background/95">
+      <div className="container mx-auto px-4 py-4 pb-20">
+        <HomeHeader />
+        
+        <div className="mb-6 rounded-xl overflow-hidden shadow-sm">
+          <HomeTitleSection refetchChannels={refetchChannels} />
+          <div className="bg-card/50 backdrop-blur-sm p-4 rounded-xl">
+            <AdvancedSearch className="mb-2" />
+          </div>
         </div>
-      )}
+        
+        {/* Recently watched channels */}
+        {recentlyWatched && recentlyWatched.length > 0 && (
+          <div className="mb-8 bg-gradient-to-r from-primary/5 via-primary/10 to-background p-4 rounded-xl shadow-sm">
+            <RecentlyWatchedChannels 
+              channels={recentlyWatched} 
+              isLoading={isLoadingRecent}
+              onChannelClick={handlePlayChannel} 
+            />
+          </div>
+        )}
 
-      {/* تبويبات الفئات */}
-      <CategoryTabs 
-        selectedCategory={selectedCategory}
-        setSelectedCategory={setSelectedCategory}
-        categories={categories}
-        filteredChannels={filteredChannels}
-        countries={countries}
-        onPlayChannel={handlePlayChannel}
-        onToggleFavorite={handleToggleFavorite}
-      />
+        {/* Category tabs */}
+        <CategoryTabs 
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
+          categories={categories}
+          filteredChannels={filteredChannels}
+          countries={countries}
+          onPlayChannel={handlePlayChannel}
+          onToggleFavorite={handleToggleFavorite}
+        />
+      </div>
     </div>
   );
 };

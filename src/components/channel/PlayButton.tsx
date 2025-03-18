@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Play, Loader2, Tv } from 'lucide-react';
 import { Channel } from '@/types';
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { useDeviceType } from '@/hooks/use-tv';
 
@@ -14,6 +14,7 @@ interface PlayButtonProps {
 const PlayButton: React.FC<PlayButtonProps> = ({ channel, onPlay }) => {
   const [isLoading, setIsLoading] = useState(false);
   const { isTV } = useDeviceType();
+  const { toast } = useToast();
 
   const handlePlay = (e: React.MouseEvent) => {
     e.preventDefault();

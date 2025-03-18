@@ -44,20 +44,28 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
 
   return (
     <Tabs defaultValue="all" value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
-      <TabsList className="mb-4 flex flex-wrap h-auto py-1 px-1 gap-1">
-        <TabsTrigger value="all" className="rounded-md">جميع القنوات</TabsTrigger>
-        {uniqueCategories.map((category) => (
+      <div className="bg-gradient-to-r from-primary/5 to-background px-2 py-2 rounded-xl mb-6">
+        <TabsList className="flex flex-wrap h-auto py-2 px-2 gap-2 bg-background/50 backdrop-blur-sm rounded-lg">
           <TabsTrigger 
-            key={category.id} 
-            value={category.id}
-            className="rounded-md"
+            value="all" 
+            className="rounded-md text-sm py-2 shadow-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
           >
-            {category.name}
+            جميع القنوات
           </TabsTrigger>
-        ))}
-      </TabsList>
+          
+          {uniqueCategories.map((category) => (
+            <TabsTrigger 
+              key={category.id} 
+              value={category.id}
+              className="rounded-md text-sm py-2 shadow-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              {category.name}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </div>
       
-      <TabsContent value={selectedCategory} className="mt-0">
+      <TabsContent value={selectedCategory} className="mt-0 animate-fade-in">
         <ChannelsList 
           channels={filteredChannels}
           countries={countries || []}
