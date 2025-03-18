@@ -32,7 +32,6 @@ export const useNetworkStatus = () => {
         title: "انقطع الاتصال",
         description: "أنت الآن في وضع عدم الاتصال. سيتم استخدام البيانات المخزنة محليًا.",
         variant: "destructive",
-        duration: 5000,
       });
       setCheckAttempts(0);
       setIsChecking(false);
@@ -40,8 +39,7 @@ export const useNetworkStatus = () => {
     }
     
     const currentTime = Date.now();
-    const shouldDoFullCheck = isOnline && 
-      (currentTime - lastCheckTime > 30000 || checkAttempts < 2);
+    const shouldDoFullCheck = currentTime - lastCheckTime > 30000 || checkAttempts < 2;
     
     if (shouldDoFullCheck) {
       try {
@@ -68,14 +66,12 @@ export const useNetworkStatus = () => {
           toast({
             title: "تم استعادة الاتصال",
             description: "جاري تحديث البيانات من المصادر المتاحة...",
-            duration: 4000,
           });
         } else if (status.hasInternet && !status.hasServerAccess) {
           toast({
             title: "اتصال محدود",
             description: "يمكن الوصول للإنترنت ولكن ليس للخادم. سيتم الاعتماد على البيانات المخزنة.",
             variant: "destructive",
-            duration: 5000,
           });
         }
       } catch (error) {
@@ -87,12 +83,12 @@ export const useNetworkStatus = () => {
     setIsChecking(false);
     return isOnline;
   }, [toast, checkAttempts, lastCheckTime, isChecking, networkStatus.hasServerAccess]);
-  
+
   const retryConnection = useCallback(async () => {
     setCheckAttempts(0);
     return await handleNetworkChange();
   }, [handleNetworkChange]);
-  
+
   useEffect(() => {
     console.log('إعداد مراقبة حالة الشبكة');
     const onlineHandler = () => handleNetworkChange();
@@ -108,7 +104,7 @@ export const useNetworkStatus = () => {
       window.removeEventListener('offline', offlineHandler);
     };
   }, [handleNetworkChange]);
-  
+
   return { 
     isOffline, 
     networkStatus, 
