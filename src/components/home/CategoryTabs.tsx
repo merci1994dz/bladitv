@@ -24,20 +24,22 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
   onPlayChannel,
   onToggleFavorite
 }) => {
-  // إنشاء مجموعة لإزالة الفئات المكررة بناءً على المعرّف
+  // Create a list of unique categories by ID
   const uniqueCategories = React.useMemo(() => {
-    if (!categories) return [];
+    if (!categories || categories.length === 0) return [];
     
-    // إنشاء خريطة للفئات الفريدة باستخدام المعرّف كمفتاح
-    const uniqueMap = new Map();
+    // Use a Map to ensure uniqueness by ID
+    const uniqueMap = new Map<string, Category>();
+    
     categories.forEach(category => {
       if (!uniqueMap.has(category.id)) {
         uniqueMap.set(category.id, category);
       }
     });
     
-    // تحويل الخريطة إلى مصفوفة
-    return Array.from(uniqueMap.values());
+    // Convert Map values to an array and sort by name
+    return Array.from(uniqueMap.values())
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [categories]);
 
   return (
