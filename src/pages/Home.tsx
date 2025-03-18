@@ -27,13 +27,25 @@ const Home: React.FC = () => {
     queryFn: getChannels,
     retry: 3,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
-    onError: (error) => {
-      console.error("Error fetching channels:", error);
-      toast({
-        title: "خطأ في تحميل القنوات",
-        description: "حدث خطأ أثناء تحميل القنوات. يرجى المحاولة مرة أخرى لاحقًا.",
-        variant: "destructive",
-      });
+    meta: {
+      onError: (error: Error) => {
+        console.error("Error fetching channels:", error);
+        toast({
+          title: "خطأ في تحميل القنوات",
+          description: "حدث خطأ أثناء تحميل القنوات. يرجى المحاولة مرة أخرى لاحقًا.",
+          variant: "destructive",
+        });
+      }
+    },
+    onSettled: (data, error) => {
+      if (error) {
+        console.error("Error fetching channels:", error);
+        toast({
+          title: "خطأ في تحميل القنوات",
+          description: "حدث خطأ أثناء تحميل القنوات. يرجى المحاولة مرة أخرى لاحقًا.",
+          variant: "destructive",
+        });
+      }
     }
   });
 
