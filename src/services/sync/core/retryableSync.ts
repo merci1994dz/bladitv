@@ -34,7 +34,7 @@ export async function executeRetryableSync<T>(
       syncOperation,
       {
         ...createProgressiveRetryStrategy(maxRetries, criticalOperation),
-        maxDelay: timeout, // Adding maxDelay explicitly from the timeout parameter
+        maxDelay: timeout, // إضافة maxDelay بشكل صريح من معلمة timeout
         onRetry: (error, attempt, delay) => {
           console.log(`إعادة محاولة ${operationName} (${attempt}/${maxRetries}) بعد ${delay}ms / Retrying ${operationName} (${attempt}/${maxRetries}) after ${delay}ms`);
           

@@ -4,6 +4,7 @@
  */
 
 import { toast } from '@/hooks/use-toast';
+import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';
 
 // أنواع الأخطاء المعرفة في النظام
 export enum ErrorType {
@@ -13,6 +14,9 @@ export enum ErrorType {
   DATA = 'data',
   VALIDATION = 'validation',
   STORAGE = 'storage',
+  TIMEOUT = 'timeout',
+  CORS = 'cors',
+  SUPABASE = 'supabase',
   UNKNOWN = 'unknown'
 }
 
@@ -24,19 +28,74 @@ export interface AppError {
   code?: string | number;
   context?: Record<string, unknown>;
   retryable: boolean;
+  vercelSpecific?: boolean;
 }
 
 /**
  * دالة لتصنيف الأخطاء وتوحيدها
  */
 export function classifyError(error: unknown): AppError {
+  // تسجيل الخطأ الأصلي للأغراض التشخيصية
+  console.warn("تصنيف الخطأ:", error);
+  
+  // الكشف عما إذا كان الخطأ متعلقاً بـ Vercel
+  const isVercel = isRunningOnVercel();
+  
+  // التعامل مع أخطاء إلغاء الطلب والمهلة
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return {
+      type: ErrorType.TIMEOUT,
+      message: 'تم إلغاء الطلب بسبب تجاوز المهلة الزمنية',
+      originalError: error,
+      retryable: true,
+      vercelSpecific: isVercel
+    };
+  }
+  
   // التعامل مع أخطاء الشبكة
-  if (error instanceof TypeError && error.message.includes('fetch')) {
+  if (error instanceof TypeError && (
+      error.message.includes('fetch') || 
+      error.message.includes('network') || 
+      error.message.includes('Failed to fetch')
+    )) {
     return {
       type: ErrorType.NETWORK,
       message: 'تعذر الاتصال بالخادم، يرجى التحقق من اتصالك بالإنترنت',
       originalError: error,
-      retryable: true
+      retryable: true,
+      vercelSpecific: isVercel && error.message.includes('CORS')
+    };
+  }
+
+  // التعامل مع أخطاء CORS
+  if (error instanceof Error && (
+      error.message.includes('CORS') || 
+      error.message.includes('cross-origin') ||
+      error.message.includes('access-control-allow-origin')
+    )) {
+    return {
+      type: ErrorType.CORS,
+      message: 'خطأ في سياسة CORS، يتعذر الوصول إلى المصدر',
+      originalError: error,
+      retryable: true,
+      vercelSpecific: isVercel
+    };
+  }
+
+  // التعامل مع أخطاء Supabase
+  if (error instanceof Error && (
+      error.message.includes('supabase') || 
+      error.message.includes('postgres') ||
+      (error as any)?.code?.startsWith('PGRST')
+    )) {
+    const code = (error as any)?.code;
+    return {
+      type: ErrorType.SUPABASE,
+      message: `خطأ في الاتصال بـ Supabase: ${error.message}`,
+      code: code,
+      originalError: error,
+      retryable: !code?.includes('PGRST30'), // أخطاء المصادقة غير قابلة للإعادة عادةً
+      vercelSpecific: isVercel
     };
   }
 
@@ -50,7 +109,19 @@ export function classifyError(error: unknown): AppError {
         message: 'غير مصرح لك بالوصول إلى هذا المورد',
         code: status,
         originalError: error,
-        retryable: false
+        retryable: false,
+        vercelSpecific: isVercel
+      };
+    }
+    
+    if (status === 429) {
+      return {
+        type: ErrorType.SERVER,
+        message: 'تم تجاوز حد الطلبات، يرجى المحاولة لاحقًا',
+        code: status,
+        originalError: error,
+        retryable: true,
+        vercelSpecific: isVercel
       };
     }
     
@@ -60,16 +131,18 @@ export function classifyError(error: unknown): AppError {
         message: 'حدث خطأ في الخادم، يرجى المحاولة مرة أخرى لاحقًا',
         code: status,
         originalError: error,
-        retryable: true
+        retryable: true,
+        vercelSpecific: isVercel
       };
     }
     
     return {
       type: ErrorType.SERVER,
-      message: 'حدث خطأ في الخادم',
+      message: `خطأ في الخادم (${status})`,
       code: status,
       originalError: error,
-      retryable: status < 500
+      retryable: status < 500,
+      vercelSpecific: isVercel
     };
   }
 
@@ -85,7 +158,24 @@ export function classifyError(error: unknown): AppError {
       type: ErrorType.DATA,
       message: 'خطأ في تنسيق البيانات المستلمة',
       originalError: error,
-      retryable: false
+      retryable: false,
+      vercelSpecific: isVercel
+    };
+  }
+
+  // التعامل مع تجاوز المهلة
+  if (
+    error instanceof Error && 
+    (error.message.includes('timeout') || 
+     error.message.includes('مهلة') || 
+     error.message.includes('تجاوز الوقت'))
+  ) {
+    return {
+      type: ErrorType.TIMEOUT,
+      message: 'تجاوز الطلب للوقت المحدد، يرجى المحاولة مرة أخرى',
+      originalError: error,
+      retryable: true,
+      vercelSpecific: isVercel
     };
   }
 
@@ -99,7 +189,8 @@ export function classifyError(error: unknown): AppError {
         type: ErrorType.VALIDATION,
         message: error.message,
         originalError: error,
-        retryable: false
+        retryable: false,
+        vercelSpecific: isVercel
       };
     }
     
@@ -108,7 +199,8 @@ export function classifyError(error: unknown): AppError {
         type: ErrorType.STORAGE,
         message: 'حدث خطأ أثناء معالجة الملفات',
         originalError: error,
-        retryable: true
+        retryable: true,
+        vercelSpecific: isVercel
       };
     }
     
@@ -117,7 +209,8 @@ export function classifyError(error: unknown): AppError {
         type: ErrorType.NETWORK,
         message: 'مشكلة في الاتصال بالشبكة',
         originalError: error,
-        retryable: true
+        retryable: true,
+        vercelSpecific: isVercel
       };
     }
   }
@@ -127,7 +220,8 @@ export function classifyError(error: unknown): AppError {
     type: ErrorType.UNKNOWN,
     message: error instanceof Error ? error.message : 'حدث خطأ غير معروف',
     originalError: error,
-    retryable: true
+    retryable: true,
+    vercelSpecific: isVercel
   };
 }
 
@@ -137,14 +231,22 @@ export function classifyError(error: unknown): AppError {
 export function handleError(error: unknown, context: string = ''): AppError {
   const appError = classifyError(error);
   
-  console.error(`خطأ في ${context}:`, appError);
+  console.error(`خطأ في ${context || 'التطبيق'}:`, appError);
   
-  // عرض إشعار للمستخدم
+  // عرض إشعار مخصص للمستخدم بناءً على نوع الخطأ
+  const toastDuration = appError.vercelSpecific ? 7000 : 5000; // إطالة مدة الإشعار لأخطاء Vercel
+  
+  // تجنب عرض إشعارات متكررة للأخطاء المتشابهة
+  const toastId = `error-${appError.type}-${Date.now()}`;
+  
   toast({
+    id: toastId,
     title: getErrorTitle(appError.type),
-    description: appError.message,
+    description: appError.vercelSpecific 
+      ? `${appError.message} (يبدو أن هذا الخطأ خاص بـ Vercel)` 
+      : appError.message,
     variant: "destructive",
-    duration: 5000,
+    duration: toastDuration,
   });
   
   return appError;
@@ -167,6 +269,12 @@ function getErrorTitle(type: ErrorType): string {
       return 'خطأ في التحقق';
     case ErrorType.STORAGE:
       return 'خطأ في التخزين';
+    case ErrorType.TIMEOUT:
+      return 'تجاوز الوقت المحدد';
+    case ErrorType.CORS:
+      return 'خطأ في سياسة CORS';
+    case ErrorType.SUPABASE:
+      return 'خطأ في Supabase';
     default:
       return 'خطأ غير متوقع';
   }

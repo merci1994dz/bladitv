@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, RefreshCw, Wifi, HelpCircle, DatabaseIcon } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Wifi, HelpCircle, DatabaseIcon, Clock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface VideoErrorProps {
@@ -33,7 +33,8 @@ const VideoError: React.FC<VideoErrorProps> = ({
       url: streamUrl ? `${streamUrl.substring(0, 30)}...` : 'غير متوفر',
       browser: navigator.userAgent,
       time: new Date().toLocaleTimeString(),
-      networkState: typeof window !== 'undefined' && navigator.onLine ? 'متصل' : 'غير متصل'
+      networkState: typeof window !== 'undefined' && navigator.onLine ? 'متصل' : 'غير متصل',
+      isVercel: typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
     };
     
     toast({
@@ -55,10 +56,12 @@ const VideoError: React.FC<VideoErrorProps> = ({
       return "تأكد من اتصالك بالإنترنت واختر 'إعادة المحاولة'";
     } else if (error.includes('انقر للتشغيل') || error.includes('التشغيل التلقائي')) {
       return "انقر على زر التشغيل للبدء";
-    } else if (error.includes('تعذر تشغيل البث')) {
+    } else if (error.includes('تعذر تشغيل البث') || error.includes('تشغيل الفيديو')) {
       return "جرب تغيير مصدر البث أو العودة لاحقًا";
     } else if (error.includes('مصادر البيانات') || error.includes('قاعدة البيانات')) {
       return "يوجد مشكلة في الاتصال بمصادر البيانات، يتم استخدام البيانات المحلية";
+    } else if (error.includes('تجاوز الوقت') || error.includes('مهلة')) {
+      return "استغرق تحميل البث وقتًا طويلاً، حاول مرة أخرى أو اختر قناة أخرى";
     } else if (!isRecoverable) {
       return "هذه المشكلة لا يمكن حلها تلقائيًا. جرب استخدام قناة أخرى.";
     } else if (attempts > 2) {
@@ -74,6 +77,8 @@ const VideoError: React.FC<VideoErrorProps> = ({
       return <Wifi className="h-8 w-8 text-red-500 mb-2" />;
     } else if (error.includes('بيانات') || error.includes('مصادر')) {
       return <DatabaseIcon className="h-8 w-8 text-amber-500 mb-2" />;
+    } else if (error.includes('تجاوز الوقت') || error.includes('مهلة')) {
+      return <Clock className="h-8 w-8 text-orange-500 mb-2" />;
     }
     return <AlertTriangle className="h-8 w-8 text-red-500 mb-2" />;
   };
@@ -82,6 +87,8 @@ const VideoError: React.FC<VideoErrorProps> = ({
   const getBackgroundStyle = () => {
     if (error.includes('بيانات') || error.includes('مصادر')) {
       return "bg-black/80 border-amber-500/20";
+    } else if (error.includes('تجاوز الوقت') || error.includes('مهلة')) {
+      return "bg-black/80 border-orange-500/20";
     } else if (!isRecoverable) {
       return "bg-black/90 border-red-700/30";
     }

@@ -7,8 +7,9 @@
 import { validateRemoteData } from '../../remoteValidation';
 import { fetchLocalFile } from './localFetch';
 import { tryJsonpStrategy, tryProxyStrategy, tryDirectFetchStrategy } from './fetchStrategies';
-import { exponentialBackoff, addCacheBusterToUrl } from './retryStrategies';
+import { addCacheBusterToUrl } from './retryStrategies';
 import { enhanceFetchError } from './errorHandling';
+import { isRunningOnVercel } from './skewProtection';
 
 /**
  * جلب البيانات من مصدر خارجي مع آليات متعددة للمحاولة
@@ -26,15 +27,16 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
   // ضمان وجود معلمات منع التخزين المؤقت في الرابط
   const urlWithCacheBuster = addCacheBusterToUrl(remoteUrl);
   
-  // إعداد مراقبة الوقت - تقليل وقت المهلة من 30 ثانية إلى 15 ثانية
+  // إعداد مراقبة الوقت - تعديل وقت المهلة بناءً على بيئة التشغيل
+  const timeoutMs = isRunningOnVercel() ? 20000 : 15000; // مهلة أطول على Vercel
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000); // مهلة 15 ثانية كحد أقصى
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   
   try {
     console.log(`جاري تحميل البيانات من: ${urlWithCacheBuster}`);
     
-    // إعداد محاولات متعددة - تقليل عدد المحاولات من 5 إلى 3
-    const MAX_RETRIES = 3;
+    // إعداد محاولات متعددة - عدد المحاولات بناءً على البيئة
+    const MAX_RETRIES = isRunningOnVercel() ? 4 : 3;
     let retries = MAX_RETRIES;
     let lastError;
     
@@ -42,7 +44,7 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
       try {
         let data;
         
-        // تغيير ترتيب الاستراتيجيات: البدء بالطلب المباشر أولاً
+        // اختيار استراتيجية مناسبة بناءً على البيئة والمحاولة
         // محاولة الطلب المباشر كخيار أول
         try {
           data = await tryDirectFetchStrategy(
@@ -60,24 +62,8 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
           console.warn('فشلت المحاولة المباشرة، المتابعة باستراتيجيات أخرى');
         }
         
-        // محاولة استخدام JSONP ثانياً
-        if (retries <= 2) {
-          try {
-            data = await tryJsonpStrategy(urlWithCacheBuster);
-            console.log('نجحت محاولة JSONP');
-            clearTimeout(timeoutId);
-            
-            // التحقق من صحة البيانات
-            if (validateRemoteData(data)) {
-              return data;
-            }
-          } catch (jsonpError) {
-            console.warn('فشلت محاولة JSONP، المتابعة باستراتيجيات أخرى');
-          }
-        }
-        
-        // محاولة استخدام بروكسي CORS أخيراً
-        if (retries <= 1) {
+        // محاولة استخدام بروكسي CORS ثانياً (أكثر موثوقية على Vercel)
+        if (isRunningOnVercel() || retries <= 2) {
           try {
             data = await tryProxyStrategy(urlWithCacheBuster, controller.signal);
             console.log('نجحت محاولة البروكسي');
@@ -88,7 +74,23 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
               return data;
             }
           } catch (proxyError) {
-            console.warn('فشلت محاولات البروكسي');
+            console.warn('فشلت محاولة البروكسي، المتابعة باستراتيجيات أخرى');
+          }
+        }
+        
+        // محاولة استخدام JSONP أخيراً
+        if (retries <= 1) {
+          try {
+            data = await tryJsonpStrategy(urlWithCacheBuster);
+            console.log('نجحت محاولة JSONP');
+            clearTimeout(timeoutId);
+            
+            // التحقق من صحة البيانات
+            if (validateRemoteData(data)) {
+              return data;
+            }
+          } catch (jsonpError) {
+            console.warn('فشلت محاولات JSONP');
           }
         }
         
@@ -101,8 +103,9 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
         retries--;
         
         if (retries > 0) {
-          // تقليل وقت الانتظار بين المحاولات لتسريع العملية
-          const waitTime = 2000 * (MAX_RETRIES - retries); // وقت انتظار أقصر
+          // استخدام تأخير تصاعدي مع تباطؤ أقل على Vercel
+          const baseWaitTime = isRunningOnVercel() ? 1500 : 2000;
+          const waitTime = baseWaitTime * (MAX_RETRIES - retries); 
           console.log(`الانتظار ${waitTime}ms قبل المحاولة التالية...`);
           await new Promise(resolve => setTimeout(resolve, waitTime));
           

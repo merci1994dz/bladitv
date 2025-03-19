@@ -14,7 +14,8 @@
         { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" },
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "*" }
+        { "key": "Access-Control-Allow-Headers", "value": "*" },
+        { "key": "Timing-Allow-Origin", "value": "*" }
       ]
     },
     {
@@ -36,12 +37,18 @@
   "trailingSlash": false,
   "cleanUrls": true,
   "github": {
-    "silent": true
+    "silent": true,
+    "autoJobCancelation": true
   },
   "functions": {
     "api/*.js": {
-      "memory": 128,
-      "maxDuration": 10
+      "memory": 256,
+      "maxDuration": 15
+    }
+  },
+  "build": {
+    "env": {
+      "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "true"
     }
   }
 }
