@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import AdminLogin from '@/components/AdminLogin';
 import AdminHeader from '@/components/admin/AdminHeader';
@@ -25,19 +25,22 @@ const Admin: React.FC = () => {
   const { data: channels, isLoading: isLoadingChannels } = useQuery({
     queryKey: ['channels'],
     queryFn: getChannels,
-    enabled: isAuthenticated
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000, // 5 دقائق
   });
 
   const { data: countries, isLoading: isLoadingCountries } = useQuery({
     queryKey: ['countries'],
     queryFn: getCountries,
-    enabled: isAuthenticated
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000, // 5 دقائق
   });
 
   const { data: categories, isLoading: isLoadingCategories } = useQuery({
     queryKey: ['categories'],
     queryFn: getCategories,
-    enabled: isAuthenticated
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000, // 5 دقائق
   });
 
   // التحقق من حالة المصادقة عند تحميل المكون
@@ -48,23 +51,6 @@ const Admin: React.FC = () => {
         const isValid = verifyAdminSession();
         setIsAuthenticated(isValid);
         setHasFullAccessEnabled(hasFullAccess());
-        
-        if (isValid) {
-          // تحقق دوري من صلاحية الجلسة
-          const interval = setInterval(() => {
-            if (!verifyAdminSession()) {
-              setIsAuthenticated(false);
-              clearInterval(interval);
-              toast({
-                title: "انتهت الجلسة",
-                description: "انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.",
-                variant: "destructive",
-              });
-            }
-          }, 60000); // التحقق كل دقيقة
-          
-          return () => clearInterval(interval);
-        }
       } catch (error) {
         console.error("Error checking authentication:", error);
         toast({
@@ -80,16 +66,34 @@ const Admin: React.FC = () => {
     checkAuth();
   }, [toast]);
 
-  const handleLoginSuccess = () => {
+  // تحقق دوري من صلاحية الجلسة
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    const interval = setInterval(() => {
+      if (!verifyAdminSession()) {
+        setIsAuthenticated(false);
+        toast({
+          title: "انتهت الجلسة",
+          description: "انتهت صلاحية جلستك. يرجى تسجيل الدخول مرة أخرى.",
+          variant: "destructive",
+        });
+      }
+    }, 60000); // التحقق كل دقيقة
+    
+    return () => clearInterval(interval);
+  }, [isAuthenticated, toast]);
+
+  const handleLoginSuccess = useCallback(() => {
     setIsAuthenticated(true);
     setHasFullAccessEnabled(hasFullAccess());
     toast({
       title: "تم تسجيل الدخول بنجاح",
       description: "أهلاً بك في لوحة الإدارة",
     });
-  };
+  }, [toast]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     logoutAdmin();
     setIsAuthenticated(false);
     setHasFullAccessEnabled(false);
@@ -97,10 +101,10 @@ const Admin: React.FC = () => {
       title: "تم تسجيل الخروج",
       description: "تم تسجيل الخروج بنجاح",
     });
-  };
+  }, [toast]);
   
   // وظيفة جديدة للتحكم في الصلاحيات الكاملة
-  const toggleFullAccess = () => {
+  const toggleFullAccess = useCallback(() => {
     try {
       if (hasFullAccessEnabled) {
         disableFullAccess();
@@ -125,7 +129,13 @@ const Admin: React.FC = () => {
         variant: "destructive",
       });
     }
-  };
+  }, [hasFullAccessEnabled, toast]);
+
+  // حساب حالة تحميل البيانات
+  const isLoadingData = useMemo(() => 
+    isLoadingChannels || isLoadingCountries || isLoadingCategories, 
+    [isLoadingChannels, isLoadingCountries, isLoadingCategories]
+  );
 
   // عرض مؤشر التحميل أثناء فحص حالة المصادقة
   if (isLoading) {
@@ -143,8 +153,6 @@ const Admin: React.FC = () => {
   if (!isAuthenticated) {
     return <AdminLogin onLoginSuccess={handleLoginSuccess} />;
   }
-
-  const isLoadingData = isLoadingChannels || isLoadingCountries || isLoadingCategories;
 
   // عرض لوحة الإدارة إذا تم المصادقة
   return (

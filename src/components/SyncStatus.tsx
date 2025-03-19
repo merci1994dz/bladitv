@@ -12,6 +12,7 @@ import SyncErrorDisplay from './sync/SyncErrorDisplay';
 import SyncActions from './sync/SyncActions';
 import SyncStatusInfo from './sync/SyncStatusInfo';
 import SyncAdvancedOptions from './sync/SyncAdvancedOptions';
+import { toast } from '@/hooks/use-toast';
 
 export function SyncStatus() {
   const { syncError, checkSourceAvailability, networkStatus } = useAutoSync();
@@ -23,11 +24,23 @@ export function SyncStatus() {
   const [lastSyncDuration, setLastSyncDuration] = useState<number>(0);
   
   // جلب آخر وقت مزامنة
-  const { data: lastSync, refetch: refetchLastSync } = useQuery({
+  const { data: lastSync, refetch: refetchLastSync, error: syncQueryError } = useQuery({
     queryKey: ['lastSync'],
     queryFn: getLastSyncTime,
     staleTime: 60 * 1000, // دقيقة واحدة
   });
+
+  // معالجة الأخطاء عند فشل الاستعلام
+  useEffect(() => {
+    if (syncQueryError) {
+      console.error('خطأ في جلب وقت آخر مزامنة:', syncQueryError);
+      toast({
+        title: "تعذر جلب معلومات المزامنة",
+        description: "سيتم استخدام البيانات المخزنة محليًا.",
+        variant: "destructive"
+      });
+    }
+  }, [syncQueryError]);
 
   // استخدام طلبات المزامنة المتغيرة مع التعديلات لتتبع مدة المزامنة
   const { runSync, isSyncing, runForceSync, isForceSyncing } = useSyncMutations(refetchLastSync, {
@@ -135,6 +148,7 @@ export function SyncStatus() {
         deploymentPlatform={deploymentPlatform}
         isSyncing={isSyncing || isForceSyncing}
         lastSyncDuration={lastSyncDuration}
+        syncQueryError={syncQueryError}
       />
       
       {/* Sync action buttons */}

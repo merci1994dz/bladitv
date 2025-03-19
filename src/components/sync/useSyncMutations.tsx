@@ -4,6 +4,7 @@ import { syncWithSupabase } from '@/services/sync/supabaseSync';
 import { forceDataRefresh } from '@/services/sync';
 import { checkBladiInfoAvailability } from '@/services/sync/remote/syncOperations';
 import { useToast } from '@/hooks/use-toast';
+import { handleError } from '@/utils/errorHandling';
 
 interface SyncCallbacks {
   onSyncStart?: () => void;
@@ -16,10 +17,33 @@ export const useSyncMutations = (refetchLastSync: () => void, callbacks?: SyncCa
   
   // تشغيل المزامنة مع Supabase مع تحسين معالجة الأخطاء
   const { mutate: runSync, isPending: isSyncing } = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       // تشغيل وظيفة بدء المزامنة
       callbacks?.onSyncStart?.();
-      return syncWithSupabase(true);
+      
+      // استخدام آلية إعادة المحاولة المحسّنة
+      let attemptCount = 0;
+      const maxAttempts = 2;
+      
+      while (attemptCount < maxAttempts) {
+        try {
+          const result = await syncWithSupabase(true);
+          return result;
+        } catch (error) {
+          attemptCount++;
+          console.warn(`محاولة المزامنة ${attemptCount} فشلت:`, error);
+          
+          // إذا كانت هذه آخر محاولة، ارمِ الخطأ
+          if (attemptCount >= maxAttempts) {
+            throw error;
+          }
+          
+          // انتظر قبل إعادة المحاولة
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+      
+      throw new Error("فشلت جميع محاولات المزامنة");
     },
     onMutate: () => {
       // إظهار رسالة جاري المعالجة للمستخدم
@@ -47,28 +71,27 @@ export const useSyncMutations = (refetchLastSync: () => void, callbacks?: SyncCa
     onError: (error) => {
       console.error('خطأ في المزامنة:', error);
       
-      // رسالة خطأ أكثر تفصيلاً وفائدة
-      const errorMessage = error instanceof Error ? error.message : "حدث خطأ أثناء التحديث";
-      
-      toast({
-        title: "فشلت المزامنة",
-        description: errorMessage.includes('network') || errorMessage.includes('connection')
-          ? "تعذر الاتصال بـ Supabase. يرجى التحقق من اتصالك بالإنترنت."
-          : errorMessage,
-        variant: "destructive",
-      });
+      // استخدام معالج الأخطاء المحسن
+      handleError(error, 'المزامنة مع Supabase');
       
       // إعادة المحاولة تلقائيًا بعد تأخير إذا كان الخطأ متعلقًا بالشبكة
+      const errorMessage = error instanceof Error ? error.message : String(error);
       if (
         (errorMessage.includes('network') || 
          errorMessage.includes('connection') || 
-         errorMessage.includes('timeout')) && 
+         errorMessage.includes('timeout') || 
+         errorMessage.includes('fetch')) && 
         navigator.onLine
       ) {
+        toast({
+          title: "إعادة محاولة المزامنة",
+          description: "جاري إعادة محاولة المزامنة بعد فشل الاتصال...",
+        });
+        
         setTimeout(() => {
           console.log('إعادة محاولة المزامنة بعد فشل الشبكة...');
           runSync();
-        }, 10000);
+        }, 5000);
       }
       
       // تشغيل وظيفة انتهاء المزامنة
@@ -78,15 +101,27 @@ export const useSyncMutations = (refetchLastSync: () => void, callbacks?: SyncCa
       // تشغيل وظيفة انتهاء المزامنة (للتأكد من تنفيذها في جميع الحالات)
       callbacks?.onSyncEnd?.();
     },
-    retry: 1, // تقليل عدد محاولات إعادة المحاولة التلقائية
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 15000), // تقليل زمن الانتظار بين المحاولات
   });
 
   // تشغيل المزامنة القسرية (للمشرفين فقط) مع تحسينات في معالجة الأخطاء
   const { mutate: runForceSync, isPending: isForceSyncing } = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       callbacks?.onSyncStart?.();
-      return forceDataRefresh();
+      
+      try {
+        // تحسين أداء التحديث القسري
+        const cacheCleared = await forceDataRefresh();
+        
+        // جلب البيانات مباشرة بعد مسح ذاكرة التخزين المؤقت
+        if (cacheCleared) {
+          await syncWithSupabase(true);
+        }
+        
+        return cacheCleared;
+      } catch (error) {
+        console.error('خطأ أثناء التحديث القسري:', error);
+        throw error;
+      }
     },
     onMutate: () => {
       toast({
@@ -108,20 +143,14 @@ export const useSyncMutations = (refetchLastSync: () => void, callbacks?: SyncCa
     onError: (error) => {
       console.error('خطأ في التحديث القسري:', error);
       
-      const errorMessage = error instanceof Error ? error.message : "حدث خطأ أثناء إعادة التحميل";
-      
-      toast({
-        title: "فشلت عملية إعادة التحميل",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      // استخدام معالج الأخطاء المحسن
+      handleError(error, 'التحديث القسري');
       
       callbacks?.onSyncEnd?.();
     },
     onSettled: () => {
       callbacks?.onSyncEnd?.();
     },
-    retry: 0, // لا توجد محاولات إعادة للتحديث القسري
   });
   
   return {
