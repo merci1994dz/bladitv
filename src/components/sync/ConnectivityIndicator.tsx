@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from '@/hooks/use-toast';
 import { checkConnectivityIssues } from '@/services/sync/status/connectivity';
+import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';
 
 interface ConnectivityIndicatorProps {
   onRefresh?: () => void;
@@ -21,6 +22,12 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
   const [isChecking, setIsChecking] = useState(false);
   const [serverAccess, setServerAccess] = useState<boolean | null>(null);
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
+  const [isVercel, setIsVercel] = useState(false);
+
+  useEffect(() => {
+    // التحقق من بيئة النشر
+    setIsVercel(isRunningOnVercel());
+  }, []);
 
   const checkConnectivity = async () => {
     if (isChecking) return; // منع الفحص المتزامن
@@ -100,18 +107,19 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
     checkConnectivity();
     
     // فحص دوري كل دقيقة إذا كان هناك محاولات فاشلة
+    // تقليل الفترة على Vercel لتحسين التجربة
     const intervalId = setInterval(() => {
       if (consecutiveFailures > 0 && navigator.onLine) {
         checkConnectivity();
       }
-    }, 60000);
+    }, isVercel ? 30000 : 60000);
     
     return () => {
       window.removeEventListener('online', handleOnlineChange);
       window.removeEventListener('offline', handleOnlineChange);
       clearInterval(intervalId);
     };
-  }, [consecutiveFailures]);
+  }, [consecutiveFailures, isVercel]);
 
   const handleRefreshClick = () => {
     checkConnectivity();
@@ -136,6 +144,7 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
     const isLocalSource = activeSource.startsWith('/');
     const isJsdelivr = activeSource.includes('jsdelivr');
     const isBladiTv = activeSource.includes('bladitv');
+    const isVercelSource = activeSource.includes('vercel.app');
     
     if (isLocalSource) {
       statusText = "متصل (مصدر محلي)";
@@ -143,6 +152,8 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
       statusText = "متصل (CDN)";
     } else if (isBladiTv) {
       statusText = "متصل (BladiTV)";
+    } else if (isVercelSource) {
+      statusText = "متصل (Vercel)";
     } else {
       statusText = "متصل (مصدر خارجي)";
     }
@@ -191,6 +202,11 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
                 "تعذر الوصول إلى خوادم البيانات. يتم استخدام البيانات المخزنة." : 
                 "جاري محاولة الاتصال بالمصادر..."
               }
+            </p>
+          )}
+          {isVercel && (
+            <p className="text-xs text-green-500 mt-1">
+              يعمل التطبيق على Vercel
             </p>
           )}
           <Button

@@ -10,6 +10,7 @@ import { executeRetryableSync } from './core/retryableSync';
 import { handleError } from '@/utils/errorHandling';
 import { syncAllData } from './core/syncOperations';
 import { setSyncTimestamp } from '@/services/sync/status/timestamp';
+import { isRunningOnVercel } from './remote/fetch/skewProtection';
 
 /**
  * مزامنة البيانات مع Supabase
@@ -17,6 +18,10 @@ import { setSyncTimestamp } from '@/services/sync/status/timestamp';
  */
 export async function syncWithSupabase(forceRefresh: boolean = false): Promise<boolean> {
   console.log('بدء المزامنة مع Supabase، التحديث الإجباري = / Starting sync with Supabase, force refresh =', forceRefresh);
+  
+  // على Vercel، تمديد فترة التنفيذ
+  const isOnVercel = isRunningOnVercel();
+  const executionTimeout = isOnVercel ? 30000 : 20000; // 30 ثانية على Vercel، 20 ثانية في غير ذلك
   
   const result = await executeRetryableSync(
     async () => {
@@ -26,15 +31,26 @@ export async function syncWithSupabase(forceRefresh: boolean = false): Promise<b
         const { data, error } = await supabase.from('channels').select('count', { count: 'exact', head: true });
         
         if (error) {
+          console.error('خطأ في الاتصال بـ Supabase:', error);
           throw error;
         }
         
         // إذا نجح الاتصال، قم بتنفيذ المزامنة الكاملة
         // If connection successful, execute full sync
-        const syncResult = await syncAllData(forceRefresh);
+        const syncResult = await syncAllData(true); // دائماً استخدم forceRefresh=true
         
         if (syncResult) {
           setSyncTimestamp(new Date().toISOString());
+          
+          // على Vercel، تخزين معلومات المزامنة الإضافية
+          if (isOnVercel) {
+            try {
+              localStorage.setItem('vercel_sync_success', 'true');
+              localStorage.setItem('vercel_last_sync', new Date().toISOString());
+            } catch (e) {
+              // تجاهل أخطاء التخزين
+            }
+          }
         }
         
         return syncResult;
@@ -44,7 +60,8 @@ export async function syncWithSupabase(forceRefresh: boolean = false): Promise<b
       }
     },
     'المزامنة مع Supabase / Sync with Supabase',
-    true // عملية حرجة / Critical operation
+    true, // عملية حرجة / Critical operation
+    executionTimeout // زيادة المهلة على Vercel
   );
   
   return result || false;
@@ -64,8 +81,14 @@ export function setupRealtimeSync(): () => void {
       .channel('public:channels')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'channels' }, payload => {
         console.log('تم استلام تغيير في قناة في الوقت الحقيقي: / Received real-time channel change:', payload);
-        // هنا يمكنك تنفيذ تحديث فوري للواجهة أو تحديث التخزين المؤقت
-        // Here you can implement immediate UI update or cache update
+        // تسجيل حدث المزامنة إذا كان على Vercel
+        if (isRunningOnVercel()) {
+          try {
+            localStorage.setItem('vercel_realtime_update', new Date().toISOString());
+          } catch (e) {
+            // تجاهل أخطاء التخزين
+          }
+        }
       })
       .subscribe();
     
@@ -73,8 +96,6 @@ export function setupRealtimeSync(): () => void {
       .channel('public:settings')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, payload => {
         console.log('تم استلام تغيير في الإعدادات في الوقت الحقيقي: / Received real-time settings change:', payload);
-        // هنا يمكنك تنفيذ تحديث فوري للواجهة أو تحديث التخزين المؤقت
-        // Here you can implement immediate UI update or cache update
       })
       .subscribe();
     

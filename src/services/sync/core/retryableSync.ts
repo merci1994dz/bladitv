@@ -10,6 +10,7 @@ import { setSyncActive } from '@/services/sync/status/syncState';
 import { setSyncError, clearSyncError } from '@/services/sync/status/errorHandling';
 import { setIsSyncing } from '@/services/dataStore';
 import { toast } from '@/hooks/use-toast';
+import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';
 
 /**
  * تنفيذ عملية مزامنة مع دعم إعادة المحاولة والتعامل مع الأخطاء
@@ -18,19 +19,23 @@ import { toast } from '@/hooks/use-toast';
 export async function executeRetryableSync<T>(
   syncOperation: () => Promise<T>,
   operationName: string,
-  criticalOperation: boolean = false
+  criticalOperation: boolean = false,
+  timeout: number = 20000
 ): Promise<T | null> {
   setSyncActive(true);
   setIsSyncing(true);
   clearSyncError();
   
+  // تحديد عدد المحاولات بناءً على ما إذا كان التطبيق يعمل على Vercel
+  const maxRetries = isRunningOnVercel() ? 5 : 3;
+  
   try {
     return await retry(
       syncOperation,
       {
-        ...createProgressiveRetryStrategy(3, criticalOperation),
+        ...createProgressiveRetryStrategy(maxRetries, criticalOperation, timeout),
         onRetry: (error, attempt, delay) => {
-          console.log(`إعادة محاولة ${operationName} (${attempt}/3) بعد ${delay}ms / Retrying ${operationName} (${attempt}/3) after ${delay}ms`);
+          console.log(`إعادة محاولة ${operationName} (${attempt}/${maxRetries}) بعد ${delay}ms / Retrying ${operationName} (${attempt}/${maxRetries}) after ${delay}ms`);
           
           if (attempt === 1) {
             toast({
@@ -44,9 +49,14 @@ export async function executeRetryableSync<T>(
           const appError = handleError(error, operationName);
           setSyncError(`فشلت عملية ${operationName} بعد ${attempts} محاولات: ${appError.message} / ${operationName} failed after ${attempts} attempts: ${appError.message}`);
           
+          // رسالة خطأ أكثر تفصيلاً على Vercel
+          const errorMessage = isRunningOnVercel() 
+            ? `تعذر إكمال عملية ${operationName} بعد ${attempts} محاولات على Vercel. سيتم استخدام البيانات المحلية.` 
+            : `تعذر إكمال عملية ${operationName} بعد عدة محاولات. سيتم استخدام البيانات المحلية.`;
+            
           toast({
             title: "فشلت المزامنة / Sync Failed",
-            description: `تعذر إكمال عملية ${operationName} بعد عدة محاولات. سيتم استخدام البيانات المحلية. / Could not complete ${operationName} after several attempts. Local data will be used.`,
+            description: errorMessage,
             variant: "destructive",
             duration: 5000,
           });
@@ -72,11 +82,14 @@ export async function executeRetryableQuery<T>(
   queryName: string,
   fallbackValue: T
 ): Promise<T> {
+  // تحديد عدد المحاولات بناءً على ما إذا كان التطبيق يعمل على Vercel
+  const maxRetries = isRunningOnVercel() ? 3 : 2;
+  
   try {
     return await retry(
       queryFn,
       {
-        ...createProgressiveRetryStrategy(2),
+        ...createProgressiveRetryStrategy(maxRetries),
         onFinalFailure: (error) => {
           console.error(`فشل الاستعلام ${queryName}: / Query ${queryName} failed:`, error);
         }

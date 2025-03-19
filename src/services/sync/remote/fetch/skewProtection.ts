@@ -16,9 +16,14 @@ export const addSkewProtectionHeaders = (headers: Record<string, string>): Recor
   // تجنب تقييد الوصول بسبب حماية التزامن في Vercel
   try {
     // إضافة معرفات البناء والنشر إذا كانت متوفرة
-    if (process.env.VERCEL_GIT_COMMIT_SHA) {
-      newHeaders['x-vercel-deployment-url'] = process.env.VERCEL_URL || '';
-      newHeaders['x-vercel-git-commit-sha'] = process.env.VERCEL_GIT_COMMIT_SHA;
+    if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+      newHeaders['x-vercel-deployment-url'] = window.location.origin;
+      
+      // حاول استخدام المعلومات المتوفرة عن عملية النشر
+      const buildId = localStorage.getItem('vercel_build_id') || '';
+      if (buildId) {
+        newHeaders['x-vercel-git-commit-sha'] = buildId;
+      }
     }
     
     // إضافة معرف للزائر لتتبع المزامنة
@@ -27,6 +32,10 @@ export const addSkewProtectionHeaders = (headers: Record<string, string>): Recor
     
     // إضافة رأس لتجنب التخزين المؤقت
     newHeaders['x-requested-at'] = new Date().toISOString();
+    
+    // إضافة رؤوس خاصة بـ Vercel للمساعدة في تجنب مشاكل CORS
+    newHeaders['x-middleware-preflight'] = '1';
+    newHeaders['x-vercel-skip-middleware'] = '1';
   } catch (e) {
     // تجاهل أي أخطاء هنا لأنها غير حرجة
   }
@@ -42,9 +51,14 @@ export const getSkewProtectionParams = (): string => {
     const params = new URLSearchParams();
     
     // إضافة معرفات النشر إذا كانت متوفرة
-    if (process.env.VERCEL_GIT_COMMIT_SHA) {
-      params.append('deploymentUrl', process.env.VERCEL_URL || '');
-      params.append('gitSha', process.env.VERCEL_GIT_COMMIT_SHA);
+    if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+      params.append('deploymentUrl', window.location.origin);
+      
+      // حاول استخدام المعلومات المتوفرة عن عملية النشر
+      const buildId = localStorage.getItem('vercel_build_id') || '';
+      if (buildId) {
+        params.append('gitSha', buildId);
+      }
     }
     
     // إضافة معرف للزائر
@@ -71,4 +85,32 @@ const generateVisitorId = (): string => {
     // تجاهل أخطاء التخزين
   }
   return id;
+};
+
+/**
+ * تحديد ما إذا كان التطبيق يعمل على Vercel
+ */
+export const isRunningOnVercel = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return window.location.hostname.includes('vercel.app');
+};
+
+/**
+ * الحصول على معلومات النشر الخاصة بـ Vercel
+ */
+export const getVercelDeploymentInfo = () => {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    const isVercel = window.location.hostname.includes('vercel.app');
+    if (!isVercel) return null;
+    
+    return {
+      deploymentUrl: window.location.origin,
+      hostname: window.location.hostname,
+      buildId: localStorage.getItem('vercel_build_id') || 'unknown'
+    };
+  } catch (e) {
+    return null;
+  }
 };

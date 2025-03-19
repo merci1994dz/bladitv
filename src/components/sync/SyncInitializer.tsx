@@ -3,6 +3,7 @@ import React, { useEffect, useRef } from 'react';
 import { syncWithSupabase, setupRealtimeSync } from '@/services/sync/supabaseSync';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { useToast } from '@/hooks/use-toast';
+import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';
 
 interface SyncInitializerProps {
   children: React.ReactNode;
@@ -22,6 +23,7 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
   const syncAttemptsRef = useRef(0);
   const realtimeUnsubscribeRef = useRef<() => void | null>(null);
   const isMountedRef = useRef(true);
+  const maxRetryAttemptsRef = useRef(isRunningOnVercel() ? 5 : 3); // زيادة عدد المحاولات على Vercel
   
   // تهيئة المزامنة مع آلية إعادة المحاولة المحسنة
   useEffect(() => {
@@ -51,7 +53,7 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
             setTimeout(() => {
               if (isMountedRef.current) {
                 syncAttemptsRef.current++;
-                console.log(`إعادة محاولة الاتصال بـ Supabase (المحاولة ${syncAttemptsRef.current}/3)`);
+                console.log(`إعادة محاولة الاتصال بـ Supabase (المحاولة ${syncAttemptsRef.current}/${maxRetryAttemptsRef.current})`);
                 initialize();
               }
             }, 5000);
@@ -60,11 +62,11 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
           console.error('خطأ في الاتصال بـ Supabase:', error);
           
           // إعادة المحاولة عدة مرات قبل الاستسلام
-          if (syncAttemptsRef.current < 3) {
+          if (syncAttemptsRef.current < maxRetryAttemptsRef.current) {
             setTimeout(() => {
               if (isMountedRef.current) {
                 syncAttemptsRef.current++;
-                console.log(`إعادة محاولة الاتصال (المحاولة ${syncAttemptsRef.current}/3)`);
+                console.log(`إعادة محاولة الاتصال (المحاولة ${syncAttemptsRef.current}/${maxRetryAttemptsRef.current})`);
                 initialize();
               }
             }, 7000 * syncAttemptsRef.current); // زيادة التأخير مع كل محاولة
@@ -81,7 +83,7 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
       };
       
       initialize();
-    }, 3000);
+    }, isRunningOnVercel() ? 5000 : 3000); // زيادة التأخير على Vercel
     
     // إعداد مزامنة دورية كل 5 دقائق مع إضافة عشوائية لمنع التزامن
     const randomInterval = 5 * 60 * 1000 + (Math.random() * 30 * 1000);
@@ -103,6 +105,22 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
     
     // إعداد مستمعي التركيز/التشويش
     window.addEventListener('focus', handleFocus);
+    
+    // تخزين معلومات عن Vercel إذا كان التطبيق يعمل عليه
+    if (isRunningOnVercel()) {
+      try {
+        localStorage.setItem('vercel_deployment', 'true');
+        localStorage.setItem('vercel_sync_enabled', 'true');
+        // محاولة الحصول على معرف البناء من URL إذا كان متاحًا
+        const urlParams = new URLSearchParams(window.location.search);
+        const buildId = urlParams.get('buildId');
+        if (buildId) {
+          localStorage.setItem('vercel_build_id', buildId);
+        }
+      } catch (e) {
+        console.warn('تعذر تخزين معلومات Vercel:', e);
+      }
+    }
     
     // تنظيف جميع المستمعين والمؤقتات
     return () => {
