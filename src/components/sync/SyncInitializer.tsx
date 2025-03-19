@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef } from 'react';
-import { syncWithSupabase, setupRealtimeSync } from '@/services/sync/supabase';
+import { syncWithSupabase, setupRealtimeSync } from '@/services/sync/supabaseSync';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { useToast } from '@/hooks/use-toast';
 
@@ -29,7 +29,7 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
     const initialSyncTimeout = setTimeout(async () => {
       if (!isMountedRef.current) return;
       
-      console.log('بدء المزامنة الأولية مع حماية أفضل ضد الفشل');
+      console.log('بدء المزامنة الأولية مع Supabase');
       
       const initialize = async () => {
         try {
@@ -42,32 +42,36 @@ const SyncInitializer: React.FC<SyncInitializerProps> = ({ children }) => {
           if (supabaseInitialized) {
             // تنفيذ المزامنة الأولية
             await performInitialSync();
+            toast({
+              title: "تم الاتصال بنجاح",
+              description: "تم الاتصال بقاعدة بيانات Supabase ومزامنة البيانات",
+            });
           } else {
             // إعادة المحاولة بعد تأخير إذا فشلت تهيئة Supabase
             setTimeout(() => {
               if (isMountedRef.current) {
                 syncAttemptsRef.current++;
-                console.log(`إعادة محاولة المزامنة (المحاولة ${syncAttemptsRef.current}/3)`);
+                console.log(`إعادة محاولة الاتصال بـ Supabase (المحاولة ${syncAttemptsRef.current}/3)`);
                 initialize();
               }
             }, 5000);
           }
         } catch (error) {
-          console.error('خطأ في التهيئة الأولية للمزامنة:', error);
+          console.error('خطأ في الاتصال بـ Supabase:', error);
           
           // إعادة المحاولة عدة مرات قبل الاستسلام
           if (syncAttemptsRef.current < 3) {
             setTimeout(() => {
               if (isMountedRef.current) {
                 syncAttemptsRef.current++;
-                console.log(`إعادة محاولة المزامنة (المحاولة ${syncAttemptsRef.current}/3)`);
+                console.log(`إعادة محاولة الاتصال (المحاولة ${syncAttemptsRef.current}/3)`);
                 initialize();
               }
             }, 7000 * syncAttemptsRef.current); // زيادة التأخير مع كل محاولة
           } else {
             // إذا استمر الفشل، أخبر المستخدم وتحديث الحالة
             toast({
-              title: "تعذر المزامنة",
+              title: "تعذر الاتصال بـ Supabase",
               description: "سيتم استخدام البيانات المخزنة محليًا. الرجاء التحقق من اتصالك بالإنترنت.",
               variant: "destructive",
               duration: 7000,
