@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Wifi, WifiOff, AlertCircle, RefreshCw } from 'lucide-react';
 import { checkBladiInfoAvailability } from '@/services/sync/remote/syncOperations';
