@@ -37,7 +37,7 @@ const SyncStatusInfo: React.FC<SyncStatusInfoProps> = ({
   return (
     <>
       {showServerConnectionError && (
-        <Alert variant="warning" className="mb-4 animate-in fade-in-50 duration-300">
+        <Alert variant="default" className="mb-4 animate-in fade-in-50 duration-300">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>تعذر الوصول إلى الخادم</AlertTitle>
           <AlertDescription>

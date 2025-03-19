@@ -63,7 +63,7 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
         toast({
           title: "تعذر الاتصال بالمصادر",
           description: "تم تسجيل عدة محاولات فاشلة للاتصال بالخادم. سيتم استخدام البيانات المخزنة.",
-          variant: "warning",
+          variant: "default",
         });
       } else if (newCount === 5) {
         toast({
