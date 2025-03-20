@@ -1,3 +1,4 @@
+
 /**
  * عمليات المزامنة مع Supabase
  * Supabase synchronization operations
@@ -122,9 +123,10 @@ export function setupRealtimeSync(): () => void {
     }
     
     // تخصيص تكوين القناة استنادًا إلى البيئة
+    // ثابت - لا يمكن أن تكون خاصية config اختيارية
     const channelOptions = isRunningOnVercel() 
       ? { config: { broadcast: { ack: true } } }
-      : {};
+      : { config: { broadcast: { ack: false } } }; // تأكد من وجود خاصية config دائمًا
     
     // الاشتراك في تغييرات الجداول المختلفة
     const channelsSubscription = supabase
