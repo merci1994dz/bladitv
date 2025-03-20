@@ -1,7 +1,7 @@
 
 import { useEffect } from 'react';
 import { VideoRef } from './useVideoSetup';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 export function useVideoEventListeners({
   videoRef,
@@ -79,14 +79,22 @@ export function useVideoEventListeners({
           break;
       }
       
+      // Set the error message
+      setError(errorMsg);
+      
       // عرض الخطأ فقط إذا كان متكرراً بشكل كبير
       if (consecutiveErrors > 3) {
-        toast({
-          title: "خطأ في تشغيل الفيديو",
-          description: errorMsg,
-          variant: "destructive",
-          duration: 3000,
-        });
+        try {
+          const { toast } = require('@/hooks/use-toast');
+          toast({
+            title: "خطأ في تشغيل الفيديو",
+            description: errorMsg,
+            variant: "destructive",
+            duration: 3000,
+          });
+        } catch (e) {
+          console.error("Error showing toast:", e);
+        }
       }
       
       // معالجة الخطأ مع منطق إعادة المحاولة
@@ -107,11 +115,16 @@ export function useVideoEventListeners({
         // عرض إشعار فقط بعد فترة
         setTimeout(() => {
           if (isCurrentlyStalled) {
-            toast({
-              title: "بطء في التحميل",
-              description: "جاري محاولة استئناف البث...",
-              duration: 3000,
-            });
+            try {
+              const { toast } = require('@/hooks/use-toast');
+              toast({
+                title: "بطء في التحميل",
+                description: "جاري محاولة استئناف البث...",
+                duration: 3000,
+              });
+            } catch (e) {
+              console.error("Error showing toast:", e);
+            }
           }
         }, 5000);
       }

@@ -3,7 +3,11 @@ import React, { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';
+
+// Function to detect if running on Vercel
+const isRunningOnVercel = () => {
+  return typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
+};
 
 interface SyncErrorNotificationProps {
   syncError: string | null;
@@ -71,7 +75,7 @@ const SyncErrorNotification: React.FC<SyncErrorNotificationProps> = ({ syncError
               قد تكون المشكلة متعلقة بتشغيل التطبيق على Vercel.
             </div>
           )}
-          {process.env.NODE_ENV === 'development' && (
+          {typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && (
             <div className="mt-2 text-xs opacity-70 truncate">
               {errorMessage}
             </div>

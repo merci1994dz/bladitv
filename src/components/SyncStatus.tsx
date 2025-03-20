@@ -8,7 +8,7 @@ import { useAutoSync } from '@/hooks/useAutoSync';
 import { useQuery } from '@tanstack/react-query';
 import { getLastSyncTime } from '@/services/sync/status/timestamp';
 import { useSyncMutations } from './sync/useSyncMutations';
-import SyncErrorNotification from './sync/SyncErrorNotification';
+import SyncErrorDisplay from './sync/SyncErrorDisplay';
 import SyncActions from './sync/SyncActions';
 import SyncStatusInfo from './sync/SyncStatusInfo';
 import SyncAdvancedOptions from './sync/SyncAdvancedOptions';
@@ -124,7 +124,7 @@ export function SyncStatus() {
 
   return (
     <div className="flex flex-col space-y-2 p-4 border rounded-lg bg-background shadow-sm">
-      <SyncErrorNotification syncError={syncError} />
+      <SyncErrorDisplay syncError={syncError} />
       
       <SyncStatusInfo 
         lastSync={lastSync}

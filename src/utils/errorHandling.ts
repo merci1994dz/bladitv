@@ -1,10 +1,11 @@
+
 /**
  * معالجة أخطاء التطبيق
  * Application error handling
  */
 
 import { STORAGE_KEYS } from '@/services/config';
-import { toast as toastFunction } from '@/hooks/use-toast';
+import { toast } from '@/hooks/use-toast';
 
 /**
  * أنواع الأخطاء المدعومة
@@ -289,8 +290,8 @@ const showErrorToast = (appError: AppError): void => {
       duration = 3000; // 3 ثوانٍ للمعلومات
     }
 
-    // عرض الإشعار باستخدام toast مباشرة بدون استخدام hook
-    toastFunction({
+    // عرض الإشعار باستخدام toast
+    toast({
       title: `خطأ: ${appError.context || 'في التطبيق'}`,
       description: appError.userMessage,
       variant: "destructive",
