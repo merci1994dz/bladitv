@@ -297,7 +297,7 @@ const showErrorToast = (appError: AppError): void => {
       title: `خطأ: ${appError.context || 'في التطبيق'}`,
       description: appError.userMessage,
       variant: "destructive",
-      duration: duration,
+      duration: duration
     });
   } catch (e) {
     // تجاهل أخطاء عرض الإشعار
@@ -401,7 +401,7 @@ export function handleError(
         title: `خطأ: ${context || 'خطأ في التطبيق'}`,
         description: userMessage,
         variant: "destructive",
-        duration: 5000,
+        duration: 5000
       });
     } catch (e) {
       console.error('تعذر عرض إشعار الخطأ:', e);

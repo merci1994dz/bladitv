@@ -1,4 +1,3 @@
-
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { syncWithSupabase } from '@/services/sync/supabaseSync';
 import { forceDataRefresh } from '@/services/sync/index';

@@ -42,7 +42,7 @@ const SyncErrorNotification: React.FC<SyncErrorNotificationProps> = ({ syncError
             title: "خطأ في المزامنة",
             description: "تعذر تحديث البيانات. جاري إعادة المحاولة تلقائيًا...",
             variant: "destructive",
-            duration: 7000,
+            duration: 7000
           });
         }
       }, delayTime);

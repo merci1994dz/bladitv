@@ -141,7 +141,7 @@ export function setupRealtimeSync(): () => void {
         toast({
           title: "تحديث في الوقت الحقيقي",
           description: "تم تحديث بيانات القنوات",
-          duration: 3000,
+          duration: 3000
         });
         
         // تسجيل حدث المزامنة إذا كان على Vercel
@@ -168,7 +168,7 @@ export function setupRealtimeSync(): () => void {
         toast({
           title: "تحديث الإعدادات",
           description: "تم تحديث إعدادات التطبيق",
-          duration: 3000,
+          duration: 3000
         });
       })
       .subscribe();
