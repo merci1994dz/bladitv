@@ -1,4 +1,3 @@
-
 /**
  * مرافق متقدمة لمعالجة الأخطاء وإعادة المحاولة
  */
@@ -236,11 +235,7 @@ export function handleError(error: unknown, context: string = ''): AppError {
   // عرض إشعار مخصص للمستخدم بناءً على نوع الخطأ
   const toastDuration = appError.vercelSpecific ? 7000 : 5000; // إطالة مدة الإشعار لأخطاء Vercel
   
-  // تجنب عرض إشعارات متكررة للأخطاء المتشابهة
-  const toastId = `error-${appError.type}-${Date.now()}`;
-  
   toast({
-    id: toastId,
     title: getErrorTitle(appError.type),
     description: appError.vercelSpecific 
       ? `${appError.message} (يبدو أن هذا الخطأ خاص بـ Vercel)` 

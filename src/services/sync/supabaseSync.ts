@@ -1,4 +1,3 @@
-
 /**
  * عمليات المزامنة مع Supabase
  * Supabase synchronization operations
@@ -124,7 +123,7 @@ export function setupRealtimeSync(): () => void {
     
     // تخصيص تكوين القناة استنادًا إلى البيئة
     const channelOptions = isRunningOnVercel() 
-      ? { config: { broadcast: { ack: true }, presence: { key: 'vercel' } } }
+      ? { config: { broadcast: { ack: true } } }
       : {};
     
     // الاشتراك في تغييرات الجداول المختلفة

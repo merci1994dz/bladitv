@@ -1,4 +1,3 @@
-
 /**
  * مكون حالة المزامنة المحسن مع معالجة أفضل للأخطاء
  */
@@ -8,7 +7,7 @@ import { useAutoSync } from '@/hooks/useAutoSync';
 import { useQuery } from '@tanstack/react-query';
 import { getLastSyncTime } from '@/services/sync/status/timestamp';
 import { useSyncMutations } from './sync/useSyncMutations';
-import SyncErrorDisplay from './sync/SyncErrorDisplay';
+import SyncErrorNotification from './sync/SyncErrorNotification';
 import SyncActions from './sync/SyncActions';
 import SyncStatusInfo from './sync/SyncStatusInfo';
 import SyncAdvancedOptions from './sync/SyncAdvancedOptions';
@@ -136,7 +135,7 @@ export function SyncStatus() {
   return (
     <div className="flex flex-col space-y-2 p-4 border rounded-lg bg-background shadow-sm">
       {/* Display error notification if there's an error */}
-      <SyncErrorDisplay syncError={syncError} />
+      <SyncErrorNotification syncError={syncError} />
       
       {/* Status information section */}
       <SyncStatusInfo 

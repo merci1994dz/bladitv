@@ -39,7 +39,6 @@ const SyncErrorNotification: React.FC<SyncErrorNotificationProps> = ({ syncError
           
           // عرض إشعار فقط للأخطاء غير المعروضة مسبقًا
           toast({
-            id: `sync-error-${Date.now()}`,
             title: "خطأ في المزامنة",
             description: "تعذر تحديث البيانات. جاري إعادة المحاولة تلقائيًا...",
             variant: "destructive",
