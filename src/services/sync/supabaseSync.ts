@@ -122,11 +122,14 @@ export function setupRealtimeSync(): () => void {
       }
     }
     
-    // تخصيص تكوين القناة استنادًا إلى البيئة
-    // ثابت - لا يمكن أن تكون خاصية config اختيارية
-    const channelOptions = isRunningOnVercel() 
-      ? { config: { broadcast: { ack: true } } }
-      : { config: { broadcast: { ack: false } } }; // تأكد من وجود خاصية config دائمًا
+    // تخصيص تكوين القناة استنادًا إلى البيئة - ضمان وجود خاصية config دائمًا لتلبية متطلبات RealtimeChannelOptions
+    const channelOptions = {
+      config: {
+        broadcast: { 
+          ack: isRunningOnVercel() ? true : false
+        }
+      }
+    };
     
     // الاشتراك في تغييرات الجداول المختلفة
     const channelsSubscription = supabase
@@ -157,7 +160,7 @@ export function setupRealtimeSync(): () => void {
       });
     
     const settingsSubscription = supabase
-      .channel('public:settings')
+      .channel('public:settings', channelOptions) // استخدام نفس خيارات القناة
       .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, payload => {
         console.log('تم استلام تغيير في الإعدادات في الوقت الحقيقي: / Received real-time settings change:', payload);
         

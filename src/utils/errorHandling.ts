@@ -1,276 +1,480 @@
+
 /**
- * مرافق متقدمة لمعالجة الأخطاء وإعادة المحاولة
+ * معالجة أخطاء التطبيق
+ * Application error handling
  */
 
-import { toast } from '@/hooks/use-toast';
-import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';
+import { STORAGE_KEYS } from '@/services/config';
+import { useToast } from '@/hooks/use-toast';
 
-// أنواع الأخطاء المعرفة في النظام
+/**
+ * أنواع الأخطاء المدعومة
+ * Supported error types
+ */
 export enum ErrorType {
-  NETWORK = 'network',
-  SERVER = 'server',
-  AUTH = 'auth',
-  DATA = 'data',
-  VALIDATION = 'validation',
-  STORAGE = 'storage',
-  TIMEOUT = 'timeout',
-  CORS = 'cors',
-  SUPABASE = 'supabase',
-  UNKNOWN = 'unknown'
+  NETWORK = 'NETWORK',
+  AUTH = 'AUTH',
+  SERVER = 'SERVER',
+  DATABASE = 'DATABASE',
+  VALIDATION = 'VALIDATION',
+  NOT_FOUND = 'NOT_FOUND',
+  TIMEOUT = 'TIMEOUT',
+  RATE_LIMIT = 'RATE_LIMIT',
+  UNKNOWN = 'UNKNOWN',
 }
 
-// واجهة موحدة للأخطاء
+/**
+ * مستويات خطورة الأخطاء
+ * Error severity levels
+ */
+export enum ErrorSeverity {
+  INFO = 'INFO',
+  WARNING = 'WARNING',
+  ERROR = 'ERROR',
+  CRITICAL = 'CRITICAL',
+}
+
+/**
+ * تكوين لمعالجة الأخطاء
+ * Configuration for error handling
+ */
+export const ErrorHandlingConfig = {
+  MAX_ERRORS_STORED: 50,
+  AUTO_CLEANUP_TIME: 7 * 24 * 60 * 60 * 1000, // 7 أيام
+  LOG_TO_CONSOLE: true,
+  TOAST_ERRORS: true,
+};
+
+/**
+ * تحديد نوع الخطأ وخصائصه
+ * Determine error type and characteristics
+ */
+const determineErrorType = (error: Error | string): ErrorType => {
+  const message = typeof error === 'string' ? error : error.message;
+  const messageLC = message.toLowerCase();
+
+  // تحديد نوع الخطأ
+  if (
+    messageLC.includes('network') ||
+    messageLC.includes('offline') ||
+    messageLC.includes('cors') ||
+    messageLC.includes('connect') ||
+    messageLC.includes('connectivity') ||
+    messageLC.includes('connection')
+  ) {
+    return ErrorType.NETWORK;
+  }
+
+  if (
+    messageLC.includes('auth') ||
+    messageLC.includes('login') ||
+    messageLC.includes('password') ||
+    messageLC.includes('token') ||
+    messageLC.includes('session') ||
+    messageLC.includes('unauthorized') ||
+    messageLC.includes('غير مصرح') ||
+    messageLC.includes('permission') ||
+    messageLC.includes('صلاحية')
+  ) {
+    return ErrorType.AUTH;
+  }
+
+  if (
+    messageLC.includes('server') ||
+    messageLC.includes('service') ||
+    messageLC.includes('500') ||
+    messageLC.includes('internal')
+  ) {
+    return ErrorType.SERVER;
+  }
+
+  if (
+    messageLC.includes('database') ||
+    messageLC.includes('sql') ||
+    messageLC.includes('db') ||
+    messageLC.includes('query') ||
+    messageLC.includes('record') ||
+    messageLC.includes('duplicate') ||
+    messageLC.includes('data')
+  ) {
+    return ErrorType.DATABASE;
+  }
+
+  if (
+    messageLC.includes('valid') ||
+    messageLC.includes('format') ||
+    messageLC.includes('input') ||
+    messageLC.includes('require') ||
+    messageLC.includes('missing') ||
+    messageLC.includes('validation')
+  ) {
+    return ErrorType.VALIDATION;
+  }
+
+  if (
+    messageLC.includes('not found') ||
+    messageLC.includes('404') ||
+    messageLC.includes('غير موجود') ||
+    messageLC.includes('no record')
+  ) {
+    return ErrorType.NOT_FOUND;
+  }
+
+  if (
+    messageLC.includes('timeout') ||
+    messageLC.includes('timed out') ||
+    messageLC.includes('مهلة') ||
+    messageLC.includes('too long')
+  ) {
+    return ErrorType.TIMEOUT;
+  }
+
+  if (
+    messageLC.includes('rate limit') ||
+    messageLC.includes('too many') ||
+    messageLC.includes('exceeded')
+  ) {
+    return ErrorType.RATE_LIMIT;
+  }
+
+  return ErrorType.UNKNOWN;
+};
+
+/**
+ * تحديد مستوى خطورة الخطأ
+ * Determine error severity level
+ */
+const determineErrorSeverity = (type: ErrorType): ErrorSeverity => {
+  switch (type) {
+    case ErrorType.NETWORK:
+    case ErrorType.TIMEOUT:
+      return ErrorSeverity.WARNING;
+    case ErrorType.NOT_FOUND:
+    case ErrorType.VALIDATION:
+    case ErrorType.RATE_LIMIT:
+      return ErrorSeverity.INFO;
+    case ErrorType.AUTH:
+    case ErrorType.DATABASE:
+      return ErrorSeverity.ERROR;
+    case ErrorType.SERVER:
+      return ErrorSeverity.CRITICAL;
+    default:
+      return ErrorSeverity.WARNING;
+  }
+};
+
+/**
+ * تحديد ما إذا كان من الممكن إعادة المحاولة
+ * Determine if retry is possible
+ */
+const determineIfRetryable = (type: ErrorType): boolean => {
+  switch (type) {
+    case ErrorType.NETWORK:
+    case ErrorType.TIMEOUT:
+    case ErrorType.SERVER:
+    case ErrorType.RATE_LIMIT:
+      return true;
+    default:
+      return false;
+  }
+};
+
+/**
+ * إستخراج رمز الخطأ وتنسيقه
+ * Extract error code if available
+ */
+const extractErrorCode = (error: Error | string): string | null => {
+  if (typeof error === 'string') {
+    return null;
+  }
+
+  // محاولة العثور على كود الخطأ في الرسالة
+  const codeMatch = error.message.match(/(\d{3,4})/);
+  if (codeMatch && codeMatch[0]) {
+    return codeMatch[0];
+  }
+
+  // البحث عن رمز خطأ واضح
+  const anyError = error as any;
+  if (anyError.code) {
+    return anyError.code.toString();
+  }
+
+  if (anyError.status) {
+    return anyError.status.toString();
+  }
+
+  return null;
+};
+
+/**
+ * اشتقاق رسالة خطأ ملائمة للمستخدم
+ * Derive a user-friendly error message
+ */
+const deriveUserFriendlyMessage = (
+  error: Error | string,
+  type: ErrorType,
+  severity: ErrorSeverity
+): string => {
+  const originalMessage = typeof error === 'string' ? error : error.message;
+
+  // رسائل مخصصة للأخطاء الشائعة
+  switch (type) {
+    case ErrorType.NETWORK:
+      return 'حدث خطأ في الاتصال بالشبكة. يرجى التحقق من اتصالك بالإنترنت.';
+    case ErrorType.AUTH:
+      return 'حدث خطأ في المصادقة. يرجى تسجيل الدخول مرة أخرى.';
+    case ErrorType.NOT_FOUND:
+      return 'لم يتم العثور على المورد المطلوب.';
+    case ErrorType.TIMEOUT:
+      return 'استغرقت العملية وقتًا طويلاً. يرجى المحاولة مرة أخرى.';
+    case ErrorType.VALIDATION:
+      return 'البيانات المدخلة غير صالحة. يرجى مراجعة المدخلات وإعادة المحاولة.';
+    case ErrorType.SERVER:
+      return 'حدث خطأ في الخادم. يرجى المحاولة مرة أخرى لاحقًا.';
+    case ErrorType.DATABASE:
+      return 'حدث خطأ في قاعدة البيانات. يرجى المحاولة مرة أخرى لاحقًا.';
+    case ErrorType.RATE_LIMIT:
+      return 'تم تجاوز الحد الأقصى للطلبات. يرجى المحاولة مرة أخرى بعد قليل.';
+    default:
+      // إرجاع الرسالة الأصلية إذا كانت قصيرة ومفهومة
+      if (originalMessage.length < 100 && !originalMessage.includes('Error:')) {
+        return originalMessage;
+      }
+      return 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى لاحقًا.';
+  }
+};
+
+/**
+ * تخزين الخطأ في سجل الأخطاء المحلي
+ * Store error in local error log
+ */
+const storeErrorInLog = (appError: AppError): void => {
+  try {
+    // جلب السجل الحالي
+    const errorLogJSON = localStorage.getItem(STORAGE_KEYS.SYNC_ERROR);
+    const errorLog = errorLogJSON ? JSON.parse(errorLogJSON) : [];
+
+    // إضافة الخطأ الجديد
+    errorLog.unshift({
+      ...appError,
+      timestamp: new Date().toISOString(),
+    });
+
+    // تقليص السجل إذا كان طويلاً جدًا
+    const trimmedLog = errorLog.slice(0, ErrorHandlingConfig.MAX_ERRORS_STORED);
+
+    // تخزين السجل المحدث
+    localStorage.setItem(STORAGE_KEYS.SYNC_ERROR, JSON.stringify(trimmedLog));
+  } catch (e) {
+    // تجاهل أخطاء التخزين المحلي
+    console.error('فشل في تخزين الخطأ في السجل المحلي:', e);
+  }
+};
+
+/**
+ * عرض إشعار للمستخدم بالخطأ
+ * Show error notification to user
+ */
+const showErrorToast = (appError: AppError): void => {
+  if (!ErrorHandlingConfig.TOAST_ERRORS) {
+    return;
+  }
+
+  try {
+    const { toast } = useToast();
+    
+    // تحديد مدة عرض الإشعار بناءً على خطورة الخطأ
+    let duration = 5000; // 5 ثوانٍ افتراضية
+    if (appError.severity === ErrorSeverity.CRITICAL) {
+      duration = 10000; // 10 ثوانٍ للأخطاء الحرجة
+    } else if (appError.severity === ErrorSeverity.INFO) {
+      duration = 3000; // 3 ثوانٍ للمعلومات
+    }
+
+    // عرض الإشعار
+    toast({
+      title: `خطأ: ${appError.context || 'في التطبيق'}`,
+      description: appError.userMessage,
+      variant: "destructive",
+      duration: duration,
+    });
+  } catch (e) {
+    // تجاهل أخطاء عرض الإشعار
+    console.error('فشل في عرض إشعار الخطأ:', e);
+  }
+};
+
+/**
+ * تسجيل الخطأ في وحدة التحكم
+ * Log error to console
+ */
+const logErrorToConsole = (appError: AppError, originalError?: Error | string): void => {
+  if (!ErrorHandlingConfig.LOG_TO_CONSOLE) {
+    return;
+  }
+
+  const { type, severity, message, context, code, retryable, userMessage } = appError;
+
+  console.group(
+    `%cApplication Error: ${context ? context : 'Uncategorized'}`,
+    'color: #721c24; background-color: #f8d7da; padding: 2px 5px; border-radius: 3px;'
+  );
+  console.error('Type:', type);
+  console.error('Severity:', severity);
+  console.error('Message:', message);
+  console.error('User Message:', userMessage);
+  if (code) console.error('Code:', code);
+  console.error('Retryable:', retryable);
+  console.error('Time:', new Date().toISOString());
+  if (originalError && typeof originalError !== 'string') {
+    console.error('Original Error:', originalError);
+    console.error('Stack:', originalError.stack);
+  }
+  console.groupEnd();
+};
+
+/**
+ * واجهة كائن الخطأ المعالج
+ * Processed error object interface
+ */
 export interface AppError {
-  type: ErrorType;
   message: string;
-  originalError?: unknown;
-  code?: string | number;
-  context?: Record<string, unknown>;
+  userMessage: string;
+  type: ErrorType;
+  severity: ErrorSeverity;
+  code: string | null;
   retryable: boolean;
-  vercelSpecific?: boolean;
+  context?: string;
 }
 
 /**
- * دالة لتصنيف الأخطاء وتوحيدها
+ * معالجة الخطأ وتحويله إلى كائن AppError
+ * Process error and convert to AppError object
  */
-export function classifyError(error: unknown): AppError {
-  // تسجيل الخطأ الأصلي للأغراض التشخيصية
-  console.warn("تصنيف الخطأ:", error);
-  
-  // الكشف عما إذا كان الخطأ متعلقاً بـ Vercel
-  const isVercel = isRunningOnVercel();
-  
-  // التعامل مع أخطاء إلغاء الطلب والمهلة
-  if (error instanceof DOMException && error.name === 'AbortError') {
-    return {
-      type: ErrorType.TIMEOUT,
-      message: 'تم إلغاء الطلب بسبب تجاوز المهلة الزمنية',
-      originalError: error,
-      retryable: true,
-      vercelSpecific: isVercel
-    };
-  }
-  
-  // التعامل مع أخطاء الشبكة
-  if (error instanceof TypeError && (
-      error.message.includes('fetch') || 
-      error.message.includes('network') || 
-      error.message.includes('Failed to fetch')
-    )) {
-    return {
-      type: ErrorType.NETWORK,
-      message: 'تعذر الاتصال بالخادم، يرجى التحقق من اتصالك بالإنترنت',
-      originalError: error,
-      retryable: true,
-      vercelSpecific: isVercel && error.message.includes('CORS')
-    };
-  }
-
-  // التعامل مع أخطاء CORS
-  if (error instanceof Error && (
-      error.message.includes('CORS') || 
-      error.message.includes('cross-origin') ||
-      error.message.includes('access-control-allow-origin')
-    )) {
-    return {
-      type: ErrorType.CORS,
-      message: 'خطأ في سياسة CORS، يتعذر الوصول إلى المصدر',
-      originalError: error,
-      retryable: true,
-      vercelSpecific: isVercel
-    };
-  }
-
-  // التعامل مع أخطاء Supabase
-  if (error instanceof Error && (
-      error.message.includes('supabase') || 
-      error.message.includes('postgres') ||
-      (error as any)?.code?.startsWith('PGRST')
-    )) {
-    const code = (error as any)?.code;
-    return {
-      type: ErrorType.SUPABASE,
-      message: `خطأ في الاتصال بـ Supabase: ${error.message}`,
-      code: code,
-      originalError: error,
-      retryable: !code?.includes('PGRST30'), // أخطاء المصادقة غير قابلة للإعادة عادةً
-      vercelSpecific: isVercel
-    };
-  }
-
-  // التعامل مع أخطاء الخادم
-  if (error instanceof Response || (error as any)?.status >= 400) {
-    const status = (error as Response)?.status || (error as any)?.status;
-    
-    if (status === 401 || status === 403) {
-      return {
-        type: ErrorType.AUTH,
-        message: 'غير مصرح لك بالوصول إلى هذا المورد',
-        code: status,
-        originalError: error,
-        retryable: false,
-        vercelSpecific: isVercel
-      };
-    }
-    
-    if (status === 429) {
-      return {
-        type: ErrorType.SERVER,
-        message: 'تم تجاوز حد الطلبات، يرجى المحاولة لاحقًا',
-        code: status,
-        originalError: error,
-        retryable: true,
-        vercelSpecific: isVercel
-      };
-    }
-    
-    if (status >= 500) {
-      return {
-        type: ErrorType.SERVER,
-        message: 'حدث خطأ في الخادم، يرجى المحاولة مرة أخرى لاحقًا',
-        code: status,
-        originalError: error,
-        retryable: true,
-        vercelSpecific: isVercel
-      };
-    }
-    
-    return {
-      type: ErrorType.SERVER,
-      message: `خطأ في الخادم (${status})`,
-      code: status,
-      originalError: error,
-      retryable: status < 500,
-      vercelSpecific: isVercel
-    };
-  }
-
-  // التعامل مع الأخطاء المتعلقة بالبيانات
-  if (
-    error instanceof SyntaxError ||
-    (error instanceof Error && 
-     (error.message.includes('JSON') || 
-      error.message.includes('parse') || 
-      error.message.includes('data')))
-  ) {
-    return {
-      type: ErrorType.DATA,
-      message: 'خطأ في تنسيق البيانات المستلمة',
-      originalError: error,
-      retryable: false,
-      vercelSpecific: isVercel
-    };
-  }
-
-  // التعامل مع تجاوز المهلة
-  if (
-    error instanceof Error && 
-    (error.message.includes('timeout') || 
-     error.message.includes('مهلة') || 
-     error.message.includes('تجاوز الوقت'))
-  ) {
-    return {
-      type: ErrorType.TIMEOUT,
-      message: 'تجاوز الطلب للوقت المحدد، يرجى المحاولة مرة أخرى',
-      originalError: error,
-      retryable: true,
-      vercelSpecific: isVercel
-    };
-  }
-
-  // التعامل مع أنواع الأخطاء الأخرى
+export function handleError(
+  error: unknown,
+  context?: string,
+  showToast: boolean = true
+): AppError {
+  // تحويل الخطأ إلى Error أو string
+  let normalizedError: Error | string;
   if (error instanceof Error) {
-    // فحص رسائل الخطأ للتصنيف
-    const errorMsg = error.message.toLowerCase();
-    
-    if (errorMsg.includes('تحقق') || errorMsg.includes('validation') || errorMsg.includes('صالح')) {
-      return {
-        type: ErrorType.VALIDATION,
-        message: error.message,
-        originalError: error,
-        retryable: false,
-        vercelSpecific: isVercel
-      };
-    }
-    
-    if (errorMsg.includes('تخزين') || errorMsg.includes('storage') || errorMsg.includes('file')) {
-      return {
-        type: ErrorType.STORAGE,
-        message: 'حدث خطأ أثناء معالجة الملفات',
-        originalError: error,
-        retryable: true,
-        vercelSpecific: isVercel
-      };
-    }
-    
-    if (errorMsg.includes('شبكة') || errorMsg.includes('اتصال') || errorMsg.includes('network')) {
-      return {
-        type: ErrorType.NETWORK,
-        message: 'مشكلة في الاتصال بالشبكة',
-        originalError: error,
-        retryable: true,
-        vercelSpecific: isVercel
-      };
+    normalizedError = error;
+  } else if (typeof error === 'string') {
+    normalizedError = error;
+  } else if (error && typeof error === 'object' && 'message' in error) {
+    normalizedError = new Error(String(error.message));
+  } else {
+    normalizedError = new Error('Unknown error occurred');
+  }
+
+  // تحديد خصائص الخطأ
+  const type = determineErrorType(normalizedError);
+  const severity = determineErrorSeverity(type);
+  const retryable = determineIfRetryable(type);
+  const code = extractErrorCode(normalizedError);
+  const message = typeof normalizedError === 'string' ? normalizedError : normalizedError.message;
+  const userMessage = deriveUserFriendlyMessage(normalizedError, type, severity);
+
+  // إنشاء كائن الخطأ
+  const appError: AppError = {
+    message,
+    userMessage,
+    type,
+    severity,
+    code,
+    retryable,
+    context,
+  };
+
+  // تسجيل الخطأ وتخزينه
+  logErrorToConsole(appError, normalizedError);
+  storeErrorInLog(appError);
+
+  // عرض إشعار للمستخدم إذا تم طلب ذلك
+  if (showToast) {
+    try {
+      const { toast } = useToast();
+      
+      toast({
+        title: `خطأ: ${context || 'خطأ في التطبيق'}`,
+        description: userMessage,
+        variant: "destructive",
+        duration: 5000,
+      });
+    } catch (e) {
+      console.error('تعذر عرض إشعار الخطأ:', e);
     }
   }
 
-  // الأخطاء غير المصنفة
-  return {
-    type: ErrorType.UNKNOWN,
-    message: error instanceof Error ? error.message : 'حدث خطأ غير معروف',
-    originalError: error,
-    retryable: true,
-    vercelSpecific: isVercel
-  };
-}
-
-/**
- * دالة مساعدة لمعالجة الأخطاء وعرض إشعارات للمستخدم
- */
-export function handleError(error: unknown, context: string = ''): AppError {
-  const appError = classifyError(error);
-  
-  console.error(`خطأ في ${context || 'التطبيق'}:`, appError);
-  
-  // عرض إشعار مخصص للمستخدم بناءً على نوع الخطأ
-  const toastDuration = appError.vercelSpecific ? 7000 : 5000; // إطالة مدة الإشعار لأخطاء Vercel
-  
-  toast({
-    title: getErrorTitle(appError.type),
-    description: appError.vercelSpecific 
-      ? `${appError.message} (يبدو أن هذا الخطأ خاص بـ Vercel)` 
-      : appError.message,
-    variant: "destructive",
-    duration: toastDuration,
-  });
-  
   return appError;
 }
 
 /**
- * الحصول على عنوان مناسب للخطأ بناءً على نوعه
+ * استرجاع سجل الأخطاء
+ * Retrieve error log
  */
-function getErrorTitle(type: ErrorType): string {
-  switch (type) {
-    case ErrorType.NETWORK:
-      return 'خطأ في الاتصال';
-    case ErrorType.SERVER:
-      return 'خطأ في الخادم';
-    case ErrorType.AUTH:
-      return 'خطأ في المصادقة';
-    case ErrorType.DATA:
-      return 'خطأ في البيانات';
-    case ErrorType.VALIDATION:
-      return 'خطأ في التحقق';
-    case ErrorType.STORAGE:
-      return 'خطأ في التخزين';
-    case ErrorType.TIMEOUT:
-      return 'تجاوز الوقت المحدد';
-    case ErrorType.CORS:
-      return 'خطأ في سياسة CORS';
-    case ErrorType.SUPABASE:
-      return 'خطأ في Supabase';
-    default:
-      return 'خطأ غير متوقع';
+export function getErrorLog(): Array<AppError & { timestamp: string }> {
+  try {
+    const errorLogJSON = localStorage.getItem(STORAGE_KEYS.SYNC_ERROR);
+    return errorLogJSON ? JSON.parse(errorLogJSON) : [];
+  } catch (e) {
+    console.error('فشل في استرجاع سجل الأخطاء:', e);
+    return [];
+  }
+}
+
+/**
+ * مسح سجل الأخطاء
+ * Clear error log
+ */
+export function clearErrorLog(): boolean {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.SYNC_ERROR);
+    return true;
+  } catch (e) {
+    console.error('فشل في مسح سجل الأخطاء:', e);
+    return false;
+  }
+}
+
+/**
+ * التنظيف التلقائي لسجل الأخطاء القديمة
+ * Auto-cleanup of old error logs
+ */
+export function setupErrorLogCleanup(): void {
+  // تشغيل التنظيف عند بدء التطبيق
+  cleanupOldErrors();
+
+  // إعداد تنظيف دوري
+  setInterval(cleanupOldErrors, 24 * 60 * 60 * 1000); // مرة واحدة يوميًا
+}
+
+/**
+ * تنظيف الأخطاء القديمة
+ * Cleanup old errors
+ */
+function cleanupOldErrors(): void {
+  try {
+    const errorLogJSON = localStorage.getItem(STORAGE_KEYS.SYNC_ERROR);
+    if (!errorLogJSON) return;
+
+    const errorLog = JSON.parse(errorLogJSON);
+    const now = Date.now();
+    const cutoff = now - ErrorHandlingConfig.AUTO_CLEANUP_TIME;
+
+    // الاحتفاظ فقط بالأخطاء الحديثة
+    const recentErrors = errorLog.filter((error: any) => {
+      const errorTime = new Date(error.timestamp).getTime();
+      return errorTime > cutoff;
+    });
+
+    // تحديث السجل فقط إذا تم إزالة أي أخطاء
+    if (recentErrors.length < errorLog.length) {
+      localStorage.setItem(STORAGE_KEYS.SYNC_ERROR, JSON.stringify(recentErrors));
+    }
+  } catch (e) {
+    console.error('فشل في تنظيف سجل الأخطاء القديمة:', e);
   }
 }
