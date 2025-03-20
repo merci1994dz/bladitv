@@ -163,26 +163,23 @@ export function useVideoEventListeners({
       video.addEventListener('progress', handleProgress);
       video.addEventListener('timeupdate', handleTimeUpdate);
     } catch (e) {
-      console.error("خطأ في إضافة مستمعي الأحداث:", e);
+      console.error('Error setting up video event listeners:', e);
     }
     
-    // وظيفة التنظيف
+    // إزالة المستمعين عند تفكيك المكون
     return () => {
       try {
-        if (video) {
-          // إزالة المستمعين
-          video.removeEventListener('canplay', handleCanPlay);
-          video.removeEventListener('playing', handlePlaying);
-          video.removeEventListener('error', handleError);
-          video.removeEventListener('stalled', handleStalled);
-          video.removeEventListener('waiting', handleWaiting);
-          video.removeEventListener('ended', handleEnded);
-          video.removeEventListener('suspend', handleSuspend);
-          video.removeEventListener('progress', handleProgress);
-          video.removeEventListener('timeupdate', handleTimeUpdate);
-        }
+        video.removeEventListener('canplay', handleCanPlay);
+        video.removeEventListener('playing', handlePlaying);
+        video.removeEventListener('error', handleError);
+        video.removeEventListener('stalled', handleStalled);
+        video.removeEventListener('waiting', handleWaiting);
+        video.removeEventListener('ended', handleEnded);
+        video.removeEventListener('suspend', handleSuspend);
+        video.removeEventListener('progress', handleProgress);
+        video.removeEventListener('timeupdate', handleTimeUpdate);
       } catch (e) {
-        console.error("خطأ في إزالة مستمعي الأحداث:", e);
+        console.error('Error removing video event listeners:', e);
       }
     };
   }, [videoRef, setIsPlaying, setIsLoading, setError, handlePlaybackError]);

@@ -14,6 +14,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     params: {
       eventsPerSecond: 10
     }
+  },
+  global: {
+    headers: {
+      'x-application-name': 'BladiTV',
+      'x-application-version': '1.0.0'
+    }
   }
 });
 

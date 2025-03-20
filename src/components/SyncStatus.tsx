@@ -12,7 +12,7 @@ import SyncErrorNotification from './sync/SyncErrorNotification';
 import SyncActions from './sync/SyncActions';
 import SyncStatusInfo from './sync/SyncStatusInfo';
 import SyncAdvancedOptions from './sync/SyncAdvancedOptions';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 export function SyncStatus() {
   const { syncError, checkSourceAvailability, networkStatus } = useAutoSync();
@@ -22,6 +22,7 @@ export function SyncStatus() {
   const [deploymentPlatform, setDeploymentPlatform] = useState<string>('vercel');
   const [syncStartTime, setSyncStartTime] = useState<number>(0);
   const [lastSyncDuration, setLastSyncDuration] = useState<number>(0);
+  const { toast } = useToast();
   
   const { data: lastSync, refetch: refetchLastSync, error: syncQueryError } = useQuery({
     queryKey: ['lastSync'],
@@ -38,7 +39,7 @@ export function SyncStatus() {
         variant: "destructive"
       });
     }
-  }, [syncQueryError]);
+  }, [syncQueryError, toast]);
 
   const { runSync, isSyncing, runForceSync, isForceSyncing } = useSyncMutations(refetchLastSync, {
     onSyncStart: () => setSyncStartTime(Date.now()),

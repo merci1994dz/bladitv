@@ -1,11 +1,10 @@
-
 /**
  * معالجة أخطاء التطبيق
  * Application error handling
  */
 
 import { STORAGE_KEYS } from '@/services/config';
-import { useToast } from '@/hooks/use-toast';
+import { toast as toastFunction } from '@/hooks/use-toast';
 
 /**
  * أنواع الأخطاء المدعومة
@@ -164,7 +163,7 @@ const determineErrorSeverity = (type: ErrorType): ErrorSeverity => {
 };
 
 /**
- * تحديد ما إذا كان من الممكن إعادة المحاولة
+ * تحديد ما إذا كان من ال��مكن إعادة المحاولة
  * Determine if retry is possible
  */
 const determineIfRetryable = (type: ErrorType): boolean => {
@@ -227,7 +226,7 @@ const deriveUserFriendlyMessage = (
     case ErrorType.NOT_FOUND:
       return 'لم يتم العثور على المورد المطلوب.';
     case ErrorType.TIMEOUT:
-      return 'استغرقت العملية وقتًا طويلاً. يرجى المحاولة مرة أخرى.';
+      return 'استغرقت العملية وقتًا طويلاً. يرجى ال��حاولة مرة أخرى.';
     case ErrorType.VALIDATION:
       return 'البيانات المدخلة غير صالحة. يرجى مراجعة المدخلات وإعادة المحاولة.';
     case ErrorType.SERVER:
@@ -282,8 +281,6 @@ const showErrorToast = (appError: AppError): void => {
   }
 
   try {
-    const { toast } = useToast();
-    
     // تحديد مدة عرض الإشعار بناءً على خطورة الخطأ
     let duration = 5000; // 5 ثوانٍ افتراضية
     if (appError.severity === ErrorSeverity.CRITICAL) {
@@ -292,8 +289,8 @@ const showErrorToast = (appError: AppError): void => {
       duration = 3000; // 3 ثوانٍ للمعلومات
     }
 
-    // عرض الإشعار
-    toast({
+    // عرض الإشعار باستخدام toast مباشرة بدون استخدام hook
+    toastFunction({
       title: `خطأ: ${appError.context || 'في التطبيق'}`,
       description: appError.userMessage,
       variant: "destructive",
@@ -395,9 +392,7 @@ export function handleError(
   // عرض إشعار للمستخدم إذا تم طلب ذلك
   if (showToast) {
     try {
-      const { toast } = useToast();
-      
-      toast({
+      toastFunction({
         title: `خطأ: ${context || 'خطأ في التطبيق'}`,
         description: userMessage,
         variant: "destructive",
@@ -412,7 +407,7 @@ export function handleError(
 }
 
 /**
- * استرجاع سجل الأخطاء
+ * استرجاع س��ل الأخطاء
  * Retrieve error log
  */
 export function getErrorLog(): Array<AppError & { timestamp: string }> {
