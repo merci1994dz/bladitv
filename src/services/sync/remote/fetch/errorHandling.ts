@@ -48,6 +48,10 @@ export const enhanceFetchError = (error: any): Error => {
     return new Error('خطأ CORS: المصدر الخارجي لا يسمح بالوصول من هذا الموقع');
   }
   
+  if (errorMsg.includes('fetch failed') || errorMsg.includes('fetch error')) {
+    return new Error('فشل جلب البيانات، قد تكون المشكلة في الاتصال بالشبكة أو الخادم');
+  }
+  
   return new Error(`خطأ في جلب البيانات: ${errorMsg}`);
 };
 
@@ -84,7 +88,8 @@ export const shouldRetryFetch = (error: any): boolean => {
     errorMsg.includes('connection') ||
     errorMsg.includes('اتصال') ||
     errorMsg.includes('fetch') ||
-    errorMsg.includes('CORS');
+    errorMsg.includes('CORS') ||
+    errorMsg.includes('cors');
     
   return networkRelated;
 };

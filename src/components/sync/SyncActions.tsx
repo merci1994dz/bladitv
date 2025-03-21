@@ -42,19 +42,33 @@ const SyncActions: React.FC<SyncActionsProps> = ({
       duration: 3000,
     });
     
+    // استدعاء دالة المزامنة المقدمة من الخارج
     runSync();
   };
 
   // معالجة نقر زر تحديث البيانات
   const handleForceDataRefresh = async () => {
+    if (isSyncing || isForceSyncing) return;
+    
     toast({
       title: "جاري تحديث البيانات",
       description: "جاري تحديث البيانات مع منع التخزين المؤقت...",
       duration: 3000,
     });
     
-    await forceDataRefresh();
-    runForceSync();
+    try {
+      // مسح ذاكرة التخزين المؤقت ثم طلب مزامنة
+      await forceDataRefresh();
+      runForceSync();
+    } catch (error) {
+      console.error("خطأ أثناء التحديث القسري للبيانات:", error);
+      toast({
+        title: "حدث خطأ",
+        description: "حدث خطأ أثناء تحديث البيانات. يرجى المحاولة مرة أخرى.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
   };
 
   // معالجة نقر زر تحديث الصفحة
@@ -79,14 +93,25 @@ const SyncActions: React.FC<SyncActionsProps> = ({
       duration: 2000,
     });
     
-    const result = await clearPageCache();
-    setCacheCleared(result);
-    
-    toast({
-      title: result ? "تم مسح التخزين المؤقت" : "فشل مسح التخزين المؤقت",
-      description: result ? "تم مسح التخزين المؤقت بنجاح" : "حدث خطأ أثناء مسح التخزين المؤقت",
-      duration: 3000,
-    });
+    try {
+      const result = await clearPageCache();
+      setCacheCleared(result);
+      
+      toast({
+        title: result ? "تم مسح التخزين المؤقت" : "فشل مسح التخزين المؤقت",
+        description: result ? "تم مسح التخزين المؤقت بنجاح" : "حدث خطأ أثناء مسح التخزين المؤقت",
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error("خطأ أثناء مسح ذاكرة التخزين المؤقت:", error);
+      setCacheCleared(false);
+      toast({
+        title: "حدث خطأ",
+        description: "حدث خطأ أثناء مسح التخزين المؤقت. يرجى المحاولة مرة أخرى.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
   };
 
   return (

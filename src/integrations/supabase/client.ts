@@ -44,6 +44,9 @@ const handleSupabaseConnectionStatus = () => {
       console.log('Supabase auth state changed:', event);
     });
     
+    // سجل معلومات الاتصال
+    console.log('Supabase client initialized with URL:', supabaseUrl);
+    
     // معالج دورة حياة الاتصال للتطبيق
     window.addEventListener('online', () => {
       console.log('Application is back online, reconnecting Supabase...');

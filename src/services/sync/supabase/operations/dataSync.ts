@@ -10,6 +10,7 @@ import { updateLastSyncTime } from '../../config';
 import { updateLocalStoreWithData } from '../helpers/storageHelpers';
 import { triggerDataUpdatedEvent } from '../helpers/eventHelpers';
 import { SyncResult } from '../types/syncTypes';
+import { handleError } from '@/utils/errorHandling';
 
 /**
  * مزامنة البيانات من Supabase
@@ -23,55 +24,64 @@ export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> =
     console.log('بدء المزامنة مع Supabase... / Starting synchronization with Supabase...');
     setIsSyncing(true);
     
-    // جلب البيانات من Supabase مع إضافة معامل للتخزين المؤقت
-    // Fetch data from Supabase with a cache buster parameter
-    const cacheBuster = `?_=${Date.now()}`;
+    // إضافة معرف طلب فريد لمنع التخزين المؤقت
+    const requestId = Date.now().toString(36) + Math.random().toString(36).substring(2);
     
+    // جلب البيانات من Supabase مع إضافة معامل للتخزين المؤقت
     const [channelsData, countriesData, categoriesData] = await Promise.all([
-      supabase.from('channels').select('*'),
-      supabase.from('countries').select('*'),
-      supabase.from('categories').select('*'),
+      supabase.from('channels').select('*').order('id', { ascending: true }).throwOnError(),
+      supabase.from('countries').select('*').order('id', { ascending: true }).throwOnError(),
+      supabase.from('categories').select('*').order('id', { ascending: true }).throwOnError(),
     ]);
     
+    // التحقق من وجود أخطاء
     if (channelsData.error) {
       console.error('خطأ في جلب القنوات من Supabase / Error fetching channels from Supabase:', channelsData.error);
-      throw channelsData.error;
+      handleError(channelsData.error, 'Supabase Channels Fetch', true);
+      return false;
     }
     
     if (countriesData.error) {
       console.error('خطأ في جلب البلدان من Supabase / Error fetching countries from Supabase:', countriesData.error);
-      throw countriesData.error;
+      handleError(countriesData.error, 'Supabase Countries Fetch', true);
+      return false;
     }
     
     if (categoriesData.error) {
       console.error('خطأ في جلب الفئات من Supabase / Error fetching categories from Supabase:', categoriesData.error);
-      throw categoriesData.error;
+      handleError(categoriesData.error, 'Supabase Categories Fetch', true);
+      return false;
     }
     
+    // طباعة حجم البيانات المستلمة للتشخيص
+    console.log('تم استلام البيانات من Supabase:', {
+      channels: channelsData.data?.length || 0,
+      countries: countriesData.data?.length || 0,
+      categories: categoriesData.data?.length || 0
+    });
+    
     // تحديث البيانات في الذاكرة والتخزين المحلي
-    // Update data in memory and local storage
     await updateLocalStoreWithData(
-      channelsData.data, 
-      countriesData.data, 
-      categoriesData.data,
+      channelsData.data || [], 
+      countriesData.data || [], 
+      categoriesData.data || [],
       channels,
       countries,
       categories
     );
     
     // تحديث وقت آخر مزامنة
-    // Update last sync time
     updateLastSyncTime();
     
     console.log('تمت المزامنة مع Supabase بنجاح / Successfully synchronized with Supabase');
     
     // إطلاق حدث تحديث البيانات
-    // Trigger data updated event
     triggerDataUpdatedEvent('supabase');
     
     return true;
   } catch (error) {
     console.error('خطأ في المزامنة مع Supabase / Error synchronizing with Supabase:', error);
+    handleError(error, 'Supabase Sync', true);
     return false;
   } finally {
     setIsSyncing(false);
