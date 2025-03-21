@@ -41,41 +41,59 @@ export function useAutoRetry({
       // حساب التأخير المناسب للمحاولة التالية
       const delayMs = calculateExponentialDelay(retryCount);
       
-      setTimeout(() => {
+      const retry = () => {
         setRetryCount(prev => prev + 1);
         
         // استخدام وظيفة التنظيف المشتركة
-        if (cleanupVideoPlayer(videoRef)) {
-          setTimeout(() => {
-            if (!videoRef.current) return;
-            
-            try {
-              // إعادة إعداد الفيديو
-              setupVideoAttributes(videoRef.current, { attemptNumber: retryCount });
-              
-              if (setupVideoSource(videoRef.current, channel.streamUrl)) {
-                // محاولة التشغيل
-                videoRef.current.play().catch(e => {
-                  console.error("فشلت إعادة المحاولة التلقائية:", e);
-                  
-                  // معالجة خاصة لحالة NotAllowedError
-                  if (e.name === "NotAllowedError") {
-                    setError('انقر للتشغيل، التشغيل التلقائي ممنوع');
-                    setIsLoading(false);
-                  }
-                });
-              } else {
-                console.error("فشل في إعداد مصدر الفيديو أثناء إعادة المحاولة التلقائية");
-              }
-            } catch (e) {
-              console.error("خطأ في إعادة المحاولة التلقائية:", e);
-            }
-          }, 500);
-        } else {
+        if (!cleanupVideoPlayer(videoRef)) {
           setError("فشل في إعادة تهيئة مشغل الفيديو");
           setIsLoading(false);
+          return;
         }
-      }, delayMs);
+        
+        setTimeout(() => {
+          if (!videoRef.current) return;
+          
+          try {
+            // إعادة إعداد الفيديو
+            setupVideoAttributes(videoRef.current, { attemptNumber: retryCount });
+            
+            const streamUrl = channel?.streamUrl;
+            if (!streamUrl) {
+              setError("عنوان البث غير متوفر");
+              setIsLoading(false);
+              return;
+            }
+            
+            if (setupVideoSource(videoRef.current, streamUrl)) {
+              // محاولة التشغيل
+              videoRef.current.play().catch(e => {
+                console.error("فشلت إعادة المحاولة التلقائية:", e);
+                
+                // معالجة خاصة لحالة NotAllowedError
+                if (e.name === "NotAllowedError") {
+                  setError('انقر للتشغيل، التشغيل التلقائي ممنوع');
+                  setIsLoading(false);
+                } else {
+                  // محاولة إعادة المحاولة مرة أخرى
+                  setError('حدث خطأ أثناء محاولة التشغيل');
+                  setIsLoading(false);
+                }
+              });
+            } else {
+              console.error("فشل في إعداد مصدر الفيديو أثناء إعادة المحاولة التلقائية");
+              setError("فشل في إعداد مصدر الفيديو");
+              setIsLoading(false);
+            }
+          } catch (e) {
+            console.error("خطأ في إعادة المحاولة التلقائية:", e);
+            setError("حدث خطأ غير متوقع أثناء إعادة المحاولة");
+            setIsLoading(false);
+          }
+        }, 500);
+      };
+      
+      setTimeout(retry, delayMs);
       
       return true;
     } else {
@@ -91,7 +109,7 @@ export function useAutoRetry({
       
       return false;
     }
-  }, [retryCount, maxRetries, videoRef, channel.streamUrl, setIsLoading, setError, setRetryCount]);
+  }, [retryCount, maxRetries, videoRef, channel, setIsLoading, setError, setRetryCount]);
 
   return { handlePlaybackError };
 }

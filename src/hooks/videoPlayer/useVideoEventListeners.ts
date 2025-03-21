@@ -81,25 +81,27 @@ export function useVideoEventListeners({
       // وضع رسالة الخطأ
       setError(errorMsg);
       
-      // عرض الخطأ فقط إذا كان متكرراً بشكل كبير
-      if (consecutiveErrors > 3) {
+      // محاولة التشغيل مرة أخرى فقط إذا كانت الأخطاء ليست متكررة بشكل كبير
+      if (consecutiveErrors <= 3) {
+        const shouldRetry = handlePlaybackError();
+        if (!shouldRetry) {
+          setIsLoading(false);
+        }
+      } else {
+        setIsLoading(false);
+        console.error(`Too many consecutive errors (${consecutiveErrors}), stopping auto-retry`);
+        
         try {
           const { toast } = require('@/hooks/use-toast');
           toast({
-            title: "خطأ في تشغيل الفيديو",
-            description: errorMsg,
+            title: "خطأ متكرر في تشغيل الفيديو",
+            description: "حدثت عدة أخطاء متتالية، يرجى إعادة المحاولة يدوياً",
             variant: "destructive",
-            duration: 3000,
+            duration: 5000,
           });
         } catch (e) {
           console.error("Error showing toast:", e);
         }
-      }
-      
-      // معالجة الخطأ مع منطق إعادة المحاولة
-      const shouldRetry = handlePlaybackError();
-      if (!shouldRetry) {
-        setIsLoading(false);
       }
     };
     
@@ -113,19 +115,22 @@ export function useVideoEventListeners({
         
         // عرض إشعار فقط بعد فترة
         setTimeout(() => {
-          if (isCurrentlyStalled) {
-            try {
-              // استدعاء وحدة toast بطريقة صحيحة
-              const { toast } = require('@/hooks/use-toast');
-              if (typeof toast === 'function') {
+          if (isCurrentlyStalled && videoRef.current) {
+            // تحقق مما إذا كان الفيديو لا يزال في حالة تعليق
+            if (videoRef.current.readyState < 3) {
+              try {
+                const { toast } = require('@/hooks/use-toast');
                 toast({
                   title: "بطء في التحميل",
                   description: "جاري محاولة استئناف البث...",
                   duration: 3000,
                 });
+              } catch (e) {
+                console.error("Error showing toast:", e);
               }
-            } catch (e) {
-              console.error("Error showing toast:", e);
+            } else {
+              // تم حل المشكلة قبل عرض الإشعار
+              isCurrentlyStalled = false;
             }
           }
         }, 5000);
@@ -147,56 +152,36 @@ export function useVideoEventListeners({
       // عادة ما يظهر هذا الحدث عندما يتوقف التحميل مؤقتًا
     };
     
-    // معالج جديد للتقدم - يساعد في اكتشاف استئناف التشغيل بعد التوقف
     const handleProgress = () => {
-      if (isCurrentlyStalled && video.readyState >= 3) {
+      // إذا كان هناك تقدم في التحميل، فإن الفيديو يعمل بشكل صحيح
+      if (isCurrentlyStalled && videoRef.current && videoRef.current.readyState >= 3) {
         console.log('Video recovered from stall');
         isCurrentlyStalled = false;
         setIsLoading(false);
       }
     };
     
-    // معالج جديد للوقت - يساعد في تتبع تقدم التشغيل
-    const handleTimeUpdate = () => {
-      // إذا تم تحديث الوقت، فهذا يعني أن الفيديو يعمل جيدًا
-      if (isCurrentlyStalled) {
-        console.log('Video playback resumed');
-        isCurrentlyStalled = false;
-        setIsLoading(false);
-      }
-    };
-
-    // إضافة المستمعين بمحاولة / التقاط لقوة التنفيذ
-    try {
-      video.addEventListener('canplay', handleCanPlay);
-      video.addEventListener('playing', handlePlaying);
-      video.addEventListener('error', handleError);
-      video.addEventListener('stalled', handleStalled);
-      video.addEventListener('waiting', handleWaiting);
-      video.addEventListener('ended', handleEnded);
-      video.addEventListener('suspend', handleSuspend);
-      video.addEventListener('progress', handleProgress);
-      video.addEventListener('timeupdate', handleTimeUpdate);
-    } catch (e) {
-      console.error('Error setting up video event listeners:', e);
-    }
+    // إضافة المستمعين
+    video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('playing', handlePlaying);
+    video.addEventListener('error', handleError);
+    video.addEventListener('stalled', handleStalled);
+    video.addEventListener('waiting', handleWaiting);
+    video.addEventListener('ended', handleEnded);
+    video.addEventListener('suspend', handleSuspend);
+    video.addEventListener('progress', handleProgress);
     
-    // إزالة المستمعين عند تفكيك المكون
+    // تنظيف المستمعين عند إلغاء التحميل
     return () => {
-      try {
-        if (video) {
-          video.removeEventListener('canplay', handleCanPlay);
-          video.removeEventListener('playing', handlePlaying);
-          video.removeEventListener('error', handleError);
-          video.removeEventListener('stalled', handleStalled);
-          video.removeEventListener('waiting', handleWaiting);
-          video.removeEventListener('ended', handleEnded);
-          video.removeEventListener('suspend', handleSuspend);
-          video.removeEventListener('progress', handleProgress);
-          video.removeEventListener('timeupdate', handleTimeUpdate);
-        }
-      } catch (e) {
-        console.error('Error removing video event listeners:', e);
+      if (videoRef.current) {
+        videoRef.current.removeEventListener('canplay', handleCanPlay);
+        videoRef.current.removeEventListener('playing', handlePlaying);
+        videoRef.current.removeEventListener('error', handleError);
+        videoRef.current.removeEventListener('stalled', handleStalled);
+        videoRef.current.removeEventListener('waiting', handleWaiting);
+        videoRef.current.removeEventListener('ended', handleEnded);
+        videoRef.current.removeEventListener('suspend', handleSuspend);
+        videoRef.current.removeEventListener('progress', handleProgress);
       }
     };
   }, [videoRef, setIsPlaying, setIsLoading, setError, handlePlaybackError]);

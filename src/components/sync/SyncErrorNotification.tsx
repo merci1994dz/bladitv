@@ -21,7 +21,7 @@ const SyncErrorNotification: React.FC<SyncErrorNotificationProps> = ({ syncError
   
   // استخدام أسلوب تأخير ذكي لعرض الأخطاء
   useEffect(() => {
-    let errorTimeout: NodeJS.Timeout;
+    let errorTimeout: NodeJS.Timeout | null = null;
     
     if (syncError) {
       // زيادة عداد الأخطاء لتجنب العرض المتكرر
@@ -52,7 +52,9 @@ const SyncErrorNotification: React.FC<SyncErrorNotificationProps> = ({ syncError
       }, delayTime);
       
       return () => {
-        clearTimeout(errorTimeout);
+        if (errorTimeout) {
+          clearTimeout(errorTimeout);
+        }
       };
     } else {
       // إذا تم حل الخطأ، قم بإخفاء رسالة الخطأ وإعادة تعيين العداد
