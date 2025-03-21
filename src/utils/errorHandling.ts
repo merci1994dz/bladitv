@@ -1,4 +1,3 @@
-
 /**
  * معالجة أخطاء التطبيق
  * Application error handling
@@ -164,7 +163,7 @@ const determineErrorSeverity = (type: ErrorType): ErrorSeverity => {
 };
 
 /**
- * تحديد ما إذا كان من ال��مكن إعادة المحاولة
+ * تحديد ما إ��ا كان من ال��مكن إعادة المحاولة
  * Determine if retry is possible
  */
 const determineIfRetryable = (type: ErrorType): boolean => {
@@ -393,7 +392,7 @@ export function handleError(
   // عرض إشعار للمستخدم إذا تم طلب ذلك
   if (showToast) {
     try {
-      toastFunction({
+      toast({
         title: `خطأ: ${context || 'خطأ في التطبيق'}`,
         description: userMessage,
         variant: "destructive",
