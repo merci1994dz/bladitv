@@ -4,6 +4,8 @@
  * Network request error handling
  */
 
+import { handleError } from '@/utils/errorHandling';
+
 /**
  * معالجة أخطاء الاستجابة
  * Process response errors
@@ -47,4 +49,42 @@ export const enhanceFetchError = (error: any): Error => {
   }
   
   return new Error(`خطأ في جلب البيانات: ${errorMsg}`);
+};
+
+/**
+ * تعزيز معالجة أخطاء الشبكة
+ * Enhanced network error handling
+ */
+export const handleNetworkError = (error: any, context: string): Error => {
+  // تسجيل الخطأ في نظام معالجة الأخطاء
+  const enhancedError = enhanceFetchError(error);
+  handleError(enhancedError, context, true);
+  
+  // التحقق مما إذا كان المتصفح متصلاً بالإنترنت
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return new Error('أنت غير متصل بالإنترنت. يرجى التحقق من اتصالك والمحاولة مرة أخرى.');
+  }
+  
+  return enhancedError;
+};
+
+/**
+ * تحديد ما إذا كان ينبغي إعادة المحاولة بناءً على نوع الخطأ
+ * Determine if retry should be attempted based on error type
+ */
+export const shouldRetryFetch = (error: any): boolean => {
+  if (!error) return false;
+  
+  const errorMsg = error instanceof Error ? error.message : String(error);
+  const networkRelated = 
+    errorMsg.includes('network') || 
+    errorMsg.includes('Network') ||
+    errorMsg.includes('timeout') || 
+    errorMsg.includes('تجاوز المهلة') ||
+    errorMsg.includes('connection') ||
+    errorMsg.includes('اتصال') ||
+    errorMsg.includes('fetch') ||
+    errorMsg.includes('CORS');
+    
+  return networkRelated;
 };

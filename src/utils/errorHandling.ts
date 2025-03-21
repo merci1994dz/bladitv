@@ -163,7 +163,7 @@ const determineErrorSeverity = (type: ErrorType): ErrorSeverity => {
 };
 
 /**
- * تحديد ما إ��ا كان من ال��مكن إعادة المحاولة
+ * تحديد ما إذا كان من الممكن إعادة المحاولة
  * Determine if retry is possible
  */
 const determineIfRetryable = (type: ErrorType): boolean => {
@@ -407,7 +407,7 @@ export function handleError(
 }
 
 /**
- * استرجاع س��ل الأخطاء
+ * استرجاع سجل الأخطاء
  * Retrieve error log
  */
 export function getErrorLog(): Array<AppError & { timestamp: string }> {
