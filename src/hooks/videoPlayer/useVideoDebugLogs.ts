@@ -81,7 +81,7 @@ export function useVideoDebugLogs({
         id: channel.id,
         name: channel.name,
         streamUrl: channel.streamUrl ? channel.streamUrl.substring(0, 30) + "..." : "غير متوفر",
-        category: channel.category?.name || "غير معروف",
+        category: channel.category || "غير معروف", // Changed this line to use category as string, not as object
         timestamp: new Date().toISOString()
       });
     }
