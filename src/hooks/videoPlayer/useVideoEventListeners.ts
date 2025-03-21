@@ -1,7 +1,6 @@
 
 import { useEffect } from 'react';
 import { VideoRef } from './useVideoSetup';
-import { useToast } from '@/hooks/use-toast';
 
 export function useVideoEventListeners({
   videoRef,
@@ -79,7 +78,7 @@ export function useVideoEventListeners({
           break;
       }
       
-      // Set the error message
+      // وضع رسالة الخطأ
       setError(errorMsg);
       
       // عرض الخطأ فقط إذا كان متكرراً بشكل كبير
@@ -116,12 +115,15 @@ export function useVideoEventListeners({
         setTimeout(() => {
           if (isCurrentlyStalled) {
             try {
+              // استدعاء وحدة toast بطريقة صحيحة
               const { toast } = require('@/hooks/use-toast');
-              toast({
-                title: "بطء في التحميل",
-                description: "جاري محاولة استئناف البث...",
-                duration: 3000,
-              });
+              if (typeof toast === 'function') {
+                toast({
+                  title: "بطء في التحميل",
+                  description: "جاري محاولة استئناف البث...",
+                  duration: 3000,
+                });
+              }
             } catch (e) {
               console.error("Error showing toast:", e);
             }
@@ -182,15 +184,17 @@ export function useVideoEventListeners({
     // إزالة المستمعين عند تفكيك المكون
     return () => {
       try {
-        video.removeEventListener('canplay', handleCanPlay);
-        video.removeEventListener('playing', handlePlaying);
-        video.removeEventListener('error', handleError);
-        video.removeEventListener('stalled', handleStalled);
-        video.removeEventListener('waiting', handleWaiting);
-        video.removeEventListener('ended', handleEnded);
-        video.removeEventListener('suspend', handleSuspend);
-        video.removeEventListener('progress', handleProgress);
-        video.removeEventListener('timeupdate', handleTimeUpdate);
+        if (video) {
+          video.removeEventListener('canplay', handleCanPlay);
+          video.removeEventListener('playing', handlePlaying);
+          video.removeEventListener('error', handleError);
+          video.removeEventListener('stalled', handleStalled);
+          video.removeEventListener('waiting', handleWaiting);
+          video.removeEventListener('ended', handleEnded);
+          video.removeEventListener('suspend', handleSuspend);
+          video.removeEventListener('progress', handleProgress);
+          video.removeEventListener('timeupdate', handleTimeUpdate);
+        }
       } catch (e) {
         console.error('Error removing video event listeners:', e);
       }

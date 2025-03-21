@@ -44,8 +44,19 @@ export const validateRemoteData = (data: any): boolean => {
       return false;
     }
     
-    if (!channel.name || !channel.streamUrl) {
-      console.error('قناة غير صالحة:', channel);
+    if (!channel.name || typeof channel.name !== 'string') {
+      console.error('قناة بدون اسم صالح:', channel);
+      return false;
+    }
+    
+    if (!channel.streamUrl || typeof channel.streamUrl !== 'string') {
+      console.error('قناة بدون رابط بث صالح:', channel);
+      return false;
+    }
+    
+    // التحقق من أن category هو سلسلة نصية إذا كان موجودًا
+    if (channel.category !== undefined && channel.category !== null && typeof channel.category !== 'string') {
+      console.error('قناة مع فئة غير صالحة (يجب أن تكون سلسلة نصية):', channel);
       return false;
     }
   }

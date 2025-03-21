@@ -17,10 +17,15 @@ const SyncErrorDisplay: React.FC<SyncErrorDisplayProps> = ({ syncError: propsSyn
   // إذا لم يتم توفير خطأ مباشر، قم بالتحقق من التخزين المحلي
   useEffect(() => {
     if (propsSyncError === null) {
-      const storedError = getSyncError();
-      if (storedError) {
-        setLocalSyncError(storedError.message);
-      } else {
+      try {
+        const storedError = getSyncError();
+        if (storedError) {
+          setLocalSyncError(storedError.message);
+        } else {
+          setLocalSyncError(null);
+        }
+      } catch (error) {
+        console.error('فشل في استرداد خطأ المزامنة من التخزين المحلي:', error);
         setLocalSyncError(null);
       }
     }

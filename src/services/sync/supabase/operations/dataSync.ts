@@ -26,45 +26,56 @@ export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> =
     
     // إضافة معرف طلب فريد لمنع التخزين المؤقت
     const requestId = Date.now().toString(36) + Math.random().toString(36).substring(2);
+    const cacheOptions = forceRefresh ? { cache: 'no-cache' } : undefined;
     
     // جلب البيانات من Supabase مع إضافة معامل للتخزين المؤقت
-    const [channelsData, countriesData, categoriesData] = await Promise.all([
-      supabase.from('channels').select('*').order('id', { ascending: true }).throwOnError(),
-      supabase.from('countries').select('*').order('id', { ascending: true }).throwOnError(),
-      supabase.from('categories').select('*').order('id', { ascending: true }).throwOnError(),
+    const [channelsResponse, countriesResponse, categoriesResponse] = await Promise.all([
+      supabase.from('channels').select('*').order('id', { ascending: true }),
+      supabase.from('countries').select('*').order('id', { ascending: true }),
+      supabase.from('categories').select('*').order('id', { ascending: true }),
     ]);
     
     // التحقق من وجود أخطاء
-    if (channelsData.error) {
-      console.error('خطأ في جلب القنوات من Supabase / Error fetching channels from Supabase:', channelsData.error);
-      handleError(channelsData.error, 'Supabase Channels Fetch', true);
+    if (channelsResponse.error) {
+      console.error('خطأ في جلب القنوات من Supabase / Error fetching channels from Supabase:', channelsResponse.error);
+      handleError(channelsResponse.error, 'Supabase Channels Fetch', true);
       return false;
     }
     
-    if (countriesData.error) {
-      console.error('خطأ في جلب البلدان من Supabase / Error fetching countries from Supabase:', countriesData.error);
-      handleError(countriesData.error, 'Supabase Countries Fetch', true);
+    if (countriesResponse.error) {
+      console.error('خطأ في جلب البلدان من Supabase / Error fetching countries from Supabase:', countriesResponse.error);
+      handleError(countriesResponse.error, 'Supabase Countries Fetch', true);
       return false;
     }
     
-    if (categoriesData.error) {
-      console.error('خطأ في جلب الفئات من Supabase / Error fetching categories from Supabase:', categoriesData.error);
-      handleError(categoriesData.error, 'Supabase Categories Fetch', true);
+    if (categoriesResponse.error) {
+      console.error('خطأ في جلب الفئات من Supabase / Error fetching categories from Supabase:', categoriesResponse.error);
+      handleError(categoriesResponse.error, 'Supabase Categories Fetch', true);
       return false;
     }
+    
+    const channelsData = channelsResponse.data || [];
+    const countriesData = countriesResponse.data || [];
+    const categoriesData = categoriesResponse.data || [];
     
     // طباعة حجم البيانات المستلمة للتشخيص
     console.log('تم استلام البيانات من Supabase:', {
-      channels: channelsData.data?.length || 0,
-      countries: countriesData.data?.length || 0,
-      categories: categoriesData.data?.length || 0
+      channels: channelsData.length,
+      countries: countriesData.length,
+      categories: categoriesData.length
     });
+    
+    // التحقق من وجود بيانات
+    if (channelsData.length === 0 && countriesData.length === 0 && categoriesData.length === 0) {
+      console.warn('لم يتم استلام أي بيانات من Supabase');
+      return false;
+    }
     
     // تحديث البيانات في الذاكرة والتخزين المحلي
     await updateLocalStoreWithData(
-      channelsData.data || [], 
-      countriesData.data || [], 
-      categoriesData.data || [],
+      channelsData, 
+      countriesData, 
+      categoriesData,
       channels,
       countries,
       categories

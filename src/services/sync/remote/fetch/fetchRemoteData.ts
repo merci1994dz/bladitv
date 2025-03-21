@@ -21,7 +21,16 @@ import { isRunningOnVercel } from './skewProtection';
 export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
   // التعامل مع المصادر المحلية
   if (remoteUrl.startsWith('/')) {
-    return fetchLocalFile(remoteUrl);
+    try {
+      const localData = await fetchLocalFile(remoteUrl);
+      if (!validateRemoteData(localData)) {
+        throw new Error('بيانات المصدر المحلي غير صالحة');
+      }
+      return localData;
+    } catch (error) {
+      console.error('فشل في جلب الملف المحلي:', error);
+      throw enhanceFetchError(error);
+    }
   }
   
   // ضمان وجود معلمات منع التخزين المؤقت في الرابط
@@ -42,9 +51,8 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
     
     while (retries > 0) {
       try {
-        let data;
+        let data = null;
         
-        // اختيار استراتيجية مناسبة بناءً على البيئة والمحاولة
         // محاولة الطلب المباشر كخيار أول
         try {
           data = await tryDirectFetchStrategy(
@@ -54,7 +62,7 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
           );
           
           // التحقق من صحة البيانات
-          if (validateRemoteData(data)) {
+          if (data && validateRemoteData(data)) {
             clearTimeout(timeoutId);
             return data;
           }
@@ -67,10 +75,10 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
           try {
             data = await tryProxyStrategy(urlWithCacheBuster, controller.signal);
             console.log('نجحت محاولة البروكسي');
-            clearTimeout(timeoutId);
             
             // التحقق من صحة البيانات
-            if (validateRemoteData(data)) {
+            if (data && validateRemoteData(data)) {
+              clearTimeout(timeoutId);
               return data;
             }
           } catch (proxyError) {
@@ -83,10 +91,10 @@ export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
           try {
             data = await tryJsonpStrategy(urlWithCacheBuster);
             console.log('نجحت محاولة JSONP');
-            clearTimeout(timeoutId);
             
             // التحقق من صحة البيانات
-            if (validateRemoteData(data)) {
+            if (data && validateRemoteData(data)) {
+              clearTimeout(timeoutId);
               return data;
             }
           } catch (jsonpError) {

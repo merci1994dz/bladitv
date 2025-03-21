@@ -81,7 +81,7 @@ export function useVideoDebugLogs({
         id: channel.id,
         name: channel.name,
         streamUrl: channel.streamUrl ? channel.streamUrl.substring(0, 30) + "..." : "غير متوفر",
-        category: channel.category || "غير معروف", // تصحيح: استخدام category كسلسلة نصية
+        category: channel.category || "غير معروف", // تصحيح: استخدام category كسلسلة نصية بدلاً من كائن
         timestamp: new Date().toISOString()
       });
     }
