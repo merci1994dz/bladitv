@@ -8,6 +8,7 @@ interface VideoAttributes {
   muted?: boolean;
   playsInline?: boolean;
   preload?: "" | "none" | "metadata" | "auto";
+  timestamp?: number; // إضافة خاصية الطابع الزمني للتتبع
 }
 
 /**
@@ -26,6 +27,11 @@ export function setupVideoAttributes(
   // إضافة سمات خاصة بملاحظات محاولة إعادة التشغيل
   if (options.attemptNumber !== undefined) {
     videoElement.dataset.attemptNumber = options.attemptNumber.toString();
+  }
+  
+  // إضافة طابع زمني للتتبع إذا تم توفيره
+  if (options.timestamp !== undefined) {
+    videoElement.dataset.timestamp = options.timestamp.toString();
   }
   
   // إضافة السمات الضرورية لدعم التوافق مع مختلف المتصفحات
