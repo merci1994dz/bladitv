@@ -34,7 +34,7 @@ export function useAutoRetry({
 }: UseAutoRetryParams) {
   const { toast } = useToast();
   
-  // منطق إعادة المحاولة التلقائية
+  // منطق إعادة المحاولة التلقائية محسن
   const handlePlaybackError = useCallback(() => {
     if (retryCount < maxRetries) {
       console.log(`إعادة محاولة تلقائية (${retryCount + 1}/${maxRetries})...`);
@@ -57,7 +57,10 @@ export function useAutoRetry({
           
           try {
             // إعادة إعداد الفيديو
-            setupVideoAttributes(videoRef.current, { attemptNumber: retryCount });
+            setupVideoAttributes(videoRef.current, { 
+              attemptNumber: retryCount,
+              timestamp: Date.now() 
+            });
             
             const streamUrl = channel?.streamUrl;
             if (!streamUrl) {
@@ -66,7 +69,11 @@ export function useAutoRetry({
               return;
             }
             
-            if (setupVideoSource(videoRef.current, streamUrl)) {
+            // إضافة معلمة عشوائية لمنع التخزين المؤقت
+            const cacheBuster = `${streamUrl.includes('?') ? '&' : '?'}_=${Date.now()}`;
+            const streamUrlWithCache = `${streamUrl}${cacheBuster}`;
+            
+            if (setupVideoSource(videoRef.current, streamUrlWithCache)) {
               // محاولة التشغيل
               videoRef.current.play().catch(e => {
                 console.error("فشلت إعادة المحاولة التلقائية:", e);
@@ -76,8 +83,8 @@ export function useAutoRetry({
                   setError('انقر للتشغيل، التشغيل التلقائي ممنوع');
                   setIsLoading(false);
                 } else {
-                  // محاولة إعادة المحاولة مرة أخرى
-                  setError('حدث خطأ أثناء محاولة التشغيل');
+                  // معالجة الأخطاء الأخرى
+                  setError(`حدث خطأ أثناء التشغيل: ${e.message || 'خطأ غير معروف'}`);
                   setIsLoading(false);
                 }
               });
@@ -98,14 +105,17 @@ export function useAutoRetry({
       
       return true;
     } else {
-      setError('تعذر تشغيل البث بعد عدة محاولات. انقر على إعادة المحاولة.');
+      // تحسين رسالة الخطأ النهائية للمستخدم
+      const errorMessage = 'تعذر تشغيل البث بعد عدة محاولات. قد تكون المشكلة في جودة الاتصال أو عدم توفر القناة حالياً.';
+      setError(errorMessage);
       setIsLoading(false);
       
+      // إظهار إشعار مع معلومات إضافية
       toast({
         title: "تعذر تشغيل القناة",
-        description: "يرجى التحقق من اتصالك بالإنترنت وانقر على إعادة المحاولة",
+        description: "يرجى التحقق من اتصالك بالإنترنت وانقر على إعادة المحاولة، أو اختر قناة أخرى",
         variant: "destructive",
-        duration: 5000,
+        duration: 6000,
       });
       
       return false;

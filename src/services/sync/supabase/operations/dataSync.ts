@@ -10,6 +10,7 @@ import { updateLastSyncTime } from '../../config';
 import { updateLocalStoreWithData } from '../helpers/storageHelpers';
 import { triggerDataUpdatedEvent } from '../helpers/eventHelpers';
 import { SyncResult } from '../types/syncTypes';
+import { handleError } from '@/utils/errorHandling';
 
 /**
  * مزامنة البيانات من Supabase
@@ -27,27 +28,40 @@ export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> =
     const requestId = Date.now().toString(36) + Math.random().toString(36).substring(2);
     const cacheOptions = forceRefresh ? { cache: 'no-cache' } : undefined;
     
-    // جلب البيانات من Supabase مع إضافة معامل للتخزين المؤقت
+    // استخدام مهلة زمنية لضمان عدم تعليق العملية
+    const timeoutPromise = new Promise<null>((_, reject) => {
+      setTimeout(() => reject(new Error('انتهت مهلة المزامنة مع Supabase')), 30000);
+    });
+    
+    // إعداد الطلبات بمهلة زمنية
+    const channelsPromise = supabase.from('channels').select('*').order('id', { ascending: true });
+    const countriesPromise = supabase.from('countries').select('*').order('id', { ascending: true });
+    const categoriesPromise = supabase.from('categories').select('*').order('id', { ascending: true });
+    
+    // جلب البيانات من Supabase مع مهلة زمنية
     const [channelsResponse, countriesResponse, categoriesResponse] = await Promise.all([
-      supabase.from('channels').select('*').order('id', { ascending: true }),
-      supabase.from('countries').select('*').order('id', { ascending: true }),
-      supabase.from('categories').select('*').order('id', { ascending: true }),
-    ]);
+      Promise.race([channelsPromise, timeoutPromise]),
+      Promise.race([countriesPromise, timeoutPromise]),
+      Promise.race([categoriesPromise, timeoutPromise]),
+    ]) as [any, any, any];
     
     // التحقق من وجود أخطاء
-    if (channelsResponse.error) {
-      console.error('خطأ في جلب القنوات من Supabase / Error fetching channels from Supabase:', channelsResponse.error);
-      return false;
+    if (channelsResponse === null || channelsResponse.error) {
+      const error = channelsResponse?.error || new Error('فشل في جلب القنوات من Supabase');
+      console.error('خطأ في جلب القنوات من Supabase / Error fetching channels from Supabase:', error);
+      throw error;
     }
     
-    if (countriesResponse.error) {
-      console.error('خطأ في جلب البلدان من Supabase / Error fetching countries from Supabase:', countriesResponse.error);
-      return false;
+    if (countriesResponse === null || countriesResponse.error) {
+      const error = countriesResponse?.error || new Error('فشل في جلب البلدان من Supabase');
+      console.error('خطأ في جلب البلدان من Supabase / Error fetching countries from Supabase:', error);
+      throw error;
     }
     
-    if (categoriesResponse.error) {
-      console.error('خطأ في جلب الفئات من Supabase / Error fetching categories from Supabase:', categoriesResponse.error);
-      return false;
+    if (categoriesResponse === null || categoriesResponse.error) {
+      const error = categoriesResponse?.error || new Error('فشل في جلب الفئات من Supabase');
+      console.error('خطأ في جلب الفئات من Supabase / Error fetching categories from Supabase:', error);
+      throw error;
     }
     
     const channelsData = channelsResponse.data || [];
@@ -87,18 +101,34 @@ export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> =
     
     return true;
   } catch (error: any) {
-    console.error('خطأ في المزامنة مع Supabase / Error synchronizing with Supabase:', error);
-    
-    // محاولة الوصول إلى رسالة الخطأ بشكل آمن
+    // تصنيف الخطأ
     const errorMessage = error?.message || 'خطأ غير معروف';
     
-    // تسجيل التفاصيل إذا كان الخطأ من Supabase
-    if (error?.code || error?.details) {
-      console.error('تفاصيل خطأ Supabase:', {
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      });
+    // معالجة أخطاء الاتصال بشكل خاص
+    if (errorMessage.includes('timeout') || 
+        errorMessage.includes('fetch') || 
+        errorMessage.includes('network') ||
+        errorMessage.includes('connection')) {
+      console.error('خطأ في الاتصال بـ Supabase:', errorMessage);
+      handleError(error, 'Supabase Sync - Network Error');
+    } else if (error?.code === '23505' || errorMessage.includes('duplicate key')) {
+      // معالجة أخطاء التكرار في قاعدة البيانات
+      console.error('خطأ تكرار المفتاح في قاعدة البيانات:', errorMessage);
+      handleError(error, 'Supabase Sync - Duplicate Key');
+    } else {
+      // الأخطاء الأخرى
+      console.error('خطأ في المزامنة مع Supabase / Error synchronizing with Supabase:', error);
+      
+      // تسجيل التفاصيل إذا كان الخطأ من Supabase
+      if (error?.code || error?.details) {
+        console.error('تفاصيل خطأ Supabase:', {
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+      }
+      
+      handleError(error, 'Supabase Sync - General Error');
     }
     
     return false;

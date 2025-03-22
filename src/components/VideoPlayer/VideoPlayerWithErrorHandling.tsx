@@ -3,7 +3,7 @@
  * مكون مشغل الفيديو مع معالجة متقدمة للأخطاء
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { Channel } from '@/types';
 import { useVideoPlayback } from '@/hooks/videoPlayer/useVideoPlayback';
 import { useVideoErrorHandling } from '@/hooks/videoPlayer/useVideoErrorHandling';
@@ -36,13 +36,24 @@ const VideoPlayerWithErrorHandling: React.FC<VideoPlayerWithErrorHandlingProps> 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentVolume, setCurrentVolume] = useState(0.8);
   const [showControls, setShowControls] = useState(true);
+  const [lastRetryTime, setLastRetryTime] = useState(0);
 
-  // دالة إعادة المحاولة المخصصة لتمريرها إلى مرفق معالجة الأخطاء
+  // دالة إعادة المحاولة المخصصة مع حماية من الضغط المتكرر
   const retryPlayback = useCallback(async () => {
+    const now = Date.now();
+    const minRetryInterval = 2000; // على الأقل 2 ثانية بين محاولات إعادة التشغيل
+    
+    if (now - lastRetryTime < minRetryInterval) {
+      console.log('تجاهل إعادة المحاولة المتكررة بسرعة');
+      return;
+    }
+    
+    setLastRetryTime(now);
+    
     if (baseRetryPlayback) {
       await baseRetryPlayback();
     }
-  }, [baseRetryPlayback]);
+  }, [baseRetryPlayback, lastRetryTime]);
 
   // مرفق معالجة أخطاء الفيديو المتقدم
   const {
@@ -62,13 +73,17 @@ const VideoPlayerWithErrorHandling: React.FC<VideoPlayerWithErrorHandlingProps> 
   };
 
   // معالجة أخطاء التشغيل (من دالة تهيئة الفيديو)
-  React.useEffect(() => {
+  useEffect(() => {
     if (playbackError) {
+      console.log('معالجة خطأ التشغيل:', playbackError);
       handlePlaybackError(playbackError);
     } else if (!playbackError && errorState.hasError) {
-      clearError();
+      // مسح الخطأ فقط إذا تم حل المشكلة وتم تشغيل الفيديو بنجاح
+      if (isPlaying) {
+        clearError();
+      }
     }
-  }, [playbackError, handlePlaybackError, errorState.hasError, clearError]);
+  }, [playbackError, handlePlaybackError, errorState.hasError, clearError, isPlaying]);
 
   // تكييف دالة seekVideo لتناسب بنية التوقعات لـ onSeek في VideoControls
   const handleSeek = (seconds: number) => (e: React.MouseEvent) => {
@@ -79,16 +94,59 @@ const VideoPlayerWithErrorHandling: React.FC<VideoPlayerWithErrorHandlingProps> 
   // دوال التحكم الإضافية
   const toggleMute = (e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+    }
+    
     setIsMuted(!isMuted);
   };
 
   const handleVolumeChange = (value: number) => {
+    if (videoRef.current) {
+      videoRef.current.volume = value;
+    }
+    
     setCurrentVolume(value);
+    
+    // إلغاء كتم الصوت عند تغيير مستوى الصوت
+    if (isMuted && value > 0) {
+      setIsMuted(false);
+      if (videoRef.current) {
+        videoRef.current.muted = false;
+      }
+    }
   };
 
   const toggleFullscreenHandler = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsFullscreen(!isFullscreen);
+    
+    const videoContainer = videoRef.current?.parentElement;
+    
+    if (!videoContainer) return;
+    
+    try {
+      if (!isFullscreen) {
+        if (videoContainer.requestFullscreen) {
+          videoContainer.requestFullscreen();
+        } else if ((videoContainer as any).webkitRequestFullscreen) {
+          (videoContainer as any).webkitRequestFullscreen();
+        } else if ((videoContainer as any).msRequestFullscreen) {
+          (videoContainer as any).msRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          (document as any).webkitExitFullscreen();
+        } else if ((document as any).msExitFullscreen) {
+          (document as any).msExitFullscreen();
+        }
+      }
+    } catch (error) {
+      console.error('خطأ في تبديل وضع ملء الشاشة:', error);
+    }
   };
 
   // التبديل بين إظهار وإخفاء أدوات التحكم
@@ -96,6 +154,33 @@ const VideoPlayerWithErrorHandling: React.FC<VideoPlayerWithErrorHandlingProps> 
     e.stopPropagation();
     setShowControls(!showControls);
   };
+  
+  // استمع لأحداث ملء الشاشة
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
+
+  // تطبيق إعدادات الصوت المحفوظة عند تحميل الفيديو
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.volume = currentVolume;
+      videoRef.current.muted = isMuted;
+    }
+  }, [currentVolume, isMuted]);
 
   return (
     <div className="relative w-full h-full bg-black rounded-lg overflow-hidden">

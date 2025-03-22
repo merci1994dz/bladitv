@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Wifi, WifiOff, AlertCircle, RefreshCw } from 'lucide-react';
-import { checkBladiInfoAvailability } from '@/services/sync/remote/syncOperations';
+import { checkBladiInfoAvailability } from '@/services/sync/remote/sync/bladiInfoSync';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +24,7 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
   const [serverAccess, setServerAccess] = useState<boolean | null>(null);
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
   const [isVercel, setIsVercel] = useState(false);
+  const [lastCheckTime, setLastCheckTime] = useState(0);
 
   useEffect(() => {
     // التحقق من بيئة النشر
@@ -31,9 +32,17 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
   }, []);
 
   const checkConnectivity = async () => {
-    if (isChecking) return; // منع الفحص المتزامن
+    // منع فحص متكرر سريع
+    const now = Date.now();
+    const minCheckInterval = 3000; // منع الفحص أكثر من مرة كل 3 ثوانٍ
+    
+    if (isChecking || (now - lastCheckTime < minCheckInterval)) {
+      return;
+    }
     
     setIsChecking(true);
+    setLastCheckTime(now);
+    
     try {
       // فحص حالة الاتصال العامة
       const connectivityStatus = await checkConnectivityIssues();
@@ -43,26 +52,38 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
       if (connectivityStatus.hasInternet && connectivityStatus.hasServerAccess) {
         // محاولة الاتصال بالمصدر
         const source = await checkBladiInfoAvailability();
-        setActiveSource(source);
         
         if (source) {
+          setActiveSource(source);
           setConsecutiveFailures(0); // إعادة تعيين عداد الفشل عند النجاح
+          
+          // إذا كان المستخدم يواجه مشاكل في الاتصال سابقًا وتم حلها الآن
+          if (consecutiveFailures > 2) {
+            toast({
+              title: "تم استعادة الاتصال بالمصادر",
+              description: "تم استعادة الاتصال بمصادر البيانات بنجاح.",
+              variant: "default",
+              duration: 3000
+            });
+          }
         } else {
-          incrementFailureCount();
+          incrementFailureCount("لم يتم العثور على مصادر متاحة");
         }
       } else {
-        incrementFailureCount();
+        incrementFailureCount(connectivityStatus.hasInternet 
+          ? "تعذر الوصول إلى خوادم البيانات" 
+          : "أنت غير متصل بالإنترنت");
       }
     } catch (error) {
       console.error('خطأ في فحص الاتصال:', error);
-      incrementFailureCount();
+      incrementFailureCount("حدث خطأ أثناء فحص الاتصال");
     } finally {
       setIsChecking(false);
     }
   };
 
   // زيادة عداد الفشل مع إظهار إشعارات مناسبة
-  const incrementFailureCount = () => {
+  const incrementFailureCount = (reason: string) => {
     setConsecutiveFailures(prev => {
       const newCount = prev + 1;
       
@@ -72,12 +93,14 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
           title: "تعذر الاتصال بالمصادر",
           description: "تم تسجيل عدة محاولات فاشلة للاتصال بالخادم. سيتم استخدام البيانات المخزنة.",
           variant: "default",
+          duration: 6000
         });
       } else if (newCount === 5) {
         toast({
           title: "مشكلة مستمرة في الاتصال",
-          description: "يبدو أن هناك مشكلة مستمرة في الاتصال بالخادم. تحقق من اتصالك بالإنترنت.",
+          description: `${reason}. تحقق من اتصالك بالإنترنت.`,
           variant: "destructive",
+          duration: 8000
         });
       }
       
@@ -94,33 +117,42 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
         // تأخير بسيط لضمان استقرار الاتصال قبل الفحص
         setTimeout(() => {
           checkConnectivity();
-        }, 1000);
+        }, 1500);
       } else {
         setActiveSource(null);
         setServerAccess(false);
+        toast({
+          title: "انقطع الاتصال",
+          description: "أنت غير متصل بالإنترنت. سيتم استخدام البيانات المخزنة محليًا.",
+          variant: "destructive",
+          duration: 5000
+        });
       }
     };
 
     window.addEventListener('online', handleOnlineChange);
     window.addEventListener('offline', handleOnlineChange);
     
-    // فحص الاتصال عند التحميل
-    checkConnectivity();
+    // فحص الاتصال عند التحميل مع تأخير للسماح بتحميل التطبيق
+    const initialCheckTimeout = setTimeout(() => {
+      checkConnectivity();
+    }, 2000);
     
-    // فحص دوري كل دقيقة إذا كان هناك محاولات فاشلة
+    // فحص دوري
     // تقليل الفترة على Vercel لتحسين التجربة
     const intervalId = setInterval(() => {
-      if (consecutiveFailures > 0 && navigator.onLine) {
+      if (navigator.onLine) {
         checkConnectivity();
       }
-    }, isVercel ? 30000 : 60000);
+    }, isVercel ? 45000 : 60000); // كل 45 ثانية على Vercel، كل دقيقة على المنصات الأخرى
     
     return () => {
       window.removeEventListener('online', handleOnlineChange);
       window.removeEventListener('offline', handleOnlineChange);
+      clearTimeout(initialCheckTimeout);
       clearInterval(intervalId);
     };
-  }, [consecutiveFailures, isVercel]);
+  }, [consecutiveFailures, isVercel, toast]);
 
   const handleRefreshClick = () => {
     checkConnectivity();

@@ -24,29 +24,41 @@ const SyncErrorNotification: React.FC<SyncErrorNotificationProps> = ({ syncError
     let errorTimeout: NodeJS.Timeout | null = null;
     
     if (syncError) {
-      // زيادة عداد الأخطاء لتجنب العرض المتكرر
-      setErrorCount(prev => prev + 1);
-      
-      // تأكد من عدم عرض الأخطاء للمستخدم إلا بعد حدوثها بشكل متكرر
-      const shouldShowError = errorCount >= 2;
-      
       // تخزين رسالة الخطأ للاستخدام لاحقًا
       setErrorMessage(syncError);
       
-      // تأخير إظهار الخطأ للسماح بمحاولات إعادة الاتصال التلقائية
-      const delayTime = isRunningOnVercel() ? 10000 : 7000; // تأخير أطول على Vercel
+      // زيادة عداد الأخطاء لتتبع تكرار الأخطاء
+      setErrorCount(prev => {
+        // إعادة تعيين العداد إذا كان هذا خطأ جديد مختلف عن السابق
+        if (errorMessage && !syncError.includes(errorMessage)) {
+          return 1;
+        }
+        return prev + 1;
+      });
+      
+      // تحديد ما إذا كان ينبغي عرض الخطأ استنادًا إلى عدد المرات التي حدث فيها
+      const shouldShowImmediately = 
+        syncError.includes('تعذر الاتصال') || 
+        syncError.includes('فشل في المزامنة') ||
+        syncError.includes('خطأ حرج');
+      
+      // تأخير أقصر للأخطاء الحرجة
+      const delayTime = shouldShowImmediately ? 1000 : (isRunningOnVercel() ? 8000 : 5000);
       
       errorTimeout = setTimeout(() => {
-        // إظهار الخطأ للمستخدم فقط بعد فشل المحاولات المتعددة أو إذا كان خطأً حرجًا
-        if (shouldShowError) {
-          setShowError(true);
+        setShowError(true);
+        
+        // عرض إشعار فقط للأخطاء الهامة أو المتكررة
+        if (shouldShowImmediately || errorCount > 1) {
+          const isRecurring = errorCount > 1;
           
-          // عرض إشعار فقط للأخطاء غير المعروضة مسبقًا
           toast({
-            title: "خطأ في المزامنة",
-            description: "تعذر تحديث البيانات. جاري إعادة المحاولة تلقائيًا...",
-            variant: "destructive",
-            duration: 7000
+            title: isRecurring ? "استمرار مشكلة المزامنة" : "خطأ في المزامنة",
+            description: isRecurring
+              ? "تعذر تحديث البيانات بعد عدة محاولات. يرجى التحقق من اتصالك بالإنترنت"
+              : "تعذر تحديث البيانات. جاري إعادة المحاولة تلقائيًا...",
+            variant: isRecurring ? "destructive" : "default",
+            duration: isRecurring ? 8000 : 5000
           });
         }
       }, delayTime);
@@ -57,38 +69,56 @@ const SyncErrorNotification: React.FC<SyncErrorNotificationProps> = ({ syncError
         }
       };
     } else {
-      // إذا تم حل الخطأ، قم بإخفاء رسالة الخطأ وإعادة تعيين العداد
-      setShowError(false);
-      setErrorMessage(null);
-      setErrorCount(0);
+      // إذا تم حل الخطأ، قم بإخفاء رسالة الخطأ بعد تأخير قصير
+      errorTimeout = setTimeout(() => {
+        setShowError(false);
+        setErrorMessage(null);
+        setErrorCount(0);
+      }, 1000);
+      
+      return () => {
+        if (errorTimeout) {
+          clearTimeout(errorTimeout);
+        }
+      };
     }
-  }, [syncError, toast, errorCount]);
-  
-  // تقديم واجهة المستخدم في حالة الخطأ المستمر فقط
-  if (showError && errorMessage) {
-    return (
-      <Alert variant="destructive" className="mb-4 animate-in fade-in-50 duration-300">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>خطأ في المزامنة</AlertTitle>
-        <AlertDescription>
-          تعذر الاتصال بمصادر البيانات. سيتم إعادة المحاولة تلقائيًا.
-          {isRunningOnVercel() && (
-            <div className="mt-1 text-xs">
-              قد تكون المشكلة متعلقة بتشغيل التطبيق على Vercel.
-            </div>
-          )}
-          {typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && (
-            <div className="mt-2 text-xs opacity-70 truncate">
-              {errorMessage}
-            </div>
-          )}
-        </AlertDescription>
-      </Alert>
-    );
-  }
+  }, [syncError, toast, errorCount, errorMessage]);
   
   // لا تقديم شيء إذا لم يكن هناك خطأ أو لم يتم عرضه بعد
-  return null;
+  if (!showError || !errorMessage) {
+    return null;
+  }
+  
+  // إنشاء رسالة خطأ أكثر تفصيلاً استنادًا إلى نوع الخطأ
+  let errorDetails = "تعذر الاتصال بمصادر البيانات. سيتم إعادة المحاولة تلقائيًا.";
+  
+  if (errorMessage.includes('CORS') || errorMessage.includes('origin')) {
+    errorDetails = "مشكلة في الوصول إلى مصادر البيانات بسبب قيود CORS. جرب مصدرًا آخرًا.";
+  } else if (errorMessage.includes('timeout') || errorMessage.includes('تجاوز المهلة')) {
+    errorDetails = "انتهت مهلة الاتصال بمصادر البيانات. تحقق من سرعة الاتصال.";
+  } else if (errorMessage.includes('Failed to fetch') || errorMessage.includes('fetch failed')) {
+    errorDetails = "تعذر الاتصال بمصادر البيانات. تحقق من اتصالك بالإنترنت.";
+  }
+  
+  return (
+    <Alert variant="destructive" className="mb-4 animate-in fade-in-50 duration-300">
+      <AlertCircle className="h-4 w-4" />
+      <AlertTitle>خطأ في المزامنة</AlertTitle>
+      <AlertDescription>
+        {errorDetails}
+        {isRunningOnVercel() && (
+          <div className="mt-1 text-xs">
+            قد تكون المشكلة متعلقة بتشغيل التطبيق على Vercel.
+          </div>
+        )}
+        {typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && (
+          <div className="mt-2 text-xs opacity-70 truncate">
+            {errorMessage}
+          </div>
+        )}
+      </AlertDescription>
+    </Alert>
+  );
 };
 
 export default SyncErrorNotification;
