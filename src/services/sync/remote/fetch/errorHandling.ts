@@ -62,7 +62,13 @@ export const enhanceFetchError = (error: any): Error => {
 export const handleNetworkError = (error: any, context: string): Error => {
   // تسجيل الخطأ في نظام معالجة الأخطاء
   const enhancedError = enhanceFetchError(error);
-  handleError(enhancedError, context, true);
+  
+  // إذا كانت الدالة معرفة استخدمها، وإلا تجاهلها
+  if (typeof handleError === 'function') {
+    handleError(enhancedError, context, true);
+  } else {
+    console.error(`[${context}]`, enhancedError);
+  }
   
   // التحقق مما إذا كان المتصفح متصلاً بالإنترنت
   if (typeof navigator !== 'undefined' && !navigator.onLine) {

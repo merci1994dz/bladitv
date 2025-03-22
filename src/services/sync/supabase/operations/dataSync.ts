@@ -10,7 +10,6 @@ import { updateLastSyncTime } from '../../config';
 import { updateLocalStoreWithData } from '../helpers/storageHelpers';
 import { triggerDataUpdatedEvent } from '../helpers/eventHelpers';
 import { SyncResult } from '../types/syncTypes';
-import { handleError } from '@/utils/errorHandling';
 
 /**
  * مزامنة البيانات من Supabase
@@ -38,19 +37,16 @@ export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> =
     // التحقق من وجود أخطاء
     if (channelsResponse.error) {
       console.error('خطأ في جلب القنوات من Supabase / Error fetching channels from Supabase:', channelsResponse.error);
-      handleError(channelsResponse.error, 'Supabase Channels Fetch', true);
       return false;
     }
     
     if (countriesResponse.error) {
       console.error('خطأ في جلب البلدان من Supabase / Error fetching countries from Supabase:', countriesResponse.error);
-      handleError(countriesResponse.error, 'Supabase Countries Fetch', true);
       return false;
     }
     
     if (categoriesResponse.error) {
       console.error('خطأ في جلب الفئات من Supabase / Error fetching categories from Supabase:', categoriesResponse.error);
-      handleError(categoriesResponse.error, 'Supabase Categories Fetch', true);
       return false;
     }
     
@@ -90,9 +86,21 @@ export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> =
     triggerDataUpdatedEvent('supabase');
     
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('خطأ في المزامنة مع Supabase / Error synchronizing with Supabase:', error);
-    handleError(error, 'Supabase Sync', true);
+    
+    // محاولة الوصول إلى رسالة الخطأ بشكل آمن
+    const errorMessage = error?.message || 'خطأ غير معروف';
+    
+    // تسجيل التفاصيل إذا كان الخطأ من Supabase
+    if (error?.code || error?.details) {
+      console.error('تفاصيل خطأ Supabase:', {
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+    }
+    
     return false;
   } finally {
     setIsSyncing(false);

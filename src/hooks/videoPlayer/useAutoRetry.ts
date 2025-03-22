@@ -5,7 +5,7 @@
 import { useCallback } from 'react';
 import { VideoRef, setupVideoSource } from './useVideoSetup';
 import { Channel } from '@/types';
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { cleanupVideoPlayer } from './utils/videoCleanup';
 import { setupVideoAttributes } from './utils/videoAttributes';
 import { calculateExponentialDelay } from './utils/retryStrategies';
@@ -32,6 +32,7 @@ export function useAutoRetry({
   setIsLoading,
   setError
 }: UseAutoRetryParams) {
+  const { toast } = useToast();
   
   // منطق إعادة المحاولة التلقائية
   const handlePlaybackError = useCallback(() => {
@@ -109,7 +110,7 @@ export function useAutoRetry({
       
       return false;
     }
-  }, [retryCount, maxRetries, videoRef, channel, setIsLoading, setError, setRetryCount]);
+  }, [retryCount, maxRetries, videoRef, channel, setIsLoading, setError, setRetryCount, toast]);
 
   return { handlePlaybackError };
 }

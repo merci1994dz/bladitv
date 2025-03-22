@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCw, Wifi, HelpCircle, DatabaseIcon, Clock } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface VideoErrorProps {
   error: string;
@@ -21,6 +21,8 @@ const VideoError: React.FC<VideoErrorProps> = ({
   isRecoverable = true,
   attempts = 0
 }) => {
+  const { toast } = useToast();
+  
   // إضافة وظائف متقدمة للتشخيص
   const handleTechnicalDetails = (e: React.MouseEvent) => {
     e.stopPropagation();

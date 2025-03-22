@@ -4,7 +4,7 @@ import { Wifi, WifiOff, AlertCircle, RefreshCw } from 'lucide-react';
 import { checkBladiInfoAvailability } from '@/services/sync/remote/syncOperations';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { checkConnectivityIssues } from '@/services/sync/status/connectivity';
 import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';
 
@@ -17,6 +17,7 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
   onRefresh,
   className = ''
 }) => {
+  const { toast } = useToast();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [activeSource, setActiveSource] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
