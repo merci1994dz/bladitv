@@ -34,13 +34,13 @@ export function useAutoRetry({
 }: UseAutoRetryParams) {
   const { toast } = useToast();
   
-  // منطق إعادة المحاولة التلقائية محسن
+  // تحسين منطق إعادة المحاولة التلقائية للتركيز على المصادر الخارجية
   const handlePlaybackError = useCallback(() => {
     if (retryCount < maxRetries) {
       console.log(`إعادة محاولة تلقائية (${retryCount + 1}/${maxRetries})...`);
       
-      // حساب التأخير المناسب للمحاولة التالية
-      const delayMs = calculateExponentialDelay(retryCount);
+      // تقليل فترات الانتظار للحصول على استجابة أسرع
+      const delayMs = Math.min(calculateExponentialDelay(retryCount), 3000);
       
       const retry = () => {
         setRetryCount(prev => prev + 1);
@@ -52,11 +52,12 @@ export function useAutoRetry({
           return;
         }
         
+        // تقليل التأخير قبل إعادة المحاولة
         setTimeout(() => {
           if (!videoRef.current) return;
           
           try {
-            // إعادة إعداد الفيديو
+            // إعادة إعداد الفيديو مع معلومات إضافية للتشخيص
             setupVideoAttributes(videoRef.current, { 
               attemptNumber: retryCount,
               timestamp: Date.now() 
@@ -69,25 +70,49 @@ export function useAutoRetry({
               return;
             }
             
-            // إضافة معلمة عشوائية لمنع التخزين المؤقت
-            const cacheBuster = `${streamUrl.includes('?') ? '&' : '?'}_=${Date.now()}`;
+            // تحسين معلمات منع التخزين المؤقت
+            const timestamp = Date.now();
+            const randomId = Math.random().toString(36).substring(2, 10);
+            const cacheBuster = `${streamUrl.includes('?') ? '&' : '?'}_=${timestamp}&r=${randomId}`;
             const streamUrlWithCache = `${streamUrl}${cacheBuster}`;
             
+            console.log(`محاولة اتصال جديدة برابط: ${streamUrlWithCache}`);
+            
             if (setupVideoSource(videoRef.current, streamUrlWithCache)) {
-              // محاولة التشغيل
-              videoRef.current.play().catch(e => {
-                console.error("فشلت إعادة المحاولة التلقائية:", e);
-                
-                // معالجة خاصة لحالة NotAllowedError
-                if (e.name === "NotAllowedError") {
-                  setError('انقر للتشغيل، التشغيل التلقائي ممنوع');
-                  setIsLoading(false);
-                } else {
-                  // معالجة الأخطاء الأخرى
-                  setError(`حدث خطأ أثناء التشغيل: ${e.message || 'خطأ غير معروف'}`);
-                  setIsLoading(false);
-                }
+              // تعيين مهلة زمنية قصيرة للإلغاء إذا لم يبدأ التشغيل
+              const playPromise = videoRef.current.play();
+              
+              // استخدام Promise.race مع مهلة زمنية لتسريع اكتشاف الفشل
+              const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error("تجاوز مهلة محاولة التشغيل")), 8000);
               });
+              
+              Promise.race([playPromise, timeoutPromise])
+                .catch(e => {
+                  console.error("فشلت إعادة المحاولة التلقائية:", e);
+                  
+                  // معالجة خاصة لحالة NotAllowedError
+                  if (e.name === "NotAllowedError") {
+                    setError('انقر للتشغيل، التشغيل التلقائي ممنوع');
+                    setIsLoading(false);
+                  } else {
+                    // إعادة المحاولة مرة أخرى إذا كان السبب متعلقًا بالشبكة
+                    const isNetworkError = 
+                      e.message.includes("network") || 
+                      e.message.includes("timeout") ||
+                      e.message.includes("fetch") ||
+                      e.message.includes("تجاوز مهلة");
+                    
+                    if (isNetworkError && retryCount < maxRetries - 1) {
+                      console.log("خطأ شبكة، إعادة المحاولة تلقائيًا...");
+                      // استدعاء إعادة المحاولة مباشرة بدون انتظار
+                      handlePlaybackError();
+                    } else {
+                      setError(`حدث خطأ أثناء التشغيل: ${e.message || 'خطأ غير معروف'}`);
+                      setIsLoading(false);
+                    }
+                  }
+                });
             } else {
               console.error("فشل في إعداد مصدر الفيديو أثناء إعادة المحاولة التلقائية");
               setError("فشل في إعداد مصدر الفيديو");
@@ -98,24 +123,24 @@ export function useAutoRetry({
             setError("حدث خطأ غير متوقع أثناء إعادة المحاولة");
             setIsLoading(false);
           }
-        }, 500);
+        }, 300); // تقليل التأخير من 500 إلى 300 مللي ثانية
       };
       
       setTimeout(retry, delayMs);
       
       return true;
     } else {
-      // تحسين رسالة الخطأ النهائية للمستخدم
-      const errorMessage = 'تعذر تشغيل البث بعد عدة محاولات. قد تكون المشكلة في جودة الاتصال أو عدم توفر القناة حالياً.';
+      // تحسين رسالة الخطأ النهائية للمستخدم والتركيز على إعادة المحاولة اليدوية
+      const errorMessage = 'تعذر تشغيل البث بعد عدة محاولات. يرجى التأكد من اتصالك بالإنترنت وإعادة المحاولة.';
       setError(errorMessage);
       setIsLoading(false);
       
-      // إظهار إشعار مع معلومات إضافية
+      // إظهار إشعار مع زر إعادة المحاولة
       toast({
         title: "تعذر تشغيل القناة",
-        description: "يرجى التحقق من اتصالك بالإنترنت وانقر على إعادة المحاولة، أو اختر قناة أخرى",
+        description: "يرجى التحقق من اتصالك بالإنترنت والنقر على زر إعادة المحاولة",
         variant: "destructive",
-        duration: 6000,
+        duration: 10000, // إبقاء الإشعار لمدة أطول
       });
       
       return false;

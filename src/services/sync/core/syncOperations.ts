@@ -12,6 +12,7 @@ import { checkBladiInfoAvailability } from '../remoteSync';
 import { createTimeoutPromise } from './helpers/timeoutHelper';
 import { executeSync } from './helpers/syncExecutor';
 import { syncWithLocalData } from '../local';
+import { BLADI_INFO_SOURCES } from '../remote/sync/sources';
 
 // Re-export the performInitialSync function from initialSync.ts
 export { performInitialSync } from './initialSync';
@@ -43,21 +44,48 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     // إضافة معامل لمنع التخزين المؤقت (cache-busting) مع دعم حماية التزامن
     // Add cache-busting parameter with sync protection support
     const skewParam = getSkewProtectionParams();
-    const cacheBuster = `?_=${Date.now()}&nocache=${Math.random().toString(36).substring(2, 15)}`;
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2, 15);
+    const cacheBuster = `?_=${timestamp}&nocache=${randomId}`;
     const fullCacheBuster = skewParam ? `${cacheBuster}&${skewParam}` : cacheBuster;
     
-    // تحديد مهلة زمنية للمزامنة لمنع التعليق إلى ما لا نهاية - زيادة إلى 120 ثانية
-    // Set timeout for sync to prevent hanging indefinitely - increased to 120 seconds
-    const timeoutPromise = createTimeoutPromise(120000);
+    // تحديد مهلة زمنية للمزامنة لمنع التعليق إلى ما لا نهاية - تقليل من 120 ثانية إلى 60 ثانية
+    // Set timeout for sync to prevent hanging indefinitely - decreased from 120 to 60 seconds
+    const timeoutPromise = createTimeoutPromise(60000);
     
     // التحقق من وجود مصدر متاح
     // Check for available source
     console.log('التحقق من وجود مصدر متاح للمزامنة... / Checking for available sync source...');
-    const availableSource = await checkBladiInfoAvailability();
+    let availableSource = await checkBladiInfoAvailability();
+    
+    // إذا كان المصدر المتاح هو المصدر المحلي، تجاوزه واختيار مصدر آخر
+    if (availableSource && availableSource.startsWith('/')) {
+      console.log('المصدر المتاح هو مصدر محلي، محاولة العثور على مصدر خارجي بدلاً من ذلك');
+      
+      // محاولة العثور على مصدر خارجي متاح
+      for (const source of BLADI_INFO_SOURCES) {
+        if (!source.startsWith('/')) {
+          try {
+            const { isRemoteUrlAccessible } = await import('../remote/fetch');
+            const isAccessible = await isRemoteUrlAccessible(source);
+            
+            if (isAccessible) {
+              availableSource = source;
+              console.log(`تم العثور على مصدر خارجي متاح: ${source}`);
+              break;
+            }
+          } catch (error) {
+            console.warn(`فشل فحص إمكانية الوصول إلى ${source}:`, error);
+          }
+        }
+      }
+    }
+    
     if (availableSource) {
       console.log(`تم العثور على مصدر متاح: / Found available source: ${availableSource}`);
     } else {
-      console.warn('لم يتم العثور على أي مصدر متاح، سيتم استخدام الخطة البديلة / No available source found, will use fallback plan');
+      console.warn('لم يتم العثور على أي مصدر متاح، سيتم محاولة جميع المصادر الخارجية / No available source found, will try all external sources');
+      // لا نستخدم الخطة البديلة هنا حسب طلب المستخدم
     }
     
     // محاولة المزامنة مع مواقع Bladi Info أولاً
@@ -75,24 +103,32 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
         localStorage.setItem('force_browser_refresh', 'true');
         localStorage.setItem('nocache_version', Date.now().toString());
         localStorage.setItem('data_version', Date.now().toString());
+        localStorage.setItem('last_sync_success', 'true');
       } catch (e) {
         console.error('فشل في تعيين علامات التحديث', e);
       }
+      
+      return true;
+    } else {
+      console.warn('فشلت جميع محاولات المزامنة مع المصادر الخارجية');
+      
+      // تعيين علامات فشل المزامنة
+      try {
+        localStorage.setItem('last_sync_success', 'false');
+        localStorage.setItem('last_sync_failure', Date.now().toString());
+      } catch (e) {
+        console.error('فشل في تعيين علامات فشل المزامنة', e);
+      }
+      
+      return false;
     }
-    
-    return result;
     
   } catch (error) {
     console.error('خطأ غير متوقع أثناء المزامنة: / Unexpected error during sync:', error);
     
-    // محاولة استخدام البيانات المحلية في حالة الخطأ
-    // Try to use local data in case of error
-    try {
-      return await syncWithLocalData(forceRefresh || true); // دائمًا استخدم forceRefresh=true
-    } catch (e) {
-      console.error('فشل الرجوع للبيانات المحلية: / Failed to fallback to local data:', e);
-      return false;
-    }
+    // لا نستخدم البيانات المحلية كما طلب المستخدم
+    // بدلاً من ذلك، نعيد false للإشارة إلى فشل المزامنة
+    return false;
   } finally {
     // تحرير قفل المزامنة دائمًا حتى في حالة الخطأ
     // Always release sync lock even in case of error
