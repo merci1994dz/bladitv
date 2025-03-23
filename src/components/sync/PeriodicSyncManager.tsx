@@ -2,7 +2,8 @@
 import React, { useEffect } from 'react';
 
 interface PeriodicSyncManagerProps {
-  setupPeriodicSync: () => number;
+  // Change the return type to accept NodeJS.Timeout
+  setupPeriodicSync: () => NodeJS.Timeout;
   setupRealtimeSync: () => void;
   handleOnline: () => void;
   handleFocus: () => void;

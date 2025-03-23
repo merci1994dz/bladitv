@@ -107,8 +107,8 @@ export const useInitialSync = () => {
     }
   };
   
-  // وظيفة لإعداد المزامنة الدورية
-  const setupPeriodicSync = () => {
+  // وظيفة لإعداد المزامنة الدورية - تعديل نوع الإرجاع إلى NodeJS.Timeout
+  const setupPeriodicSync = (): NodeJS.Timeout => {
     const baseSyncInterval = isRunningOnVercel() ? 6 * 60 * 1000 : 5 * 60 * 1000;
     const randomOffset = Math.random() * 60 * 1000;
     const syncInterval = baseSyncInterval + randomOffset;
