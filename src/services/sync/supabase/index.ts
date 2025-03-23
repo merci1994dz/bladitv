@@ -4,11 +4,23 @@
  * Main export index for Supabase sync functions
  */
 
-// تصدير العمليات الأساسية
-// Export core operations
-export { syncWithSupabase } from './operations/dataSync';
+// تصدير عمليات المزامنة الأساسية
+// Export core sync operations
+export { performSupabaseSync as syncWithSupabase } from './sync/syncCore';
 export { initializeSupabaseTables } from './initialize';
-export { setupRealtimeSync } from './realtime';
+export { setupSupabaseRealtimeSync as setupRealtimeSync } from './realtime/realtimeSync';
+
+// تصدير وظائف التحقق من الاتصال
+// Export connection checking functions
+export { checkSupabaseConnection, getSupabaseTableStats } from './connection/connectionCheck';
+
+// تصدير وظائف معالجة الأخطاء
+// Export error handling functions
+export { 
+  handleSupabaseError, 
+  classifySupabaseError, 
+  SupabaseSyncErrorType 
+} from './syncErrorHandler';
 
 // تصدير الأنواع والمساعدات
 // Export types and helpers
