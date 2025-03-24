@@ -1,105 +1,104 @@
 
 /**
- * Core lock state management
- * إدارة حالة القفل الأساسية
+ * حالة قفل المزامنة - منع المزامنات المتزامنة
+ * Sync lock state - preventing simultaneous syncs
  */
+
+// مهلة القفل (بالمللي ثانية)
+// Lock timeout (in milliseconds)
+export const LOCK_TIMEOUT = 60000; // 60 ثانية
 
 // حالة القفل
 // Lock state
-let syncLocked = false;
-let syncLockTimestamp = 0;
-let syncLockOwner = ''; // معرف للعملية التي تملك القفل
+let isLocked = false;
+let lockOwner: string | null = null;
+let lockTime: number = 0;
 
-// تقليل مهلة القفل لتحسين التعافي من الفشل
-// Reduce lock timeout to improve failure recovery
-export const LOCK_TIMEOUT = 15000; // 15 ثانية بدلاً من 25 ثانية
-
-// التحقق مما إذا كانت المزامنة مقفلة
-// Check if sync is locked
+/**
+ * التحقق مما إذا كانت المزامنة مقفلة
+ * Check if sync is locked
+ */
 export const isSyncLocked = (): boolean => {
-  // التحقق من انتهاء مهلة القفل
-  // Check if lock timeout has expired
-  if (syncLocked && Date.now() - syncLockTimestamp > LOCK_TIMEOUT) {
-    console.warn(`تجاوز الوقت المحدد للمزامنة (${LOCK_TIMEOUT}ms)، تحرير القفل بالقوة`);
+  // فحص ما إذا كان القفل قديمًا
+  // Check if lock is stale
+  if (isLocked && Date.now() - lockTime > LOCK_TIMEOUT) {
+    console.warn(`تم اكتشاف قفل قديم (تم إنشاؤه في ${new Date(lockTime).toISOString()})، جارٍ إلغاء القفل تلقائيًا`);
     releaseSyncLock();
     return false;
   }
-  return syncLocked;
+
+  return isLocked;
 };
 
-// وضع قفل المزامنة مع تعزيز أمان القفل
-// Set sync lock with enhanced lock security
-export const setSyncLock = (owner = ''): boolean => {
-  if (syncLocked) {
+/**
+ * وضع قفل المزامنة
+ * Set sync lock
+ */
+export const setSyncLock = (owner: string = 'default'): boolean => {
+  if (isLocked) {
+    console.warn(`محاولة وضع قفل المزامنة أثناء وجود قفل نشط بالفعل من قبل ${lockOwner}`);
     return false;
   }
+
+  console.log(`تم وضع قفل المزامنة: ${owner}`);
+  isLocked = true;
+  lockOwner = owner;
+  lockTime = Date.now();
   
-  syncLocked = true;
-  syncLockTimestamp = Date.now();
-  syncLockOwner = owner || `process-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-  
-  // تسجيل حالة القفل
-  // Log lock state
-  console.log(`تم وضع قفل المزامنة: ${syncLockOwner}`);
-  
-  // تخزين معلومات القفل لفحص تعارضات القفل المحتملة
-  // Store lock info to check potential lock conflicts
+  // تخزين حالة القفل في الجلسة للاسترداد في حالة تحديث الصفحة
+  // Store lock state in session for recovery in case of page refresh
   try {
-    const lockInfo = {
-      owner: syncLockOwner,
-      timestamp: syncLockTimestamp,
-      timeout: LOCK_TIMEOUT
-    };
-    sessionStorage.setItem('sync_lock_info', JSON.stringify(lockInfo));
-    
-    // تعيين مؤقت لتحرير القفل تلقائياً بعد انتهاء المهلة
-    // Set timer to automatically release lock after timeout
-    setTimeout(() => {
-      if (syncLocked && syncLockOwner === lockInfo.owner) {
-        console.warn(`تحرير القفل تلقائياً بعد انتهاء المهلة: ${LOCK_TIMEOUT}ms`);
-        releaseSyncLock(lockInfo.owner);
-      }
-    }, LOCK_TIMEOUT + 1000);
+    sessionStorage.setItem('sync_lock_state', JSON.stringify({
+      isLocked,
+      lockOwner,
+      lockTime
+    }));
   } catch (e) {
     // تجاهل أخطاء التخزين
     // Ignore storage errors
   }
-  
+
   return true;
 };
 
-// تحرير قفل المزامنة
-// Release sync lock
-export const releaseSyncLock = (owner = ''): boolean => {
-  // التحقق من المالك للأمان (إذا تم تحديده)
-  // Check owner for security (if specified)
-  if (owner && syncLockOwner && owner !== syncLockOwner) {
-    console.warn(`محاولة تحرير قفل مملوك لعملية أخرى (${syncLockOwner} != ${owner})، تجاهل`);
+/**
+ * تحرير قفل المزامنة
+ * Release sync lock
+ */
+export const releaseSyncLock = (owner: string = 'any'): boolean => {
+  // إذا كان هناك مالك محدد للقفل، تحقق مما إذا كان المالك الحالي
+  // If a specific lock owner is provided, check if it's the current owner
+  if (lockOwner !== null && owner !== 'any' && lockOwner !== owner) {
+    console.warn(`محاولة تحرير قفل غير مملوك. المالك الحالي: ${lockOwner}, المطلوب: ${owner}`);
     return false;
   }
+
+  console.log(`تحرير قفل المزامنة`);
+  isLocked = false;
+  lockOwner = null;
+  lockTime = 0;
   
-  console.log(`تحرير قفل المزامنة${owner ? ` (${owner})` : ''}`);
-  
-  syncLocked = false;
-  syncLockTimestamp = 0;
-  syncLockOwner = '';
-  
-  // مسح معلومات القفل المخزنة
-  // Clear stored lock info
+  // مسح حالة القفل المخزنة
+  // Clear stored lock state
   try {
-    sessionStorage.removeItem('sync_lock_info');
+    sessionStorage.removeItem('sync_lock_state');
   } catch (e) {
     // تجاهل أخطاء التخزين
     // Ignore storage errors
   }
-  
+
   return true;
 };
 
-// تصدير الحالة الداخلية لاختبارات والاستخدامات المتقدمة
-// Export internal state for testing and advanced uses
-export const getLockState = () => ({
-  isLocked: syncLocked,
-  timestamp: syncLockTimestamp,
-  owner: syncLockOwner
-});
+/**
+ * الحصول على حالة القفل الحالية
+ * Get current lock state
+ */
+export const getLockState = () => {
+  return {
+    isLocked,
+    lockOwner,
+    lockTime,
+    isStale: isLocked && Date.now() - lockTime > LOCK_TIMEOUT
+  };
+};

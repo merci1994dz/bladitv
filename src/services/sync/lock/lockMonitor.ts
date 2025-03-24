@@ -1,89 +1,53 @@
 
 /**
- * مراقبة القفل - وظائف للكشف عن وإصلاح حالات القفل المعلقة
- * Lock monitoring - Functions to detect and fix stuck lock states
+ * مراقبة القفل واستعادة الحالة
+ * Lock monitoring and state recovery
  */
 
-import { isSyncLocked, releaseSyncLock, LOCK_TIMEOUT, getLockState } from './lockState';
+import { isSyncLocked, releaseSyncLock, getLockState, LOCK_TIMEOUT } from './lockState';
 
-// التحقق الدوري من انتهاء مهلة القفل
-// Periodic check for lock timeout
+// إعداد مراقبة دورية للقفل - للتحقق من حالات القفل العالقة
+// Set up periodic lock monitoring - to check for stuck locks
 export const setupLockMonitoring = (): (() => void) => {
-  if (typeof window === 'undefined') {
-    return () => {}; // Return empty cleanup function for SSR
-  }
+  console.log('بدء مراقبة قفل المزامنة');
   
-  // التحقق من القفل كل 10 ثواني
-  // Check lock every 10 seconds
+  // فحص القفل كل 20 ثانية وتحريره إذا كان قديمًا
+  // Check lock every 20 seconds and release if stale
   const intervalId = setInterval(() => {
-    if (isSyncLocked()) {
-      const { timestamp } = getLockState();
-      const lockDuration = Date.now() - timestamp;
-      
-      // التحقق بشكل متدرج
-      // Check gradually
-      if (lockDuration > LOCK_TIMEOUT) {
-        console.warn(`تم اكتشاف قفل معلق (${lockDuration}ms > ${LOCK_TIMEOUT}ms)، تحرير القفل تلقائيًا`);
-        releaseSyncLock();
-      } else if (lockDuration > LOCK_TIMEOUT * 0.7) {
-        // تحذير مبكر
-        // Early warning
-        console.warn(`قفل المزامنة مستمر لفترة طويلة (${lockDuration}ms)، قد يكون معلقًا`);
-      }
-    }
-  }, 10000);
-  
-  // كشف تحديثات الصفحة وإعادة تحميلها لإعادة تعيين حالة القفل
-  // Detect page updates and reloads to reset lock state
-  const handleBeforeUnload = () => {
-    if (isSyncLocked()) {
-      console.log('إعادة تعيين قفل المزامنة قبل تحديث الصفحة');
+    const lockState = getLockState();
+    
+    if (lockState.isStale) {
+      console.warn('تم اكتشاف قفل عالق أثناء المراقبة الدورية، جارٍ تحريره');
       releaseSyncLock();
     }
-  };
+  }, 20000);
   
-  window.addEventListener('beforeunload', handleBeforeUnload);
-  
+  // إعادة دالة التنظيف
   // Return cleanup function
   return () => {
     clearInterval(intervalId);
-    window.removeEventListener('beforeunload', handleBeforeUnload);
   };
 };
 
-// فحص طول الطابور للكشف عن المشكلات المحتملة
-// Check queue length to detect potential problems
-export const monitorQueueLength = (queueLength: number): void => {
-  if (queueLength > 3) {
-    console.warn(`اكتشاف طابور مزامنة طويل: ${queueLength} عناصر`);
-  }
-};
-
-// استعادة حالة القفل من sessionStorage
-// Restore lock state from sessionStorage
+// استعادة حالة القفل من التخزين - مفيد في حالات تحديث الصفحة
+// Restore lock state from storage - useful for page refresh cases
 export const restoreLockStateFromSession = (): void => {
   try {
-    const lockInfoStr = sessionStorage.getItem('sync_lock_info');
-    if (lockInfoStr) {
-      const lockInfo = JSON.parse(lockInfoStr);
-      const elapsed = Date.now() - lockInfo.timestamp;
+    const storedLockState = sessionStorage.getItem('sync_lock_state');
+    
+    if (storedLockState) {
+      const lockState = JSON.parse(storedLockState);
       
-      // Print debug info
-      console.log(`معلومات القفل المخزنة: ${lockInfoStr}, الوقت المنقضي: ${elapsed}ms`);
-      
-      // إذا لم تنتهِ صلاحية القفل بعد، لا تستعيده ولكن قم بمسحه فقط
-      // If lock hasn't expired yet, don't restore it, just clear it
-      if (elapsed < lockInfo.timeout) {
-        console.log(`مسح قفل مخزن غير منتهي الصلاحية: ${lockInfo.owner} (${elapsed}ms مضت)`);
+      // إذا كان القفل قديمًا، قم بتحريره بدلاً من استعادته
+      // If lock is stale, release it instead of restoring
+      if (Date.now() - lockState.lockTime > LOCK_TIMEOUT) {
+        console.log('تم العثور على قفل قديم في التخزين، جارٍ تحريره');
+        sessionStorage.removeItem('sync_lock_state');
+      } else {
+        console.log('تمت استعادة حالة قفل المزامنة من التخزين');
       }
-      
-      // مسح المعلومات المخزنة دائمًا عند بدء التشغيل
-      // Always clear stored info on startup
-      sessionStorage.removeItem('sync_lock_info');
     }
   } catch (e) {
-    // تجاهل أخطاء التخزين
-    // Ignore storage errors
-    console.error('خطأ في استعادة معلومات القفل:', e);
+    console.error('فشل في استعادة حالة قفل المزامنة:', e);
   }
 };

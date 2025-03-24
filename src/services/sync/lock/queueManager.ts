@@ -10,6 +10,7 @@ import { isSyncLocked, setSyncLock, releaseSyncLock, LOCK_TIMEOUT } from './lock
 // طابور المزامنة
 // Sync queue
 const syncQueue: (() => Promise<boolean>)[] = [];
+let isProcessingQueue = false; // متغير لتتبع ما إذا كانت معالجة الطابور قيد التنفيذ
 
 // إضافة إلى طابور المزامنة مع تحسين إدارة الطابور
 // Add to sync queue with improved queue management
@@ -20,17 +21,12 @@ export const addToSyncQueue = (syncFunction: () => Promise<boolean>): Promise<bo
     const queueLength = syncQueue.length;
     console.log(`إضافة مهمة إلى طابور المزامنة (طول الطابور: ${queueLength})`);
     
-    // التحقق مما إذا كان الطابور أصبح طويلاً جدًا
-    // Check if queue has become too long
+    // حد أقصى لحجم الطابور لمنع تراكم المهام
+    // Maximum queue size to prevent task accumulation
     if (queueLength > 5) {
-      console.warn('طابور المزامنة طويل جدًا، قد يكون هناك مشكلة');
-      
-      // إذا كان الطابور طويلاً جدًا والمزامنة مقفلة، قد يكون هناك مشكلة في القفل
-      // If queue is too long and sync is locked, there may be a lock problem
-      if (isSyncLocked() && Date.now() - LOCK_TIMEOUT / 2) {
-        console.warn('تسريع تحرير القفل بسبب طول الطابور');
-        releaseSyncLock();
-      }
+      console.warn('طابور المزامنة طويل جدًا، تجاهل العملية الجديدة');
+      resolve(false); // رفض العمليات الجديدة عندما يكون الطابور طويلاً جدًا
+      return;
     }
     
     // إضافة دالة مغلفة تحل الوعد بتحسين معالجة الأخطاء
@@ -65,9 +61,9 @@ export const addToSyncQueue = (syncFunction: () => Promise<boolean>): Promise<bo
       }
     });
     
-    // محاولة معالجة الطابور إذا لم يكن مقفلًا
-    // Try to process the queue if not locked
-    if (!isSyncLocked()) {
+    // محاولة معالجة الطابور إذا لم يكن مقفلًا ولم تكن المعالجة قيد التنفيذ بالفعل
+    // Try to process the queue if not locked and not already processing
+    if (!isSyncLocked() && !isProcessingQueue) {
       processNextQueueItem();
     }
   });
@@ -76,6 +72,13 @@ export const addToSyncQueue = (syncFunction: () => Promise<boolean>): Promise<bo
 // معالجة العنصر التالي في الطابور مع تعزيز معالجة الأخطاء
 // Process next item in queue with enhanced error handling
 export const processNextQueueItem = async (): Promise<void> => {
+  // تجنب تكرار معالجة الطابور
+  // Avoid duplicate queue processing
+  if (isProcessingQueue) {
+    console.log(`تأجيل معالجة طابور المزامنة: المعالجة قيد التقدم بالفعل`);
+    return;
+  }
+  
   if (syncQueue.length === 0) {
     return;
   }
@@ -89,6 +92,10 @@ export const processNextQueueItem = async (): Promise<void> => {
   if (!nextSync) return;
   
   const queueOwner = `queue-process-${Date.now()}`;
+  
+  // وضع علامة على أن المعالجة قيد التقدم
+  // Mark that processing is in progress
+  isProcessingQueue = true;
   
   // وضع القفل وتنفيذ وظيفة المزامنة
   // Set lock and execute sync function
@@ -118,13 +125,17 @@ export const processNextQueueItem = async (): Promise<void> => {
     // Always make sure to release the lock
     releaseSyncLock(queueOwner);
     
+    // إعادة تعيين متغير الحالة
+    // Reset state variable
+    isProcessingQueue = false;
+    
     // إذا كانت هناك عناصر إضافية في الطابور، استمر في المعالجة
     // If there are additional items in the queue, continue processing
     if (syncQueue.length > 0) {
       console.log(`استمرار معالجة الطابور (${syncQueue.length} عناصر متبقية)`);
       // تأخير قصير لمنع تنافس الموارد المحتملة
       // Short delay to prevent potential resource contention
-      setTimeout(processNextQueueItem, 100);
+      setTimeout(processNextQueueItem, 200);
     }
   }
 };

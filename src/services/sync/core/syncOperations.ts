@@ -11,17 +11,37 @@ import { getSkewProtectionParams } from '../remoteSync';
 import { checkBladiInfoAvailability } from '../remoteSync';
 import { createTimeoutPromise } from './helpers/timeoutHelper';
 import { executeSync } from './helpers/syncExecutor';
-import { syncWithLocalData } from '../local';
 import { BLADI_INFO_SOURCES } from '../remote/sync/sources';
 
 // Re-export the performInitialSync function from initialSync.ts
 export { performInitialSync } from './initialSync';
+
+// حد أقصى لعدد محاولات المزامنة المتتالية
+// Maximum number of consecutive sync attempts
+const MAX_CONSECUTIVE_SYNCS = 3;
+let consecutiveSyncAttempts = 0;
+let lastSyncAttemptTime = 0;
 
 /**
  * وظيفة المزامنة الرئيسية - محسنة مع آلية قفل آمنة ومعالجة الطوابير
  * Main synchronization function - enhanced with safe locking mechanism and queue handling
  */
 export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
+  // فحص عدد المحاولات المتتالية لمنع تكرار المزامنة بشكل مفرط
+  // Check consecutive attempts to prevent excessive syncing
+  const now = Date.now();
+  if (now - lastSyncAttemptTime < 5000) { // مهلة 5 ثوانٍ بين المحاولات
+    consecutiveSyncAttempts++;
+    if (consecutiveSyncAttempts > MAX_CONSECUTIVE_SYNCS) {
+      console.warn(`تم تجاوز الحد الأقصى لمحاولات المزامنة المتتالية (${MAX_CONSECUTIVE_SYNCS})، تجاهل هذه المحاولة`);
+      return false;
+    }
+  } else {
+    // إعادة تعيين العداد إذا مرت فترة كافية
+    consecutiveSyncAttempts = 1;
+  }
+  lastSyncAttemptTime = now;
+  
   // إذا كانت المزامنة قيد التنفيذ، إضافة الطلب إلى الطابور
   // If synchronization is already in progress, add the request to the queue
   if (isSyncLocked()) {
@@ -34,7 +54,7 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
   
   // وضع قفل المزامنة
   // Set sync lock
-  setSyncLock();
+  setSyncLock('sync-all-data');
   setIsSyncing(true);
   setSyncActive(true);
   
@@ -49,9 +69,9 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     const cacheBuster = `?_=${timestamp}&nocache=${randomId}`;
     const fullCacheBuster = skewParam ? `${cacheBuster}&${skewParam}` : cacheBuster;
     
-    // تحديد مهلة زمنية للمزامنة لمنع التعليق إلى ما لا نهاية - تقليل من 120 ثانية إلى 60 ثانية
-    // Set timeout for sync to prevent hanging indefinitely - decreased from 120 to 60 seconds
-    const timeoutPromise = createTimeoutPromise(60000);
+    // تحديد مهلة زمنية للمزامنة لمنع التعليق إلى ما لا نهاية - تقليل من 120 ثانية إلى 30 ثانية
+    // Set timeout for sync to prevent hanging indefinitely - decreased from 120 to 30 seconds
+    const timeoutPromise = createTimeoutPromise(30000);
     
     // التحقق من وجود مصدر متاح
     // Check for available source
@@ -85,12 +105,11 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
       console.log(`تم العثور على مصدر متاح: / Found available source: ${availableSource}`);
     } else {
       console.warn('لم يتم العثور على أي مصدر متاح، سيتم محاولة جميع المصادر الخارجية / No available source found, will try all external sources');
-      // لا نستخدم الخطة البديلة هنا حسب طلب المستخدم
     }
     
-    // محاولة المزامنة مع مواقع Bladi Info أولاً
-    // Try to sync with Bladi Info sites first
-    const syncPromise = executeSync(availableSource, forceRefresh || true, fullCacheBuster, skewParam); // دائمًا استخدم forceRefresh=true
+    // محاولة المزامنة مع مصدر Bladi Info
+    // Try to sync with Bladi Info source
+    const syncPromise = executeSync(availableSource, forceRefresh || true, fullCacheBuster, skewParam);
     
     // تنفيذ المزامنة مع مهلة زمنية
     // Execute sync with timeout
@@ -104,6 +123,7 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
         localStorage.setItem('nocache_version', Date.now().toString());
         localStorage.setItem('data_version', Date.now().toString());
         localStorage.setItem('last_sync_success', 'true');
+        localStorage.setItem('last_sync_time', new Date().toISOString());
       } catch (e) {
         console.error('فشل في تعيين علامات التحديث', e);
       }
@@ -125,14 +145,11 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     
   } catch (error) {
     console.error('خطأ غير متوقع أثناء المزامنة: / Unexpected error during sync:', error);
-    
-    // لا نستخدم البيانات المحلية كما طلب المستخدم
-    // بدلاً من ذلك، نعيد false للإشارة إلى فشل المزامنة
     return false;
   } finally {
     // تحرير قفل المزامنة دائمًا حتى في حالة الخطأ
     // Always release sync lock even in case of error
-    releaseSyncLock();
+    releaseSyncLock('sync-all-data');
     setIsSyncing(false);
     setSyncActive(false);
   }

@@ -1,143 +1,69 @@
 
 /**
- * دالة لتنفيذ المزامنة مع المصادر المختلفة
- * Function to execute sync with different sources
+ * وظيفة لتنفيذ المزامنة مع معالجة الأخطاء المحسنة
+ * Function to execute synchronization with improved error handling
  */
 
-import { getRemoteConfig } from '../../remote';
-import { REMOTE_CONFIG } from '../../../config';
-import { syncWithRemoteSource, syncWithBladiInfo } from '../../remoteSync';
-import { syncWithLocalData } from '../../local';
+import { syncWithRemoteSource } from '../../remote/sync/syncWithRemote';
+import { delay } from './timeoutHelper';
 import { BLADI_INFO_SOURCES } from '../../remote/sync/sources';
 
 /**
- * تنفيذ المزامنة مع مصادر مختلفة
- * Execute sync with different sources
- * 
- * @param availableSource المصدر المتاح المكتشف / Available discovered source
- * @param forceRefresh إجبار التحديث / Force refresh
- * @param fullCacheBuster معامل كسر التخزين المؤقت / Cache busting parameter
- * @param skewParam معامل حماية التزامن / Sync protection parameter
- * @returns وعد بنجاح أو فشل المزامنة / Promise with sync success or failure
+ * تنفيذ المزامنة مع مصدر محدد أو مع جميع المصادر
+ * Execute synchronization with a specific source or with all sources
  */
-export async function executeSync(
-  availableSource: string | null, 
+export const executeSync = async (
+  primarySource: string | null,
   forceRefresh: boolean,
-  fullCacheBuster: string,
+  cacheBuster: string,
   skewParam: string | null
-): Promise<boolean> {
-  try {
-    // إضافة علامة تأكيد للتحديث
-    forceRefresh = true; // دائمًا استخدم forceRefresh=true
-    
-    // تجاوز المصادر المحلية إذا كانت متاحة
-    if (availableSource && availableSource.startsWith('/')) {
-      console.log('تجاوز المصدر المحلي المتاح، محاولة العثور على مصدر خارجي');
-      availableSource = null;
-    }
-    
-    // محاولة المزامنة مع المصدر المتاح مباشرة إذا وجد
-    // Try to sync with available source directly if found
-    if (availableSource && !availableSource.startsWith('/')) {
-      try {
-        console.log(`محاولة المزامنة مع المصدر المتاح: / Attempting to sync with available source: ${availableSource}`);
-        // إضافة معامل منع التخزين المؤقت للرابط
-        const timestamp = Date.now();
-        const randomId = Math.random().toString(36).substring(2, 15);
-        const cacheBuster = `?_=${timestamp}&nocache=${randomId}`;
-        const urlWithCacheBuster = availableSource.includes('?') 
-          ? `${availableSource.split('?')[0]}${cacheBuster}&${availableSource.split('?')[1]}` 
-          : `${availableSource}${fullCacheBuster}`;
-          
-        const directResult = await syncWithRemoteSource(urlWithCacheBuster, forceRefresh);
-        if (directResult) {
-          console.log(`تمت المزامنة بنجاح مع المصدر المتاح: / Successfully synced with available source: ${availableSource}`);
-          return true;
-        }
-        console.warn(`فشلت المزامنة مع المصدر المتاح / Failed to sync with available source ${availableSource}`);
-      } catch (error) {
-        console.error(`فشلت المزامنة مع المصدر المتاح / Failed to sync with available source ${availableSource}:`, error);
-      }
-    }
-    
-    // محاولة المزامنة مع مصادر Bladi Info (باستثناء المصادر المحلية)
-    // Try to sync with Bladi Info sources (excluding local sources)
-    console.log('محاولة المزامنة مع مصادر Bladi Info الخارجية... / Attempting to sync with external Bladi Info sources...');
-    
-    // تصفية المصادر المحلية
-    const externalSources = BLADI_INFO_SOURCES.filter(source => !source.startsWith('/'));
-    
-    // تقسيم المصادر إلى مجموعات للتنفيذ المتوازي
-    const batchSize = 3;
-    const sourceGroups = [];
-    
-    for (let i = 0; i < externalSources.length; i += batchSize) {
-      sourceGroups.push(externalSources.slice(i, i + batchSize));
-    }
-    
-    // محاولة مزامنة كل مجموعة بالتتابع
-    for (const group of sourceGroups) {
-      const syncPromises = group.map(async (source) => {
-        try {
-          const timestamp = Date.now();
-          const randomId = Math.random().toString(36).substring(2, 15);
-          const cacheBuster = `?_=${timestamp}&nocache=${randomId}`;
-          const urlWithCacheBuster = source.includes('?') 
-            ? `${source.split('?')[0]}${cacheBuster}&${source.split('?')[1]}` 
-            : `${source}${cacheBuster}`;
-            
-          return await syncWithRemoteSource(urlWithCacheBuster, forceRefresh);
-        } catch (e) {
-          console.error(`فشلت المزامنة مع ${source}:`, e);
-          return false;
-        }
-      });
+): Promise<boolean> => {
+  // أولاً، محاولة المزامنة مع المصدر الرئيسي إذا كان متاحًا
+  // First, try to sync with the primary source if available
+  if (primarySource) {
+    try {
+      console.log(`محاولة المزامنة مع المصدر الرئيسي: ${primarySource}`);
+      const result = await syncWithRemoteSource(primarySource, forceRefresh);
       
-      const results = await Promise.all(syncPromises);
-      if (results.some(result => result === true)) {
-        console.log('تمت المزامنة بنجاح مع أحد مصادر Bladi Info / Successfully synced with one of the Bladi Info sources');
+      if (result) {
+        console.log('نجحت المزامنة مع المصدر الرئيسي');
         return true;
       }
+    } catch (error) {
+      console.warn(`فشلت المزامنة مع المصدر الرئيسي: ${primarySource}`, error);
     }
-    
-    // محاولة استخدام المزامنة مع Bladi Info كمجموعة
-    console.log('محاولة استخدام مزامنة Bladi Info... / Attempting to use Bladi Info sync...');
-    const bladiInfoResult = await syncWithBladiInfo(forceRefresh);
-    if (bladiInfoResult) {
-      console.log('تمت المزامنة بنجاح مع مصادر Bladi Info / Successfully synced with Bladi Info sources');
-      return true;
-    }
-    console.warn('فشلت المزامنة مع جميع مصادر Bladi Info / Failed to sync with all Bladi Info sources');
-    
-    // التحقق من وجود تكوين خارجي
-    // Check for external configuration
-    const remoteConfig = getRemoteConfig();
-    if (REMOTE_CONFIG.ENABLED && remoteConfig && remoteConfig.url && !remoteConfig.url.startsWith('/')) {
-      try {
-        console.log(`محاولة المزامنة مع المصدر المحفوظ: / Attempting to sync with saved source: ${remoteConfig.url}`);
-        // إضافة معامل كسر التخزين المؤقت للرابط مع دعم حماية التزامن
-        // Add cache-busting parameter to URL with sync protection support
-        const timestamp = Date.now();
-        const randomId = Math.random().toString(36).substring(2, 15);
-        const cacheBuster = `?_=${timestamp}&nocache=${randomId}`;
-        const urlWithCacheBuster = remoteConfig.url.includes('?') 
-          ? `${remoteConfig.url.split('?')[0]}${cacheBuster}&${remoteConfig.url.split('?')[1]}${skewParam ? `&${skewParam}` : ''}` 
-          : `${remoteConfig.url}${fullCacheBuster}`;
-          
-        const result = await syncWithRemoteSource(urlWithCacheBuster, forceRefresh);
-        if (result) {
-          return true;
-        }
-      } catch (error) {
-        console.error('خطأ في المزامنة مع المصدر الخارجي المحفوظ: / Error syncing with saved external source:', error);
-      }
-    }
-    
-    // عدم استخدام البيانات المحلية حسب طلب المستخدم
-    console.log('فشلت المزامنة مع المصادر الخارجية / Failed to sync with external sources');
-    return false;
-  } catch (error) {
-    console.error('خطأ أثناء المزامنة: / Error during sync:', error);
-    return false;
   }
-}
+  
+  // إذا فشل المصدر الرئيسي، جرب المصادر الاحتياطية
+  // If primary source failed, try backup sources
+  console.log('محاولة المزامنة مع المصادر الاحتياطية');
+  
+  // تصفية المصدر الرئيسي من قائمة المصادر للتجنب تكرار المحاولة
+  // Filter out the primary source from the list of sources to avoid retrying
+  const backupSources = BLADI_INFO_SOURCES.filter(
+    source => source !== primarySource && !source.startsWith('/')
+  );
+  
+  // محاولة المزامنة مع كل مصدر احتياطي، مع تأخير بين المحاولات
+  // Try synchronizing with each backup source, with delay between attempts
+  for (const source of backupSources) {
+    try {
+      console.log(`محاولة المزامنة مع مصدر احتياطي: ${source}`);
+      const result = await syncWithRemoteSource(source, forceRefresh);
+      
+      if (result) {
+        console.log(`نجحت المزامنة مع المصدر الاحتياطي: ${source}`);
+        return true;
+      }
+      
+      // تأخير بين المحاولات لتجنب إغراق الخادم
+      // Delay between attempts to avoid flooding the server
+      await delay(1000);
+    } catch (error) {
+      console.warn(`فشلت المزامنة مع المصدر الاحتياطي: ${source}`, error);
+    }
+  }
+  
+  console.warn('فشلت جميع محاولات المزامنة');
+  return false;
+};
