@@ -5,6 +5,7 @@
  */
 
 import { handleError } from '@/utils/errorHandling';
+import { logSyncError } from '@/services/sync/status/errorHandling';
 
 /**
  * معالجة أخطاء الاستجابة
@@ -61,6 +62,26 @@ export const enhanceFetchError = (error: any): Error => {
     return new Error('انتهت مهلة الاتصال. تحقق من سرعة الاتصال وحاول مرة أخرى');
   }
   
+  if (errorMsg.includes('429') || errorMsg.includes('too many requests') || errorMsg.includes('rate limit')) {
+    return new Error('تم تجاوز الحد المسموح من الطلبات. يرجى الانتظار قليلاً قبل المحاولة مرة أخرى');
+  }
+  
+  if (errorMsg.includes('403') || errorMsg.includes('forbidden')) {
+    return new Error('تم رفض الوصول إلى المصدر. تحقق من صلاحيات الوصول');
+  }
+  
+  if (errorMsg.includes('401') || errorMsg.includes('unauthorized')) {
+    return new Error('غير مصرح بالوصول. قد تحتاج إلى إعادة تسجيل الدخول');
+  }
+  
+  if (errorMsg.includes('404') || errorMsg.includes('not found')) {
+    return new Error('المورد المطلوب غير موجود. تحقق من الرابط أو مصدر البيانات');
+  }
+  
+  if (errorMsg.includes('500') || errorMsg.includes('server error')) {
+    return new Error('خطأ في الخادم. يرجى المحاولة مرة أخرى لاحقًا');
+  }
+  
   return new Error(`خطأ في جلب البيانات: ${errorMsg}`);
 };
 
@@ -69,6 +90,19 @@ export const enhanceFetchError = (error: any): Error => {
  * Enhanced network error handling
  */
 export const handleNetworkError = (error: any, context: string): Error => {
+  // تسجيل معلومات الشبكة للمساعدة في التشخيص
+  try {
+    if (typeof navigator !== 'undefined') {
+      console.log(`[${context}] حالة الاتصال:`, {
+        online: navigator.onLine,
+        connection: 'connection' in navigator ? (navigator as any).connection.effectiveType : 'غير معروف',
+        userAgent: navigator.userAgent
+      });
+    }
+  } catch (e) {
+    // تجاهل أخطاء تسجيل معلومات الشبكة
+  }
+  
   // تعزيز نمط الخطأ قبل المعالجة
   if (error && typeof error === 'object' && 'code' in error) {
     // تسجيل الإضافات الخاصة بالخطأ
@@ -78,18 +112,19 @@ export const handleNetworkError = (error: any, context: string): Error => {
   // تسجيل الخطأ في نظام معالجة الأخطاء
   const enhancedError = enhanceFetchError(error);
   
+  // إضافة سياق لرسالة الخطأ
+  enhancedError.message = `[${context}] ${enhancedError.message}`;
+  
   // تسجيل سياق أفضل
   console.error(`[${context}] ${enhancedError.message}`, { 
     originalError: error,
     stack: error instanceof Error ? error.stack : undefined 
   });
   
-  // إذا كانت الدالة معرفة استخدمها
-  if (typeof handleError === 'function') {
-    handleError(enhancedError, context, true);
-  }
+  // تسجيل الخطأ في نظام السجلات
+  logSyncError(enhancedError, context);
   
-  // التحقق مما إذا كان المتصفح متصلاً بالإنترنت
+  // التحقق مما إذا كان المتصفح متصلاً بالإنترنت وإضافة معلومات إضافية
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     return new Error('أنت غير متصل بالإنترنت. يرجى التحقق من اتصالك والمحاولة مرة أخرى.');
   }
@@ -114,7 +149,8 @@ export const shouldRetryFetch = (error: any): boolean => {
     'connection', 'اتصال',
     'fetch failed', 'Failed to fetch',
     'CORS', 'cors',
-    'internet', 'إنترنت'
+    'internet', 'إنترنت',
+    '500', '502', '503', '504' // أكواد الخطأ القابلة لإعادة المحاولة
   ];
   
   // أخطاء لا ينبغي إعادة المحاولة عليها
@@ -122,12 +158,25 @@ export const shouldRetryFetch = (error: any): boolean => {
     'authentication', 'تسجيل الدخول',
     'permission', 'صلاحية',
     'not found', 'غير موجود',
-    'validation', 'تحقق'
+    'validation', 'تحقق',
+    '400', '401', '403', '404', '422' // أكواد الخطأ غير القابلة لإعادة المحاولة
+  ];
+  
+  // أخطاء خاصة قد تعتمد على السياق
+  const specialCaseErrors = [
+    '429' // تجاوز الحد - قد نرغب في إعادة المحاولة مع تأخير أطول
   ];
   
   // التحقق من كل فئة
   const isAlwaysRetryError = alwaysRetryErrors.some(term => errorMsg.includes(term));
   const isNeverRetryError = neverRetryErrors.some(term => errorMsg.includes(term));
+  const isSpecialCaseError = specialCaseErrors.some(term => errorMsg.includes(term));
+  
+  // معالجة الحالات الخاصة
+  if (isSpecialCaseError) {
+    // مع أخطاء تجاوز الحد، قد نرغب في إعادة المحاولة مع تأخير أطول
+    return true; // سنعالج التأخير المناسب في مكان آخر
+  }
   
   // تصنيف بناءً على رمز الخطأ إذا كان متاحاً
   if (error && typeof error === 'object' && 'code' in error) {
@@ -136,7 +185,64 @@ export const shouldRetryFetch = (error: any): boolean => {
     if ([408, 429, 500, 502, 503, 504].includes(errorCode)) {
       return true;
     }
+    // أكواد مثل 400 (bad request) و 401 (unauthorized) و 403 (forbidden) لا تستحق إعادة المحاولة
+    if ([400, 401, 403, 404, 422].includes(errorCode)) {
+      return false;
+    }
   }
   
   return isAlwaysRetryError && !isNeverRetryError;
+};
+
+/**
+ * تحليل أخطاء الشبكة وتقديم معلومات مفيدة
+ * Analyze network errors and provide useful information
+ */
+export const analyzeNetworkError = (error: any): {
+  message: string;
+  retryable: boolean;
+  critical: boolean;
+  code?: string | number;
+  details?: Record<string, any>;
+} => {
+  const errorMsg = error instanceof Error ? error.message : String(error);
+  const anyError = error && typeof error === 'object' ? error as any : {};
+  
+  // استخراج رمز الخطأ إن وجد
+  let errorCode: string | number | undefined;
+  if (anyError.code) {
+    errorCode = anyError.code;
+  } else if (anyError.status) {
+    errorCode = anyError.status;
+  } else {
+    // محاولة استخراج رمز الخطأ من النص
+    const codeMatch = errorMsg.match(/(\d{3})/);
+    if (codeMatch && codeMatch[0]) {
+      errorCode = codeMatch[0];
+    }
+  }
+  
+  // تحديد ما إذا كان يمكن إعادة المحاولة
+  const retryable = shouldRetryFetch(error);
+  
+  // تحديد مدى خطورة المشكلة
+  const critical = 
+    errorMsg.includes('critical') ||
+    errorMsg.includes('حرج') ||
+    (errorCode && ['500', '503', 500, 503].includes(errorCode));
+  
+  // تحسين رسالة الخطأ
+  const enhancedError = enhanceFetchError(error);
+  
+  return {
+    message: enhancedError.message,
+    retryable,
+    critical,
+    code: errorCode,
+    details: {
+      original: errorMsg,
+      isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+      timestamp: Date.now()
+    }
+  };
 };

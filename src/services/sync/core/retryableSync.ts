@@ -7,10 +7,11 @@
 import { retry, createProgressiveRetryStrategy } from '@/utils/retryStrategy';
 import { handleError } from '@/utils/errorHandling';
 import { setSyncActive } from '@/services/sync/status/syncState';
-import { setSyncError, clearSyncError } from '@/services/sync/status/errorHandling';
+import { setSyncError, clearSyncError, logSyncError } from '@/services/sync/status/errorHandling';
 import { setIsSyncing } from '@/services/dataStore';
 import { toast } from '@/hooks/use-toast';
 import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';
+import { analyzeNetworkError } from '@/services/sync/remote/fetch/errorHandling';
 
 /**
  * تنفيذ عملية مزامنة مع دعم إعادة المحاولة والتعامل مع الأخطاء
@@ -47,19 +48,38 @@ export async function executeRetryableSync<T>(
           }
         },
         onFinalFailure: (error, attempts) => {
-          const appError = handleError(error, operationName);
-          setSyncError(`فشلت عملية ${operationName} بعد ${attempts} محاولات: ${appError.message} / ${operationName} failed after ${attempts} attempts: ${appError.message}`);
+          // تحليل الخطأ لمزيد من المعلومات
+          const errorAnalysis = analyzeNetworkError(error);
           
-          // رسالة خطأ أكثر تفصيلاً على Vercel
-          const errorMessage = isRunningOnVercel() 
-            ? `تعذر إكمال عملية ${operationName} بعد ${attempts} محاولات على Vercel. سيتم استخدام البيانات المحلية.` 
-            : `تعذر إكمال عملية ${operationName} بعد عدة محاولات. سيتم استخدام البيانات المحلية.`;
+          // تعيين خطأ المزامنة مع معلومات إضافية
+          setSyncError(`فشلت عملية ${operationName} بعد ${attempts} محاولات: ${errorAnalysis.message}`, {
+            retryable: errorAnalysis.retryable,
+            attemptCount: attempts,
+            code: errorAnalysis.code,
+            details: {
+              ...errorAnalysis.details,
+              operationName,
+              critical: errorAnalysis.critical,
+              maxRetries
+            }
+          });
+          
+          // تحسين الرسالة المعروضة بناءً على نوع العملية
+          let errorTitle = "فشلت المزامنة / Sync Failed";
+          let errorMessage = `تعذر إكمال عملية ${operationName} بعد ${attempts} محاولات. سيتم استخدام البيانات المحلية.`;
+          
+          if (errorAnalysis.critical) {
+            errorTitle = "خطأ حرج في المزامنة / Critical Sync Error";
+            errorMessage = `حدث خطأ حرج أثناء ${operationName}. يرجى التحقق من اتصالك وإعادة تحميل التطبيق.`;
+          } else if (isRunningOnVercel()) {
+            errorMessage = `تعذر إكمال عملية ${operationName} بعد ${attempts} محاولات على Vercel. سيتم استخدام البيانات المحلية.`;
+          }
             
           toast({
-            title: "فشلت المزامنة / Sync Failed",
+            title: errorTitle,
             description: errorMessage,
             variant: "destructive",
-            duration: 5000,
+            duration: errorAnalysis.critical ? 10000 : 5000,
           });
         }
       }
@@ -91,13 +111,103 @@ export async function executeRetryableQuery<T>(
       queryFn,
       {
         ...createProgressiveRetryStrategy(maxRetries),
+        onRetry: (error, attempt, delay) => {
+          // تسجيل محاولة إعادة الاستعلام
+          console.log(`محاولة استعلام ${queryName} (${attempt}/${maxRetries}) بعد ${delay}ms`);
+        },
         onFinalFailure: (error) => {
+          // تسجيل الخطأ بتفاصيل أكثر
           console.error(`فشل الاستعلام ${queryName}: / Query ${queryName} failed:`, error);
+          
+          // تحليل الخطأ
+          const errorAnalysis = analyzeNetworkError(error);
+          
+          // تسجيل الخطأ في نظام إدارة الأخطاء
+          logSyncError(error, `query:${queryName}`, false);
         }
       }
     );
   } catch (error) {
     console.warn(`استخدام القيمة الاحتياطية للاستعلام ${queryName} بعد الفشل / Using fallback value for query ${queryName} after failure`);
+    
+    // إظهار إشعار فقط للاستعلامات المهمة
+    if (queryName.includes('channels') || queryName.includes('categories') || queryName.includes('countries')) {
+      toast({
+        title: "تعذر تحديث البيانات",
+        description: `سيتم استخدام البيانات المخزنة محليًا لـ ${queryName}`,
+        duration: 3000,
+      });
+    }
+    
     return fallbackValue;
+  }
+}
+
+/**
+ * تنفيذ عملية مع مؤشر تقدم وإشعارات مناسبة
+ * Execute an operation with progress indication and proper notifications
+ */
+export async function executeOperationWithProgress<T>(
+  operation: () => Promise<T>,
+  options: {
+    operationName: string;
+    loadingMessage: string;
+    successMessage: string;
+    errorMessage: string;
+    maxRetries?: number;
+    showToast?: boolean;
+  }
+): Promise<T | null> {
+  const {
+    operationName,
+    loadingMessage,
+    successMessage,
+    errorMessage,
+    maxRetries = 2,
+    showToast = true
+  } = options;
+  
+  // إظهار إشعار البدء
+  let toastId;
+  if (showToast) {
+    toastId = toast({
+      title: operationName,
+      description: loadingMessage,
+      duration: 3000,
+    });
+  }
+  
+  try {
+    // تنفيذ العملية مع إعادة المحاولة
+    const result = await retry(
+      operation,
+      createProgressiveRetryStrategy(maxRetries)
+    );
+    
+    // إظهار إشعار النجاح
+    if (showToast) {
+      toast({
+        title: operationName,
+        description: successMessage,
+        duration: 3000,
+      });
+    }
+    
+    return result;
+  } catch (error) {
+    // معالجة الخطأ
+    handleError(error, operationName);
+    
+    // إظهار إشعار الخطأ
+    if (showToast) {
+      toast({
+        title: `خطأ في ${operationName}`,
+        description: errorMessage,
+        variant: "destructive",
+        duration: 5000,
+      });
+    }
+    
+    return null;
   }
 }
