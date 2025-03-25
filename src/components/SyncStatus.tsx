@@ -13,6 +13,8 @@ import SyncActions from './sync/SyncActions';
 import SyncStatusInfo from './sync/SyncStatusInfo';
 import SyncAdvancedOptions from './sync/SyncAdvancedOptions';
 import { useToast } from '@/hooks/use-toast';
+import { checkSupabaseConnection } from '@/services/sync/supabase/connection/connectionCheck';
+import SupabaseConnectionStatus from './sync/SupabaseConnectionStatus';
 
 export function SyncStatus() {
   const { syncError, checkSourceAvailability, networkStatus } = useAutoSync();
@@ -22,6 +24,7 @@ export function SyncStatus() {
   const [deploymentPlatform, setDeploymentPlatform] = useState<string>('vercel');
   const [syncStartTime, setSyncStartTime] = useState<number>(0);
   const [lastSyncDuration, setLastSyncDuration] = useState<number>(0);
+  const [hasCheckedConnection, setHasCheckedConnection] = useState(false);
   const { toast } = useToast();
   
   const { data: lastSync, refetch: refetchLastSync, error: syncQueryError } = useQuery({
@@ -49,6 +52,22 @@ export function SyncStatus() {
       }
     }
   });
+
+  // فحص اتصال Supabase عند تحميل المكون
+  useEffect(() => {
+    if (!hasCheckedConnection) {
+      const checkSupabaseConnectionStatus = async () => {
+        try {
+          const isConnected = await checkSupabaseConnection();
+          setHasCheckedConnection(true);
+        } catch (error) {
+          console.error('خطأ في فحص اتصال Supabase:', error);
+        }
+      };
+      
+      checkSupabaseConnectionStatus();
+    }
+  }, [hasCheckedConnection]);
 
   useEffect(() => {
     if (isSyncing && syncStartTime === 0) {
@@ -124,7 +143,11 @@ export function SyncStatus() {
 
   return (
     <div className="flex flex-col space-y-2 p-4 border rounded-lg bg-background shadow-sm">
-      <SyncErrorDisplay syncError={syncError} />
+      <SyncErrorDisplay syncError={syncError} onRetry={runSync} />
+      
+      {hasCheckedConnection && (
+        <SupabaseConnectionStatus className="mb-2" />
+      )}
       
       <SyncStatusInfo 
         lastSync={lastSync}

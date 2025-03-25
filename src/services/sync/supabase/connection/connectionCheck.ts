@@ -6,20 +6,39 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { handleError } from '@/utils/errorHandling';
+import { checkAndFixConnectionIssues } from './errorFixer';
 
 /**
  * التحقق من الاتصال بـ Supabase
  * Check connection to Supabase
  * 
+ * @param autoRepair محاولة إصلاح المشاكل تلقائياً
  * @returns وعد يحل إلى قيمة boolean تشير إلى نجاح الاتصال
  */
-export const checkSupabaseConnection = async (): Promise<boolean> => {
+export const checkSupabaseConnection = async (autoRepair: boolean = true): Promise<boolean> => {
   try {
     console.log("جاري التحقق من الاتصال بـ Supabase...");
+    const startTime = Date.now();
+    
     const { data, error } = await supabase.from('channels').select('count', { count: 'exact', head: true });
+    
+    const connectionTime = Date.now() - startTime;
+    console.log(`زمن الاتصال بـ Supabase: ${connectionTime}ms`);
     
     if (error) {
       console.error('خطأ في الاتصال بـ Supabase:', error);
+      
+      // محاولة إصلاح المشكلة تلقائياً إذا تم تفعيل الخيار
+      if (autoRepair) {
+        console.log('جاري محاولة إصلاح مشكلة الاتصال تلقائياً...');
+        const isFixed = await checkAndFixConnectionIssues();
+        
+        if (isFixed) {
+          console.log('تم إصلاح مشكلة الاتصال بنجاح، جاري التحقق مرة أخرى...');
+          // محاولة الاتصال مرة أخرى بعد الإصلاح
+          return await checkSupabaseConnection(false);
+        }
+      }
       
       // محاولة تحديد سبب الخطأ
       if (error.code === 'PGRST301') {
@@ -35,6 +54,12 @@ export const checkSupabaseConnection = async (): Promise<boolean> => {
     }
     
     console.log("تم الاتصال بـ Supabase بنجاح.");
+    
+    // إذا كان زمن الاتصال بطيئاً، سجل ذلك
+    if (connectionTime > 1000) {
+      console.warn(`الاتصال بـ Supabase بطيء (${connectionTime}ms)`);
+    }
+    
     return true;
   } catch (error) {
     handleError(error, 'التحقق من اتصال Supabase', false);
@@ -68,5 +93,33 @@ export const getSupabaseTableStats = async (): Promise<Record<string, number> | 
   } catch (error) {
     console.error('خطأ في الحصول على إحصائيات جداول Supabase:', error);
     return null;
+  }
+};
+
+/**
+ * فحص صحة جداول Supabase
+ * Check Supabase tables health
+ */
+export const checkSupabaseTablesHealth = async (): Promise<Record<string, boolean>> => {
+  const tablesHealth: Record<string, boolean> = {};
+  const tables = ['channels', 'countries', 'categories', 'settings'];
+  
+  try {
+    for (const table of tables) {
+      const { data, error } = await supabase
+        .from(table)
+        .select('*', { count: 'exact', head: true });
+      
+      tablesHealth[table] = !error;
+      
+      if (error) {
+        console.error(`مشكلة في جدول ${table}:`, error.message);
+      }
+    }
+    
+    return tablesHealth;
+  } catch (error) {
+    console.error('خطأ أثناء فحص صحة جداول Supabase:', error);
+    return tables.reduce((acc, table) => ({ ...acc, [table]: false }), {});
   }
 };

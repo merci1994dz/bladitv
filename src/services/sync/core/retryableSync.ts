@@ -12,6 +12,8 @@ import { setIsSyncing } from '@/services/dataStore';
 import { toast } from '@/hooks/use-toast';
 import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';
 import { analyzeNetworkError } from '@/services/sync/remote/fetch/errorHandling';
+import { checkSupabaseConnection } from '@/services/sync/supabase/connection/connectionCheck';
+import { handleSupabaseError } from '@/services/sync/supabase/syncErrorHandler';
 
 /**
  * تنفيذ عملية مزامنة مع دعم إعادة المحاولة والتعامل مع الأخطاء
@@ -23,6 +25,21 @@ export async function executeRetryableSync<T>(
   criticalOperation: boolean = false,
   timeout: number = 20000
 ): Promise<T | null> {
+  // تحقق من الاتصال بـ Supabase أولاً
+  const isConnected = await checkSupabaseConnection();
+  if (!isConnected) {
+    console.warn(`تعذر الاتصال بـ Supabase قبل بدء عملية ${operationName}`);
+    
+    toast({
+      title: "تعذر الاتصال بقاعدة البيانات",
+      description: "جاري استخدام البيانات المخزنة محلياً. تحقق من اتصالك بالإنترنت.",
+      variant: "destructive",
+      duration: 5000,
+    });
+    
+    return null;
+  }
+
   setSyncActive(true);
   setIsSyncing(true);
   clearSyncError();
@@ -50,6 +67,15 @@ export async function executeRetryableSync<T>(
         onFinalFailure: (error, attempts) => {
           // تحليل الخطأ لمزيد من المعلومات
           const errorAnalysis = analyzeNetworkError(error);
+          
+          // محاولة معالجة أخطاء Supabase
+          const isSBError = error.message?.includes('duplicate key') || 
+                           error.message?.includes('23505') ||
+                           error.message?.includes('constraint');
+                           
+          if (isSBError) {
+            handleSupabaseError(error, operationName);
+          }
           
           // تعيين خطأ المزامنة مع معلومات إضافية
           setSyncError(`فشلت عملية ${operationName} بعد ${attempts} محاولات: ${errorAnalysis.message}`, {
@@ -121,6 +147,15 @@ export async function executeRetryableQuery<T>(
           
           // تحليل الخطأ
           const errorAnalysis = analyzeNetworkError(error);
+          
+          // محاولة معالجة الخطأ إذا كان متعلقًا بـ Supabase
+          const isSBError = error.message?.includes('duplicate key') || 
+                           error.message?.includes('23505') ||
+                           error.message?.includes('constraint');
+                           
+          if (isSBError) {
+            handleSupabaseError(error, `query:${queryName}`);
+          }
           
           // تسجيل الخطأ في نظام إدارة الأخطاء
           logSyncError(error, `query:${queryName}`, false);
@@ -197,6 +232,16 @@ export async function executeOperationWithProgress<T>(
   } catch (error) {
     // معالجة الخطأ
     handleError(error, operationName);
+    
+    // محاولة معالجة الخطأ إذا كان متعلقًا بـ Supabase
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const isSBError = errorMsg.includes('duplicate key') || 
+                      errorMsg.includes('23505') ||
+                      errorMsg.includes('constraint');
+                      
+    if (isSBError) {
+      handleSupabaseError(error, operationName);
+    }
     
     // إظهار إشعار الخطأ
     if (showToast) {

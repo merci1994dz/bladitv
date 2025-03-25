@@ -11,6 +11,8 @@ import { toast } from '@/hooks/use-toast';
 import { setSyncTimestamp } from '@/services/sync/status/timestamp';
 import { checkSupabaseConnection } from '../connection/connectionCheck';
 import { isRunningOnVercel } from '../../remote/fetch/skewProtection';
+import { handleSupabaseError } from '../syncErrorHandler';
+import { checkAndFixConnectionIssues } from '../connection/errorFixer';
 
 /**
  * مزامنة البيانات مع Supabase
@@ -23,8 +25,15 @@ export const performSupabaseSync = async (forceRefresh: boolean = false): Promis
   try {
     // التحقق من الاتصال بـ Supabase أولاً
     const isConnected = await checkSupabaseConnection();
+    
     if (!isConnected) {
-      throw new Error('تعذر الاتصال بـ Supabase');
+      // محاولة إصلاح المشكلة
+      console.log("محاولة إصلاح مشاكل الاتصال قبل المزامنة...");
+      const isFixed = await checkAndFixConnectionIssues();
+      
+      if (!isFixed) {
+        throw new Error('تعذر الاتصال بـ Supabase بعد محاولات الإصلاح');
+      }
     }
     
     console.log("تم الاتصال بـ Supabase بنجاح، جاري تنفيذ المزامنة...");
@@ -61,15 +70,18 @@ export const performSupabaseSync = async (forceRefresh: boolean = false): Promis
     // استخدام طريقة أكثر تفصيلاً لمعالجة الأخطاء
     const appError = handleError(error, 'مزامنة Supabase / Supabase sync');
     
-    // معالجة خاصة لأخطاء المفاتيح المكررة
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    if (errorMsg.includes('duplicate key') || errorMsg.includes('23505')) {
-      toast({
-        title: "خطأ المفتاح المكرر",
-        description: "يوجد تعارض في البيانات. جرب مسح ذاكرة التخزين المؤقت أو إعادة ضبط التطبيق.",
-        variant: "destructive",
-        duration: 5000,
-      });
+    // محاولة معالجة خطأ Supabase
+    const result = await handleSupabaseError(error, 'مزامنة Supabase');
+    
+    // إذا تم معالجة الخطأ بنجاح، حاول مرة أخرى
+    if (result) {
+      console.log("تم معالجة الخطأ بنجاح، جاري إعادة المحاولة...");
+      
+      // تأخير قصير قبل إعادة المحاولة
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // محاولة المزامنة مرة أخرى
+      return await performSupabaseSync(forceRefresh);
     }
     
     // تسجيل تفاصيل الخطأ للتصحيح

@@ -1,29 +1,40 @@
 
 import React, { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle, RefreshCw, Info, XCircle } from 'lucide-react';
+import { AlertCircle, RefreshCw, Info, XCircle, Database, Shield } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { checkAndFixConnectionIssues } from '@/services/sync/supabase/connection/errorFixer';
 
 // Function to detect if running on Vercel
 const isRunningOnVercel = () => {
   return typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
 };
 
+interface ErrorDetailsType {
+  type: string;
+  message: string;
+  errorCode?: string;
+  timestamp?: number;
+}
+
 interface SyncErrorNotificationProps {
   syncError: string | null;
   onRetry?: () => void;
+  errorDetails?: ErrorDetailsType | null;
 }
 
 const SyncErrorNotification: React.FC<SyncErrorNotificationProps> = ({ 
   syncError, 
-  onRetry 
+  onRetry,
+  errorDetails
 }) => {
   const { toast } = useToast();
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorCount, setErrorCount] = useState(0);
   const [isDismissed, setIsDismissed] = useState(false);
+  const [isFixing, setIsFixing] = useState(false);
   
   // إعادة تعيين الرفض عند تغيير الخطأ
   useEffect(() => {
@@ -53,10 +64,12 @@ const SyncErrorNotification: React.FC<SyncErrorNotificationProps> = ({
       const shouldShowImmediately = 
         syncError.includes('تعذر الاتصال') || 
         syncError.includes('فشل في المزامنة') ||
-        syncError.includes('خطأ حرج');
+        syncError.includes('خطأ حرج') ||
+        syncError.includes('duplicate key') ||
+        (errorDetails?.type === 'duplicate_key');
       
       // تأخير أقصر للأخطاء الحرجة
-      const delayTime = shouldShowImmediately ? 500 : (isRunningOnVercel() ? 5000 : 3000);
+      const delayTime = shouldShowImmediately ? 300 : (isRunningOnVercel() ? 2000 : 1000);
       
       errorTimeout = setTimeout(() => {
         setShowError(true);
@@ -97,25 +110,35 @@ const SyncErrorNotification: React.FC<SyncErrorNotificationProps> = ({
         }
       };
     }
-  }, [syncError, toast, errorCount, errorMessage, isDismissed]);
+  }, [syncError, toast, errorCount, errorMessage, isDismissed, errorDetails]);
   
   // لا تقديم شيء إذا لم يكن هناك خطأ أو تم رفضه أو لم يتم عرضه بعد
   if (!showError || !errorMessage || isDismissed) {
     return null;
   }
   
+  // تحديد نوع الخطأ استنادًا إلى المعلومات المتوفرة
+  const errorType = errorDetails?.type || 
+    (errorMessage.includes('duplicate key') || errorMessage.includes('23505') 
+      ? 'duplicate_key' 
+      : (errorMessage.includes('connection') || errorMessage.includes('اتصال') 
+        ? 'connection' 
+        : 'unknown'));
+  
   // إنشاء رسالة خطأ أكثر تفصيلاً استنادًا إلى نوع الخطأ
-  let errorDetails = "تعذر الاتصال بمصادر البيانات. سيتم إعادة المحاولة تلقائيًا.";
+  let errorDetails2 = "تعذر الاتصال بمصادر البيانات. سيتم إعادة المحاولة تلقائيًا.";
   let actionable = true;
   
-  if (errorMessage.includes('CORS') || errorMessage.includes('origin')) {
-    errorDetails = "مشكلة في الوصول إلى مصادر البيانات بسبب قيود CORS. جرب مصدرًا آخرًا.";
+  if (errorType === 'duplicate_key') {
+    errorDetails2 = "يوجد تعارض في قيود قاعدة البيانات. جاري محاولة الإصلاح تلقائياً.";
+  } else if (errorMessage.includes('CORS') || errorMessage.includes('origin')) {
+    errorDetails2 = "مشكلة في الوصول إلى مصادر البيانات بسبب قيود CORS. جرب مصدرًا آخرًا.";
   } else if (errorMessage.includes('timeout') || errorMessage.includes('تجاوز المهلة')) {
-    errorDetails = "انتهت مهلة الاتصال بمصادر البيانات. تحقق من سرعة الاتصال.";
+    errorDetails2 = "انتهت مهلة الاتصال بمصادر البيانات. تحقق من سرعة الاتصال.";
   } else if (errorMessage.includes('Failed to fetch') || errorMessage.includes('fetch failed')) {
-    errorDetails = "تعذر الاتصال بمصادر البيانات. تحقق من اتصالك بالإنترنت.";
+    errorDetails2 = "تعذر الاتصال بمصادر البيانات. تحقق من اتصالك بالإنترنت.";
   } else if (errorMessage.includes('authentication') || errorMessage.includes('مصادقة')) {
-    errorDetails = "خطأ في المصادقة. قد تحتاج إلى إعادة تسجيل الدخول.";
+    errorDetails2 = "خطأ في المصادقة. قد تحتاج إلى إعادة تسجيل الدخول.";
     actionable = false;
   }
 
@@ -138,17 +161,77 @@ const SyncErrorNotification: React.FC<SyncErrorNotificationProps> = ({
     }
   };
   
+  // معالجة محاولة الإصلاح التلقائي
+  const handleAutoFix = async () => {
+    setIsFixing(true);
+    
+    toast({
+      title: "جاري محاولة الإصلاح التلقائي",
+      description: "محاولة إصلاح مشاكل الاتصال بقاعدة البيانات...",
+      duration: 5000,
+    });
+    
+    try {
+      const isFixed = await checkAndFixConnectionIssues();
+      
+      if (isFixed) {
+        toast({
+          title: "تم الإصلاح بنجاح",
+          description: "تم إصلاح مشاكل الاتصال بقاعدة البيانات. يمكنك الآن إعادة المحاولة.",
+          duration: 4000,
+        });
+        
+        // إعادة المحاولة تلقائياً بعد الإصلاح
+        if (onRetry) {
+          setTimeout(() => {
+            onRetry();
+          }, 1000);
+        }
+      } else {
+        toast({
+          title: "تعذر الإصلاح التلقائي",
+          description: "لم يتم التمكن من إصلاح المشكلة تلقائياً. حاول إعادة تحميل الصفحة.",
+          variant: "destructive",
+          duration: 5000,
+        });
+      }
+    } catch (error) {
+      console.error("خطأ أثناء محاولة الإصلاح التلقائي:", error);
+      
+      toast({
+        title: "خطأ في عملية الإصلاح",
+        description: "حدث خطأ أثناء محاولة إصلاح المشكلة. يرجى إعادة تحميل الصفحة.",
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setIsFixing(false);
+    }
+  };
+  
   // معالجة رفض الإشعار
   const handleDismiss = () => {
     setIsDismissed(true);
     setShowError(false);
   };
   
+  // تحديد لون التنبيه بناءً على نوع الخطأ
+  const alertVariant = errorType === 'duplicate_key' ? "warning" : "destructive";
+  
   return (
-    <Alert variant="destructive" className="mb-4 animate-in fade-in-50 duration-300 relative">
-      <AlertCircle className="h-4 w-4" />
+    <Alert variant={alertVariant} className="mb-4 animate-in fade-in-50 duration-300 relative">
+      {errorType === 'duplicate_key' ? (
+        <Database className="h-4 w-4" />
+      ) : (
+        <AlertCircle className="h-4 w-4" />
+      )}
+      
       <AlertTitle className="flex justify-between items-center">
-        <span>خطأ في المزامنة</span>
+        <span>
+          {errorType === 'duplicate_key' 
+            ? "مشكلة في قاعدة البيانات" 
+            : "خطأ في المزامنة"}
+        </span>
         <Button
           variant="ghost"
           size="sm"
@@ -159,8 +242,9 @@ const SyncErrorNotification: React.FC<SyncErrorNotificationProps> = ({
           <span className="sr-only">رفض</span>
         </Button>
       </AlertTitle>
+      
       <AlertDescription className="space-y-2">
-        <p>{errorDetails}</p>
+        <p>{errorDetails2}</p>
         
         {errorCount > 1 && (
           <div className="text-xs opacity-80 mt-1">
@@ -180,19 +264,33 @@ const SyncErrorNotification: React.FC<SyncErrorNotificationProps> = ({
           </div>
         )}
         
-        {actionable && onRetry && (
-          <div className="mt-2">
+        <div className="mt-2 flex gap-2">
+          {actionable && onRetry && (
             <Button 
               size="sm" 
               variant="outline" 
               onClick={handleRetry}
+              disabled={isFixing}
               className="bg-red-900/20 border-red-900/30 hover:bg-red-900/30 text-white"
             >
               <RefreshCw className="h-3 w-3 mr-2" />
               إعادة المحاولة
             </Button>
-          </div>
-        )}
+          )}
+          
+          {(errorType === 'duplicate_key' || errorType === 'connection') && (
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={handleAutoFix}
+              disabled={isFixing}
+              className="bg-amber-900/20 border-amber-900/30 hover:bg-amber-900/30 text-white"
+            >
+              <Shield className="h-3 w-3 mr-2" />
+              {isFixing ? "جاري الإصلاح..." : "إصلاح تلقائي"}
+            </Button>
+          )}
+        </div>
       </AlertDescription>
     </Alert>
   );

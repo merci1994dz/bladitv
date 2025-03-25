@@ -7,6 +7,7 @@ import { resetAppData } from '@/services/sync/forceRefresh';
 import { toast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { syncWithSupabase } from '@/services/sync/supabaseSync';
+import SupabaseConnectionStatus from './SupabaseConnectionStatus';
 
 interface SyncAdvancedOptionsProps {
   showAdvanced: boolean;
@@ -205,41 +206,41 @@ const SyncAdvancedOptions: React.FC<SyncAdvancedOptionsProps> = ({
               </span>
             </AccordionTrigger>
             <AccordionContent>
-              <div className="p-2 bg-muted rounded-md">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Badge 
-                      variant="outline" 
-                      className={`text-xs ${
-                        supabaseStatus === 'connected' 
-                          ? 'bg-green-50 text-green-700 border-green-200' 
-                          : supabaseStatus === 'error'
-                            ? 'bg-red-50 text-red-700 border-red-200'
-                            : 'bg-amber-50 text-amber-700 border-amber-200'
-                      }`}
-                    >
-                      {supabaseStatus === 'connected' 
-                        ? 'متصل' 
-                        : supabaseStatus === 'error' 
-                          ? 'خطأ في الاتصال' 
-                          : supabaseStatus === 'checking'
-                            ? 'جاري الفحص...'
-                            : availableSource ? 'جاهز للمزامنة' : 'غير متصل'}
-                    </Badge>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="h-7 text-xs"
-                      onClick={syncWithSupabaseDb}
-                      disabled={isSyncing}
-                    >
-                      {isSyncing ? 'جاري المزامنة...' : 'مزامنة الآن'}
-                    </Button>
-                  </div>
-                  
-                  <div className="text-xs text-muted-foreground mt-2">
-                    يمكنك مزامنة البيانات مباشرة مع قاعدة بيانات Supabase لضمان الحصول على أحدث البيانات
-                  </div>
+              <div className="p-2 bg-muted rounded-md space-y-3">
+                <SupabaseConnectionStatus />
+                
+                <div className="flex justify-between items-center">
+                  <Badge 
+                    variant="outline" 
+                    className={`text-xs ${
+                      supabaseStatus === 'connected' 
+                        ? 'bg-green-50 text-green-700 border-green-200' 
+                        : supabaseStatus === 'error'
+                          ? 'bg-red-50 text-red-700 border-red-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                    }`}
+                  >
+                    {supabaseStatus === 'connected' 
+                      ? 'متصل' 
+                      : supabaseStatus === 'error' 
+                        ? 'خطأ في الاتصال' 
+                        : supabaseStatus === 'checking'
+                          ? 'جاري الفحص...'
+                          : availableSource ? 'جاهز للمزامنة' : 'غير متصل'}
+                  </Badge>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={syncWithSupabaseDb}
+                    disabled={isSyncing}
+                  >
+                    {isSyncing ? 'جاري المزامنة...' : 'مزامنة الآن'}
+                  </Button>
+                </div>
+                
+                <div className="text-xs text-muted-foreground">
+                  يمكنك مزامنة البيانات مباشرة مع قاعدة بيانات Supabase لضمان الحصول على أحدث البيانات
                 </div>
               </div>
             </AccordionContent>
