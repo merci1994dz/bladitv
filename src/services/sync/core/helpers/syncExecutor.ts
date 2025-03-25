@@ -5,8 +5,16 @@
  */
 
 import { syncWithRemoteSource } from '../../remote/sync/syncWithRemote';
-import { delay } from './timeoutHelper';
+import { delay, calculateAdaptiveWaitTime } from './timeoutHelper';
 import { BLADI_INFO_SOURCES } from '../../remote/sync/sources';
+
+// لتتبع محاولات المزامنة لكل مصدر
+// For tracking sync attempts for each source
+const sourceAttemptMap = new Map<string, number>();
+
+// الحد الأقصى لمحاولات المزامنة لكل مصدر
+// Maximum sync attempts per source
+const MAX_SOURCE_ATTEMPTS = 2;
 
 /**
  * تنفيذ المزامنة مع مصدر محدد أو مع جميع المصادر
@@ -27,10 +35,15 @@ export const executeSync = async (
       
       if (result) {
         console.log('نجحت المزامنة مع المصدر الرئيسي');
+        // إعادة تعيين المحاولات الناجحة
+        sourceAttemptMap.clear();
         return true;
       }
     } catch (error) {
       console.warn(`فشلت المزامنة مع المصدر الرئيسي: ${primarySource}`, error);
+      // زيادة عدد محاولات هذا المصدر
+      const attempts = (sourceAttemptMap.get(primarySource) || 0) + 1;
+      sourceAttemptMap.set(primarySource, attempts);
     }
   }
   
@@ -47,21 +60,44 @@ export const executeSync = async (
   // محاولة المزامنة مع كل مصدر احتياطي، مع تأخير بين المحاولات
   // Try synchronizing with each backup source, with delay between attempts
   for (const source of backupSources) {
+    // تخطي المصادر التي تجاوزت الحد الأقصى للمحاولات
+    const sourceAttempts = sourceAttemptMap.get(source) || 0;
+    if (sourceAttempts >= MAX_SOURCE_ATTEMPTS) {
+      console.log(`تخطي المصدر ${source} لأنه تجاوز الحد الأقصى للمحاولات (${MAX_SOURCE_ATTEMPTS})`);
+      continue;
+    }
+    
     try {
       console.log(`محاولة المزامنة مع مصدر احتياطي: ${source}`);
       const result = await syncWithRemoteSource(source, forceRefresh);
       
       if (result) {
         console.log(`نجحت المزامنة مع المصدر الاحتياطي: ${source}`);
+        // إعادة تعيين المحاولات الناجحة
+        sourceAttemptMap.clear();
         return true;
       }
       
-      // تأخير بين المحاولات لتجنب إغراق الخادم
-      // Delay between attempts to avoid flooding the server
-      await delay(1000);
+      // زيادة عدد محاولات هذا المصدر
+      sourceAttemptMap.set(source, sourceAttempts + 1);
+      
+      // تأخير بين المحاولات لتجنب إغراق الخادم - استخدام وقت انتظار متكيف
+      // Delay between attempts to avoid flooding the server - using adaptive wait time
+      const waitTime = calculateAdaptiveWaitTime(sourceAttempts + 1, 1000, 3000);
+      console.log(`انتظار ${waitTime}ms قبل المصدر الاحتياطي التالي`);
+      await delay(waitTime);
     } catch (error) {
       console.warn(`فشلت المزامنة مع المصدر الاحتياطي: ${source}`, error);
+      // زيادة عدد محاولات هذا المصدر
+      sourceAttemptMap.set(source, sourceAttempts + 1);
     }
+  }
+  
+  // عند فشل جميع المصادر، قم بإعادة تعيين خريطة المحاولات
+  // تتيح ذلك محاولة مرة أخرى في المستقبل مع كل المصادر
+  if (sourceAttemptMap.size > backupSources.length / 2) {
+    console.log('إعادة تعيين محاولات المصادر بعد فشل معظم المصادر');
+    sourceAttemptMap.clear();
   }
   
   console.warn('فشلت جميع محاولات المزامنة');

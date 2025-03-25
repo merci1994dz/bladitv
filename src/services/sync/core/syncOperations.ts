@@ -9,7 +9,11 @@ import { isSyncLocked, setSyncLock, releaseSyncLock, addToSyncQueue } from '../l
 import { setSyncActive } from '../status';
 import { getSkewProtectionParams } from '../remoteSync';
 import { checkBladiInfoAvailability } from '../remoteSync';
-import { createTimeoutPromise } from './helpers/timeoutHelper';
+import { 
+  createTimeoutPromise, 
+  isCooldownComplete, 
+  calculateAdaptiveWaitTime 
+} from './helpers/timeoutHelper';
 import { executeSync } from './helpers/syncExecutor';
 import { BLADI_INFO_SOURCES } from '../remote/sync/sources';
 
@@ -19,28 +23,75 @@ export { performInitialSync } from './initialSync';
 // حد أقصى لعدد محاولات المزامنة المتتالية
 // Maximum number of consecutive sync attempts
 const MAX_CONSECUTIVE_SYNCS = 3;
-let consecutiveSyncAttempts = 0;
-let lastSyncAttemptTime = 0;
+
+// تخزين معلومات عن محاولات المزامنة
+// Store information about sync attempts
+const syncState = {
+  consecutiveSyncAttempts: 0,
+  lastSyncAttemptTime: 0,
+  totalSyncAttempts: 0,
+  failedAttempts: 0,
+  cooldownPeriodMs: 5000, // 5 ثوانٍ كفترة انتظار أساسية
+  syncInProgress: false,
+  lastSuccessfulSync: 0
+};
+
+/**
+ * إعادة تعيين عدد المحاولات المتتالية
+ * Reset consecutive attempts counter
+ */
+const resetConsecutiveAttempts = () => {
+  const now = Date.now();
+  
+  // إعادة تعيين فقط إذا مر وقت كافٍ منذ آخر محاولة
+  if (isCooldownComplete(syncState.lastSyncAttemptTime, syncState.cooldownPeriodMs * 2)) {
+    console.log('إعادة تعيين عداد المحاولات المتتالية بعد فترة سماح كافية');
+    syncState.consecutiveSyncAttempts = 0;
+    syncState.failedAttempts = 0;
+  }
+};
 
 /**
  * وظيفة المزامنة الرئيسية - محسنة مع آلية قفل آمنة ومعالجة الطوابير
  * Main synchronization function - enhanced with safe locking mechanism and queue handling
  */
 export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
+  // منع تشغيل المزامنات المتوازية
+  if (syncState.syncInProgress) {
+    console.warn('هناك مزامنة قيد التنفيذ بالفعل، تجنب المحاولة المتزامنة');
+    return false;
+  }
+  
+  // إعادة تعيين العداد بناءً على الوقت المنقضي منذ آخر محاولة
+  resetConsecutiveAttempts();
+  
   // فحص عدد المحاولات المتتالية لمنع تكرار المزامنة بشكل مفرط
   // Check consecutive attempts to prevent excessive syncing
   const now = Date.now();
-  if (now - lastSyncAttemptTime < 5000) { // مهلة 5 ثوانٍ بين المحاولات
-    consecutiveSyncAttempts++;
-    if (consecutiveSyncAttempts > MAX_CONSECUTIVE_SYNCS) {
+  if (!isCooldownComplete(syncState.lastSyncAttemptTime, syncState.cooldownPeriodMs)) {
+    syncState.consecutiveSyncAttempts++;
+    if (syncState.consecutiveSyncAttempts > MAX_CONSECUTIVE_SYNCS) {
       console.warn(`تم تجاوز الحد الأقصى لمحاولات المزامنة المتتالية (${MAX_CONSECUTIVE_SYNCS})، تجاهل هذه المحاولة`);
+      
+      // زيادة فترة الانتظار تدريجياً مع كل تجاوز للحد الأقصى
+      syncState.cooldownPeriodMs = Math.min(syncState.cooldownPeriodMs * 1.5, 30000);
+      console.log(`تم زيادة فترة الانتظار إلى ${syncState.cooldownPeriodMs}ms`);
+      
       return false;
     }
   } else {
     // إعادة تعيين العداد إذا مرت فترة كافية
-    consecutiveSyncAttempts = 1;
+    syncState.consecutiveSyncAttempts = 1;
+    
+    // استعادة فترة الانتظار الأساسية تدريجياً
+    if (syncState.cooldownPeriodMs > 5000) {
+      syncState.cooldownPeriodMs = Math.max(5000, syncState.cooldownPeriodMs * 0.8);
+    }
   }
-  lastSyncAttemptTime = now;
+  
+  // تحديث وقت آخر محاولة وزيادة العدد الإجمالي للمحاولات
+  syncState.lastSyncAttemptTime = now;
+  syncState.totalSyncAttempts++;
   
   // إذا كانت المزامنة قيد التنفيذ، إضافة الطلب إلى الطابور
   // If synchronization is already in progress, add the request to the queue
@@ -51,6 +102,9 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     // Add function to queue (calling itself)
     return addToSyncQueue(() => syncAllData(forceRefresh || true)); // دائمًا استخدم forceRefresh=true في الطابور
   }
+  
+  // تعيين علامة المزامنة قيد التقدم
+  syncState.syncInProgress = true;
   
   // وضع قفل المزامنة
   // Set sync lock
@@ -69,9 +123,9 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     const cacheBuster = `?_=${timestamp}&nocache=${randomId}`;
     const fullCacheBuster = skewParam ? `${cacheBuster}&${skewParam}` : cacheBuster;
     
-    // تحديد مهلة زمنية للمزامنة لمنع التعليق إلى ما لا نهاية - تقليل من 120 ثانية إلى 30 ثانية
-    // Set timeout for sync to prevent hanging indefinitely - decreased from 120 to 30 seconds
-    const timeoutPromise = createTimeoutPromise(30000);
+    // تحديد مهلة زمنية للمزامنة لمنع التعليق إلى ما لا نهاية - تقليل من 30 ثانية إلى 20 ثانية
+    // Set timeout for sync to prevent hanging indefinitely - decreased from 30 to 20 seconds
+    const timeoutPromise = createTimeoutPromise(20000);
     
     // التحقق من وجود مصدر متاح
     // Check for available source
@@ -115,9 +169,15 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     // Execute sync with timeout
     const result = await Promise.race([syncPromise, timeoutPromise]);
     
-    // إضافة علامة للتحديث الإجباري في التخزين المحلي
-    // Add a forced refresh flag in local storage
+    // تحديث حالة المزامنة بناءً على النتيجة
     if (result) {
+      // تم النجاح
+      syncState.consecutiveSyncAttempts = 0;
+      syncState.failedAttempts = 0;
+      syncState.lastSuccessfulSync = Date.now();
+      
+      // إضافة علامة للتحديث الإجباري في التخزين المحلي
+      // Add a forced refresh flag in local storage
       try {
         localStorage.setItem('force_browser_refresh', 'true');
         localStorage.setItem('nocache_version', Date.now().toString());
@@ -130,7 +190,9 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
       
       return true;
     } else {
-      console.warn('فشلت جميع محاولات المزامنة مع المصادر الخارجية');
+      // حالة فشل المزامنة
+      syncState.failedAttempts++;
+      console.warn(`فشلت جميع محاولات المزامنة مع المصادر الخارجية (المحاولة ${syncState.failedAttempts})`);
       
       // تعيين علامات فشل المزامنة
       try {
@@ -140,11 +202,17 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
         console.error('فشل في تعيين علامات فشل المزامنة', e);
       }
       
+      // الانتظار لفترة متزايدة قبل السماح بمحاولة أخرى
+      const waitTime = calculateAdaptiveWaitTime(syncState.failedAttempts);
+      console.log(`تعيين فترة انتظار ${waitTime}ms قبل السماح بمحاولة مزامنة أخرى`);
+      syncState.cooldownPeriodMs = waitTime;
+      
       return false;
     }
     
   } catch (error) {
     console.error('خطأ غير متوقع أثناء المزامنة: / Unexpected error during sync:', error);
+    syncState.failedAttempts++;
     return false;
   } finally {
     // تحرير قفل المزامنة دائمًا حتى في حالة الخطأ
@@ -152,5 +220,6 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     releaseSyncLock('sync-all-data');
     setIsSyncing(false);
     setSyncActive(false);
+    syncState.syncInProgress = false;
   }
 };
