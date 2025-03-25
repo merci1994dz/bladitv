@@ -5,16 +5,27 @@
  */
 
 import { toast } from '@/hooks/use-toast';
-import { isSyncLocked, setSyncLock, releaseSyncLock, LOCK_TIMEOUT } from './lockState';
+import { isSyncLocked, setSyncLock, releaseSyncLock, LOCK_TIMEOUT, tryAcquireLock } from './lockState';
+import { checkActiveLocks } from './lockMonitor';
 
 // طابور المزامنة
 // Sync queue
-const syncQueue: (() => Promise<boolean>)[] = [];
+const syncQueue: {
+  id: string;
+  fn: () => Promise<boolean>;
+  priority: number;
+  addedTime: number;
+}[] = [];
+
 let isProcessingQueue = false; // متغير لتتبع ما إذا كانت معالجة الطابور قيد التنفيذ
+const MAX_QUEUE_SIZE = 8; // الحد الأقصى لحجم الطابور
 
 // إضافة إلى طابور المزامنة مع تحسين إدارة الطابور
 // Add to sync queue with improved queue management
-export const addToSyncQueue = (syncFunction: () => Promise<boolean>): Promise<boolean> => {
+export const addToSyncQueue = (
+  syncFunction: () => Promise<boolean>, 
+  options: { priority?: number } = {}
+): Promise<boolean> => {
   return new Promise((resolve) => {
     // إضافة متابعة طول الطابور
     // Add queue length monitoring
@@ -23,47 +34,79 @@ export const addToSyncQueue = (syncFunction: () => Promise<boolean>): Promise<bo
     
     // حد أقصى لحجم الطابور لمنع تراكم المهام
     // Maximum queue size to prevent task accumulation
-    if (queueLength > 5) {
-      console.warn('طابور المزامنة طويل جدًا، تجاهل العملية الجديدة');
-      resolve(false); // رفض العمليات الجديدة عندما يكون الطابور طويلاً جدًا
-      return;
+    if (queueLength >= MAX_QUEUE_SIZE) {
+      console.warn('طابور المزامنة ممتلئ، تجاهل العملية الجديدة');
+      
+      // إذا كانت المهمة الجديدة ذات أولوية عالية، قم بإزالة مهمة ذات أولوية منخفضة
+      if (options.priority && options.priority > 1) {
+        // ابحث عن أقل مهمة أولوية في الطابور
+        const lowestPriorityIndex = syncQueue.reduce((lowest, current, index, arr) => {
+          return arr[lowest].priority < current.priority ? lowest : index;
+        }, 0);
+        
+        // إذا كانت المهمة الجديدة ذات أولوية أعلى، استبدل المهمة ذات الأولوية المنخفضة
+        if (syncQueue[lowestPriorityIndex].priority < (options.priority || 0)) {
+          console.log('استبدال مهمة ذات أولوية منخفضة بمهمة جديدة ذات أولوية عالية');
+          syncQueue.splice(lowestPriorityIndex, 1);
+        } else {
+          resolve(false); // رفض العمليات الجديدة عندما يكون الطابور ممتلئا
+          return;
+        }
+      } else {
+        resolve(false); // رفض العمليات الجديدة عندما يكون الطابور ممتلئا
+        return;
+      }
     }
     
-    // إضافة دالة مغلفة تحل الوعد بتحسين معالجة الأخطاء
-    // Add wrapped function that resolves the promise with improved error handling
-    syncQueue.push(async () => {
-      const queueItemId = `queue-item-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      console.log(`بدء معالجة عنصر الطابور: ${queueItemId}`);
-      
-      try {
-        // تنفيذ وظيفة المزامنة مع مهلة زمنية
-        // Execute sync function with timeout
-        const timeoutPromise = new Promise<boolean>((timeoutResolve) => {
-          setTimeout(() => {
-            console.warn(`تجاوز الوقت المحدد لعنصر الطابور: ${queueItemId}`);
-            timeoutResolve(false);
-          }, LOCK_TIMEOUT - 1000);
-        });
-        
-        // استخدام Promise.race لتجنب التعليق
-        // Use Promise.race to avoid hanging
-        const result = await Promise.race([syncFunction(), timeoutPromise]);
-        
-        console.log(`اكتمل عنصر الطابور: ${queueItemId}, النتيجة: ${result}`);
-        resolve(result);
-        return result;
-      } catch (error) {
-        console.error(`خطأ في معالجة طابور المزامنة (${queueItemId}):`, error);
-        resolve(false);
-        return false;
-      } finally {
-        console.log(`انتهى عنصر الطابور: ${queueItemId}`);
-      }
+    // تنظيف الطابور من المهام القديمة
+    const now = Date.now();
+    const staleTasks = syncQueue.filter(task => now - task.addedTime > LOCK_TIMEOUT * 2);
+    
+    if (staleTasks.length > 0) {
+      console.warn(`إزالة ${staleTasks.length} مهام قديمة من الطابور`);
+      syncQueue.forEach((task, index) => {
+        if (now - task.addedTime > LOCK_TIMEOUT * 2) {
+          syncQueue.splice(index, 1);
+        }
+      });
+    }
+    
+    // إنشاء معرف فريد للمهمة
+    const taskId = `queue-task-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    
+    // إضافة مهمة جديدة إلى الطابور مع الأولوية
+    syncQueue.push({
+      id: taskId,
+      fn: async () => {
+        console.log(`بدء تنفيذ مهمة الطابور: ${taskId}`);
+        try {
+          // تنفيذ وظيفة المزامنة مع مهلة زمنية
+          const timeoutPromise = new Promise<boolean>((timeoutResolve) => {
+            setTimeout(() => {
+              console.warn(`تجاوز الوقت المحدد لمهمة الطابور: ${taskId}`);
+              timeoutResolve(false);
+            }, LOCK_TIMEOUT - 1000);
+          });
+          
+          const result = await Promise.race([syncFunction(), timeoutPromise]);
+          console.log(`اكتملت مهمة الطابور: ${taskId}, النتيجة: ${result}`);
+          resolve(result);
+          return result;
+        } catch (error) {
+          console.error(`خطأ في تنفيذ مهمة الطابور (${taskId}):`, error);
+          resolve(false);
+          return false;
+        }
+      },
+      priority: options.priority || 0,
+      addedTime: Date.now()
     });
     
+    // ترتيب الطابور حسب الأولوية (الأعلى أولاً)
+    syncQueue.sort((a, b) => b.priority - a.priority);
+    
     // محاولة معالجة الطابور إذا لم يكن مقفلًا ولم تكن المعالجة قيد التنفيذ بالفعل
-    // Try to process the queue if not locked and not already processing
-    if (!isSyncLocked() && !isProcessingQueue) {
+    if (!checkActiveLocks() && !isProcessingQueue) {
       processNextQueueItem();
     }
   });
@@ -83,33 +126,47 @@ export const processNextQueueItem = async (): Promise<void> => {
     return;
   }
   
-  if (isSyncLocked()) {
-    console.log(`تأجيل معالجة طابور المزامنة: القفل نشط (${syncQueue.length} عناصر متبقية)`);
+  // التحقق من وجود أقفال نشطة
+  if (checkActiveLocks()) {
+    console.log(`تأجيل معالجة طابور المزامنة: يوجد قفل نشط (${syncQueue.length} عناصر متبقية)`);
     return;
   }
   
-  const nextSync = syncQueue.shift();
-  if (!nextSync) return;
-  
-  const queueOwner = `queue-process-${Date.now()}`;
-  
   // وضع علامة على أن المعالجة قيد التقدم
-  // Mark that processing is in progress
   isProcessingQueue = true;
   
-  // وضع القفل وتنفيذ وظيفة المزامنة
-  // Set lock and execute sync function
-  setSyncLock(queueOwner);
+  // الحصول على المهمة التالية من الطابور
+  const nextTask = syncQueue.shift();
+  if (!nextTask) {
+    isProcessingQueue = false;
+    return;
+  }
+  
+  // محاولة اكتساب القفل مع انتظار قصير
+  const lockAcquired = await tryAcquireLock(`queue-process-${nextTask.id}`, 3000);
+  
+  if (!lockAcquired) {
+    console.warn(`فشل في اكتساب القفل لمعالجة مهمة الطابور: ${nextTask.id}`);
+    
+    // إعادة المهمة إلى الطابور إذا لم تكن قديمة جدًا
+    if (Date.now() - nextTask.addedTime < LOCK_TIMEOUT) {
+      console.log(`إعادة إضافة المهمة ${nextTask.id} إلى الطابور للمحاولة لاحقًا`);
+      syncQueue.unshift(nextTask);
+    } else {
+      console.warn(`تجاهل المهمة ${nextTask.id} لأنها قديمة جدًا`);
+    }
+    
+    isProcessingQueue = false;
+    return;
+  }
   
   try {
-    // تنفيذ العملية
-    // Execute operation
-    await nextSync();
+    // تنفيذ المهمة
+    await nextTask.fn();
   } catch (error) {
-    console.error('خطأ أثناء معالجة طابور المزامنة:', error);
+    console.error(`خطأ أثناء معالجة مهمة الطابور (${nextTask.id}):`, error);
     
     // عرض إشعار للمستخدم
-    // Show notification to user
     try {
       toast({
         title: "خطأ في المزامنة",
@@ -118,24 +175,55 @@ export const processNextQueueItem = async (): Promise<void> => {
       });
     } catch (e) {
       // تجاهل أي خطأ في عرض الإشعار
-      // Ignore any error in displaying the notification
+      console.warn('فشل في عرض إشعار خطأ المزامنة:', e);
     }
   } finally {
     // التأكد من تحرير القفل دائمًا
-    // Always make sure to release the lock
-    releaseSyncLock(queueOwner);
+    releaseSyncLock(`queue-process-${nextTask.id}`);
     
     // إعادة تعيين متغير الحالة
-    // Reset state variable
     isProcessingQueue = false;
     
     // إذا كانت هناك عناصر إضافية في الطابور، استمر في المعالجة
-    // If there are additional items in the queue, continue processing
     if (syncQueue.length > 0) {
       console.log(`استمرار معالجة الطابور (${syncQueue.length} عناصر متبقية)`);
       // تأخير قصير لمنع تنافس الموارد المحتملة
-      // Short delay to prevent potential resource contention
-      setTimeout(processNextQueueItem, 200);
+      setTimeout(processNextQueueItem, 300);
     }
   }
+};
+
+// الحصول على حالة الطابور الحالية
+// Get current queue state
+export const getQueueState = () => {
+  return {
+    length: syncQueue.length,
+    isProcessing: isProcessingQueue,
+    tasks: syncQueue.map(task => ({
+      id: task.id,
+      priority: task.priority,
+      age: Date.now() - task.addedTime
+    }))
+  };
+};
+
+// تنظيف الطابور من المهام القديمة
+// Clean queue from stale tasks
+export const cleanupStaleQueueItems = () => {
+  const now = Date.now();
+  const initialLength = syncQueue.length;
+  
+  // إزالة المهام القديمة
+  for (let i = syncQueue.length - 1; i >= 0; i--) {
+    if (now - syncQueue[i].addedTime > LOCK_TIMEOUT * 2) {
+      syncQueue.splice(i, 1);
+    }
+  }
+  
+  const removedCount = initialLength - syncQueue.length;
+  if (removedCount > 0) {
+    console.log(`تم تنظيف ${removedCount} مهام قديمة من طابور المزامنة`);
+  }
+  
+  return removedCount;
 };
