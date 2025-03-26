@@ -4,8 +4,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getCountries, getCategories } from '@/services/api';
 import { useChannelsAdmin } from '@/hooks/useChannelsAdmin';
 import { useToast } from '@/hooks/use-toast';
-import { forceDataRefresh, getLastSyncTime } from '@/services/sync';
+import { getLastSyncTime } from '@/services/sync';
 import { ensureLatestData } from '@/utils/forceUpdate';
+import { syncDataUnified } from '@/services/sync/core/unifiedSync';
 import SyncSettings from './channels/SyncSettings';
 import ChannelsManager from './channels/ChannelsManager';
 import ChannelsList from './channels/ChannelsList';
@@ -81,16 +82,20 @@ const ChannelsTab: React.FC = () => {
     manualSyncChannels
   } = useChannelsAdmin({ autoPublish });
 
-  // وظيفة مزامنة البيانات مع ظهور مؤشر التحميل
+  // وظيفة مزامنة البيانات مع ظهور مؤشر التحميل - محسنة
   const handleForceSync = async () => {
+    if (isSyncing) return;
+    
     setIsSyncing(true);
+    
     toast({
       title: "جاري النشر",
       description: "جاري تحديث البيانات ونشرها للمستخدمين..."
     });
     
     try {
-      await forceDataRefresh();
+      // استخدام وظيفة المزامنة الموحدة
+      await syncDataUnified({ forceRefresh: true, showNotifications: false });
       
       // ضمان تحديث واجهة المستخدم بأحدث البيانات
       await ensureLatestData();

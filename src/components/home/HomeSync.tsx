@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
-import { syncWithBladiInfo } from '@/services/sync';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { syncDataUnified } from '@/services/sync/core/unifiedSync';
 
 interface HomeSyncProps {
   refetchChannels: () => Promise<any>;
@@ -13,23 +13,22 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const { toast } = useToast();
 
-  // Synchronize channels with BLADI sources
+  // Synchronize channels with optimized method
   const handleSync = async () => {
+    if (isSyncing) return;
+    
     setIsSyncing(true);
     
     try {
-      toast({
-        title: "جاري المزامنة",
-        description: "جاري جلب أحدث القنوات من المصادر الخارجية..."
+      const result = await syncDataUnified({
+        forceRefresh: true,
+        showNotifications: false
       });
       
-      // Call sync function with force flag to update and prevent duplicates
-      const result = await syncWithBladiInfo(true, { preventDuplicates: true });
-      
-      if (result.updated) {
+      if (result) {
         toast({
           title: "تمت المزامنة بنجاح",
-          description: `تم تحديث ${result.channelsCount} قناة بنجاح`
+          description: "تم تحديث القنوات بنجاح"
         });
         
         // Reload channels
@@ -44,7 +43,7 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
       console.error("خطأ في المزامنة:", error);
       toast({
         title: "خطأ في المزامنة",
-        description: "تعذر الاتصال بمصادر البيانات الخارجية",
+        description: "تعذر الاتصال بمصادر البيانات",
         variant: "destructive"
       });
     } finally {
