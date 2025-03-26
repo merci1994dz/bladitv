@@ -174,8 +174,25 @@ export const manualRetryableSync = async (forceRefresh: boolean = false): Promis
 
 // إضافة وظيفة تنفيذ المزامنة القابلة لإعادة المحاولة 
 export const executeRetryableSync = async (
-  maxRetries: number = 3,
-  forceRefresh: boolean = false
+  syncFn: () => Promise<boolean>,
+  operationName: string = 'Sync Operation',
+  timeout: number = 30000
 ): Promise<boolean> => {
-  return await retryableSync(maxRetries, forceRefresh);
+  try {
+    console.log(`تنفيذ عملية مزامنة: ${operationName} بمهلة ${timeout}ms`);
+    
+    // تنفيذ دالة المزامنة مع مهلة زمنية
+    const result = await Promise.race([
+      syncFn(),
+      new Promise<boolean>((_, reject) => 
+        setTimeout(() => reject(new Error(`تجاوزت العملية الوقت المسموح: ${operationName}`)), timeout)
+      )
+    ]);
+    
+    return result;
+  } catch (error) {
+    console.error(`فشل في تنفيذ المزامنة: ${operationName}`, error);
+    handleError(error, `Sync operation: ${operationName}`);
+    return false;
+  }
 };
