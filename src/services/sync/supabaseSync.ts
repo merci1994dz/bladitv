@@ -33,7 +33,6 @@ export async function syncWithSupabase(forceRefresh: boolean = false): Promise<b
       }
     },
     'المزامنة مع Supabase / Sync with Supabase',
-    true, // عملية حرجة / Critical operation
     executionTimeout // زيادة المهلة على Vercel
   );
   

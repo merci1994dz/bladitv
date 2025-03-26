@@ -8,6 +8,7 @@ import SyncStatus from '../SyncStatus';
 import ConnectivityIndicator from '../sync/ConnectivityIndicator';
 import { syncWithBladiInfo } from '@/services/sync';
 import { useToast } from '@/hooks/use-toast';
+import { getLastSyncTime } from '@/services/sync/status';
 
 interface HomeHeaderProps {
   isSimple?: boolean;
@@ -16,6 +17,7 @@ interface HomeHeaderProps {
 const HomeHeader: React.FC<HomeHeaderProps> = ({ isSimple = false }) => {
   const { isTV } = useDeviceType();
   const { toast } = useToast();
+  const lastSyncTime = getLastSyncTime();
   
   const handleConnectivityRefresh = async () => {
     toast({
@@ -69,7 +71,10 @@ const HomeHeader: React.FC<HomeHeaderProps> = ({ isSimple = false }) => {
         
         {!isSimple && (
           <div className="flex flex-col md:flex-row items-center gap-4">
-            <SyncStatus />
+            <SyncStatus 
+              syncStatus={lastSyncTime ? 'success' : 'idle'} 
+              lastSync={lastSyncTime} 
+            />
             
             <div className="flex items-center space-x-4 rtl:space-x-reverse">
               <Link to="/settings">
