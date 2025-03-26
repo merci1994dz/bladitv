@@ -11,37 +11,101 @@ import { useToast } from '@/hooks/use-toast';
 import { getChannels, getCountries, getCategories } from '@/services/api';
 import { verifyAdminSession, logoutAdmin, enableFullAccess, hasFullAccess, disableFullAccess } from '@/services/adminService';
 import { getLastSyncTime } from '@/services/sync';
+import { forceDataRefresh } from '@/services/sync/forceRefresh';
 import { Button } from '@/components/ui/button';
-import { Shield, ShieldAlert, ShieldCheck, ShieldX } from 'lucide-react';
+import { Shield, ShieldAlert, ShieldCheck, ShieldX, RefreshCw } from 'lucide-react';
 
 const Admin: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('channels');
   const [hasFullAccessEnabled, setHasFullAccessEnabled] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [versionInfo, setVersionInfo] = useState<string>('');
   const { toast } = useToast();
 
   // جلب بيانات القنوات والدول والفئات
-  const { data: channels, isLoading: isLoadingChannels } = useQuery({
+  const { data: channels, isLoading: isLoadingChannels, refetch: refetchChannels } = useQuery({
     queryKey: ['channels'],
     queryFn: getChannels,
     enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000, // 5 دقائق
   });
 
-  const { data: countries, isLoading: isLoadingCountries } = useQuery({
+  const { data: countries, isLoading: isLoadingCountries, refetch: refetchCountries } = useQuery({
     queryKey: ['countries'],
     queryFn: getCountries,
     enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000, // 5 دقائق
   });
 
-  const { data: categories, isLoading: isLoadingCategories } = useQuery({
+  const { data: categories, isLoading: isLoadingCategories, refetch: refetchCategories } = useQuery({
     queryKey: ['categories'],
     queryFn: getCategories,
     enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000, // 5 دقائق
   });
+
+  // وظيفة لإجبار إعادة تحميل البيانات
+  const handleForceRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      toast({
+        title: "جاري إعادة تحميل البيانات",
+        description: "جاري مسح ذاكرة التخزين المؤقت وإعادة تحميل البيانات الجديدة...",
+      });
+      
+      // تنفيذ تحديث قسري للبيانات
+      await forceDataRefresh();
+      
+      // إعادة جلب البيانات بعد التحديث
+      await Promise.all([
+        refetchChannels(),
+        refetchCountries(),
+        refetchCategories()
+      ]);
+      
+      // تحديث معلومات الإصدار
+      updateVersionInfo();
+      
+      toast({
+        title: "تم إعادة التحميل بنجاح",
+        description: "تم تحديث البيانات بنجاح وعرض أحدث إصدار",
+      });
+    } catch (error) {
+      console.error("خطأ في إعادة تحميل البيانات:", error);
+      toast({
+        title: "خطأ في إعادة التحميل",
+        description: "حدث خطأ أثناء محاولة إعادة تحميل البيانات",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // تحديث معلومات الإصدار
+  const updateVersionInfo = useCallback(() => {
+    try {
+      const lastSync = getLastSyncTime();
+      const dataVersion = localStorage.getItem('data_version');
+      const lastUpdateCheck = localStorage.getItem('last_update_check');
+      
+      let versionText = `الإصدار: ${dataVersion || 'غير معروف'}`;
+      if (lastSync) {
+        versionText += ` | آخر تحديث: ${new Date(lastSync).toLocaleString()}`;
+      }
+      if (lastUpdateCheck) {
+        const checkTime = new Date(parseInt(lastUpdateCheck)).toLocaleString();
+        versionText += ` | آخر فحص: ${checkTime}`;
+      }
+      
+      setVersionInfo(versionText);
+    } catch (e) {
+      console.error("خطأ في تحديث معلومات الإصدار:", e);
+      setVersionInfo('معلومات الإصدار غير متاحة');
+    }
+  }, []);
 
   // التحقق من حالة المصادقة عند تحميل المكون
   useEffect(() => {
@@ -51,6 +115,9 @@ const Admin: React.FC = () => {
         const isValid = verifyAdminSession();
         setIsAuthenticated(isValid);
         setHasFullAccessEnabled(hasFullAccess());
+        if (isValid) {
+          updateVersionInfo();
+        }
       } catch (error) {
         console.error("Error checking authentication:", error);
         toast({
@@ -64,7 +131,32 @@ const Admin: React.FC = () => {
     };
     
     checkAuth();
-  }, [toast]);
+  }, [toast, updateVersionInfo]);
+
+  // إضافة مستمع للتخزين المحلي لمراقبة التحديثات
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'data_version' || event.key === 'channels_last_update' || 
+          event.key === 'supabase_sync_version' || event.key === 'force_browser_refresh') {
+        console.log('تم اكتشاف تغيير في البيانات:', event.key);
+        updateVersionInfo();
+        // إعادة جلب البيانات تلقائيًا
+        refetchChannels();
+        refetchCountries();
+        refetchCategories();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('app_data_updated', updateVersionInfo);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('app_data_updated', updateVersionInfo);
+    };
+  }, [isAuthenticated, refetchChannels, refetchCountries, refetchCategories, updateVersionInfo]);
 
   // تحقق دوري من صلاحية الجلسة
   useEffect(() => {
@@ -87,11 +179,12 @@ const Admin: React.FC = () => {
   const handleLoginSuccess = useCallback(() => {
     setIsAuthenticated(true);
     setHasFullAccessEnabled(hasFullAccess());
+    updateVersionInfo();
     toast({
       title: "تم تسجيل الدخول بنجاح",
       description: "أهلاً بك في لوحة الإدارة",
     });
-  }, [toast]);
+  }, [toast, updateVersionInfo]);
 
   const handleLogout = useCallback(() => {
     logoutAdmin();
@@ -103,7 +196,7 @@ const Admin: React.FC = () => {
     });
   }, [toast]);
   
-  // وظيفة جديدة للتحكم في الصلاحيات الكاملة
+  // وظيفة للتحكم في الصلاحيات الكاملة
   const toggleFullAccess = useCallback(() => {
     try {
       if (hasFullAccessEnabled) {
@@ -158,6 +251,21 @@ const Admin: React.FC = () => {
   return (
     <div className="container max-w-6xl mx-auto px-4 pb-32 pt-4">
       <AdminHeader />
+      
+      {/* معلومات الإصدار وزر التحديث */}
+      <div className="flex flex-col sm:flex-row justify-between items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-3 mb-4">
+        <p className="text-xs text-muted-foreground mb-2 sm:mb-0 ltr:text-left rtl:text-right">{versionInfo}</p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleForceRefresh}
+          disabled={isRefreshing}
+          className="flex items-center gap-2 text-xs"
+        >
+          <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span>{isRefreshing ? 'جاري التحديث...' : 'تحديث البيانات'}</span>
+        </Button>
+      </div>
       
       {/* زر تفعيل الصلاحيات الكاملة */}
       <div className="flex justify-center my-4">
