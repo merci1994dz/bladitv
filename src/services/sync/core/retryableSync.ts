@@ -92,7 +92,7 @@ export const retryableSync = async (
       
       return result;
     } catch (error) {
-      const syncError = handleError(error, 'المزامنة القابلة لإعادة المحاولة');
+      const syncError = error instanceof Error ? error : new Error(String(error));
       lastError = syncError;
       retryCount++;
       
@@ -170,4 +170,12 @@ export const manualRetryableSync = async (forceRefresh: boolean = false): Promis
       }
     };
   }
+};
+
+// إضافة وظيفة تنفيذ المزامنة القابلة لإعادة المحاولة 
+export const executeRetryableSync = async (
+  maxRetries: number = 3,
+  forceRefresh: boolean = false
+): Promise<boolean> => {
+  return await retryableSync(maxRetries, forceRefresh);
 };

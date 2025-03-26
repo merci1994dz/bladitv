@@ -76,6 +76,27 @@ export async function retry<T>(
 }
 
 /**
+ * حساب وقت الانتظار للتراجع الأسي
+ * @param attempt رقم المحاولة الحالية
+ * @param initialDelay التأخير الأولي بالمللي ثانية
+ * @param maxDelay الحد الأقصى للتأخير بالمللي ثانية
+ */
+export function getExponentialBackoff(
+  attempt: number,
+  initialDelay: number = 1000,
+  maxDelay: number = 30000
+): number {
+  // حساب التأخير باستخدام الصيغة الأسية مع عنصر عشوائي
+  const calculatedDelay = initialDelay * Math.pow(2, attempt - 1);
+  
+  // إضافة تغيير عشوائي (jitter) لمنع تزامن الطلبات
+  const jitter = Math.random() * 0.3 * calculatedDelay;
+  
+  // تطبيق الحد الأقصى
+  return Math.min(calculatedDelay + jitter, maxDelay);
+}
+
+/**
  * فحص ما إذا كان الخطأ متعلقًا بالشبكة
  */
 function isNetworkError(error: unknown): boolean {
