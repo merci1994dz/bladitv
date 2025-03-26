@@ -1,259 +1,139 @@
 
 /**
- * آلية المزامنة الموحدة - تقليل التكرار وتحسين الأداء
- * Unified synchronization mechanism - reducing duplication and improving performance
+ * واجهة موحدة للمزامنة للاستخدام في واجهة المستخدم
+ * Unified sync interface for UI usage
  */
 
-import { toast } from '@/hooks/use-toast';
-import { channels, countries, categories, setIsSyncing } from '../../dataStore';
-import { updateLastSyncTime } from '../config';
-import { setSyncActive } from '../status';
-import { isSyncLocked, setSyncLock, releaseSyncLock } from '../lock';
-import { isRunningOnVercel } from '../remote/fetch/skewProtection';
+import { syncAllData } from './syncOperations';
+import { syncState } from './syncState';
+import { checkSourceAvailability } from './sourceCheck';
+import { getSkewProtectionParams } from '../remote/fetch/skewProtection';
 
-// وظيفة للتعامل مع مهلة العمليات
-// Function to handle operation timeouts
-const withTimeout = async <T>(
-  operation: Promise<T>,
-  timeoutMs: number,
-  operationName: string
-): Promise<T> => {
-  return Promise.race([
-    operation,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`تجاوز العملية للوقت المحدد: ${operationName}`)), timeoutMs);
-    })
-  ]);
-};
+interface SyncOptions {
+  forceRefresh?: boolean;
+  showNotifications?: boolean;
+  timeout?: number;
+}
 
-// كائن لتخزين حالة المزامنة
-// Object to store sync state
-const syncStatus = {
-  lastSyncTime: 0,
-  syncCount: 0,
-  failedAttempts: 0,
-  isCurrentlySyncing: false
+interface SyncStatus {
+  lastSyncTime: string | null;
+  isSuccessful: boolean;
+  lastError: string | null;
+  inProgress: boolean;
+  availableSource: string | null;
+}
+
+// تخزين حالة المزامنة
+const syncStatus: SyncStatus = {
+  lastSyncTime: null,
+  isSuccessful: false,
+  lastError: null,
+  inProgress: false,
+  availableSource: null
 };
 
 /**
- * وظيفة مزامنة موحدة مع Supabase
- * Unified sync function with Supabase
+ * الحصول على حالة المزامنة الحالية
+ * Get current sync status
  */
-export const syncWithSupabaseUnified = async (forceRefresh: boolean = false): Promise<boolean> => {
-  console.log('بدء المزامنة الموحدة مع Supabase، التحديث الإجباري = ', forceRefresh);
+export const getSyncStatus = (): SyncStatus => {
+  try {
+    // محاولة قراءة معلومات المزامنة من التخزين المحلي
+    const lastSyncTime = localStorage.getItem('last_sync_time') || null;
+    const isSuccessful = localStorage.getItem('last_sync_success') === 'true';
+    const lastError = localStorage.getItem('last_sync_error') || null;
+    
+    // تحديث حالة المزامنة بناءً على التخزين المحلي
+    syncStatus.lastSyncTime = lastSyncTime;
+    syncStatus.isSuccessful = isSuccessful;
+    syncStatus.lastError = lastError;
+    syncStatus.inProgress = syncState.syncInProgress;
+    
+    return { ...syncStatus };
+  } catch (e) {
+    // إذا فشلت قراءة التخزين المحلي، استخدم القيم المخزنة في الذاكرة
+    return { ...syncStatus };
+  }
+};
+
+/**
+ * وظيفة المزامنة الموحدة للاستخدام في واجهة المستخدم
+ * Unified sync function for UI usage
+ */
+export const syncDataUnified = async (options: SyncOptions = {}): Promise<boolean> => {
+  const {
+    forceRefresh = false,
+    showNotifications = false,
+    timeout = 30000
+  } = options;
   
-  // التحقق من وجود قفل مزامنة نشط
-  // Check for active sync lock
-  if (isSyncLocked()) {
-    console.log('هناك عملية مزامنة قيد التنفيذ بالفعل، تجاهل الطلب الحالي');
+  if (syncStatus.inProgress) {
+    console.warn('جاري تنفيذ المزامنة بالفعل، تجاهل هذا الطلب');
     return false;
   }
   
-  // الحد من تكرار المزامنة في فترة زمنية قصيرة
-  // Limit sync frequency in a short time period
-  const now = Date.now();
-  const timeSinceLastSync = now - syncStatus.lastSyncTime;
-  
-  if (timeSinceLastSync < 5000 && !forceRefresh) {
-    console.log('تم طلب المزامنة مؤخرًا، تجاهل الطلب الحالي');
-    return false;
-  }
-  
-  // تعيين أقفال وحالات المزامنة
-  // Set sync locks and states
-  setSyncLock('unified-sync');
-  setIsSyncing(true);
-  setSyncActive(true);
-  syncStatus.isCurrentlySyncing = true;
+  syncStatus.inProgress = true;
   
   try {
-    // تعديل مهلة التنفيذ حسب البيئة
-    // Adjust execution timeout based on environment
-    const isOnVercel = isRunningOnVercel();
-    const executionTimeout = isOnVercel ? 30000 : 20000;
+    // تحديث حالة المزامنة
+    console.log('بدء المزامنة الموحدة، الوضع الإجباري =', forceRefresh);
     
-    // استدعاء supabase للحصول على البيانات
-    // Call supabase to get data
-    const { supabase } = await import('@/integrations/supabase/client');
+    // التحقق من توفر المصادر
+    syncStatus.availableSource = await checkSourceAvailability();
     
-    // الحصول على البيانات مع مهلة زمنية محددة
-    // Get data with specified timeout
-    const [channelsData, countriesData, categoriesData] = await Promise.all([
-      withTimeout(Promise.resolve(supabase.from('channels').select('*').order('id').then(res => res.data || [])), 
-        executionTimeout, 'جلب القنوات'),
-      withTimeout(Promise.resolve(supabase.from('countries').select('*').order('id').then(res => res.data || [])), 
-        executionTimeout, 'جلب الدول'),
-      withTimeout(Promise.resolve(supabase.from('categories').select('*').order('id').then(res => res.data || [])), 
-        executionTimeout, 'جلب الفئات')
-    ]);
-    
-    // تحقق من صحة البيانات
-    // Check data validity
-    if (!channelsData.length && !countriesData.length && !categoriesData.length) {
-      console.warn('لم يتم استلام أي بيانات من Supabase');
-      return false;
-    }
-    
-    console.log('تم استلام البيانات من Supabase:', {
-      channels: channelsData.length,
-      countries: countriesData.length,
-      categories: categoriesData.length
-    });
-    
-    // تحديث البيانات في الذاكرة
-    // Update data in memory
-    channels.length = 0;
-    channels.push(...channelsData);
-    
-    countries.length = 0;
-    countries.push(...countriesData);
-    
-    categories.length = 0;
-    categories.push(...categoriesData);
-    
-    // حفظ البيانات في التخزين المحلي
-    // Save data in local storage
-    try {
-      localStorage.setItem('channels', JSON.stringify(channelsData));
-      localStorage.setItem('countries', JSON.stringify(countriesData));
-      localStorage.setItem('categories', JSON.stringify(categoriesData));
-    } catch (e) {
-      console.warn('فشل في حفظ البيانات في التخزين المحلي:', e);
-    }
-    
-    // تحديث علامات الوقت والإصدار
-    // Update timestamps and version
-    const timestamp = Date.now().toString();
-    updateLastSyncTime();
-    
-    try {
-      localStorage.setItem('data_version', timestamp);
-      localStorage.setItem('supabase_sync_version', timestamp);
-      localStorage.setItem('supabase_sync_success', 'true');
-      localStorage.setItem('last_update_check', timestamp);
-      
-      // إرسال أحداث لإعلام المتصفح بالتحديث
-      // Send events to notify the browser of the update
-      window.dispatchEvent(new Event('storage'));
-      window.dispatchEvent(new CustomEvent('app_data_updated'));
-    } catch (e) {
-      console.warn('فشل في تعيين علامات التحديث في التخزين المحلي:', e);
-    }
+    // تنفيذ المزامنة مع معلمات إضافية
+    const skewParam = getSkewProtectionParams();
+    const success = await syncAllData(forceRefresh);
     
     // تحديث حالة المزامنة
-    // Update sync status
-    syncStatus.lastSyncTime = now;
-    syncStatus.syncCount++;
-    syncStatus.failedAttempts = 0;
+    syncStatus.isSuccessful = success;
+    syncStatus.lastError = success ? null : 'فشلت المزامنة';
     
-    console.log('تمت المزامنة الموحدة مع Supabase بنجاح');
-    return true;
-  } catch (error) {
-    // معالجة الأخطاء
-    // Error handling
-    console.error('خطأ في المزامنة الموحدة مع Supabase:', error);
-    
-    syncStatus.failedAttempts++;
-    
-    // عرض إشعار للمستخدم فقط في حالة الفشل المتكرر
-    // Show notification to the user only in case of repeated failures
-    if (syncStatus.failedAttempts > 1) {
+    if (success) {
+      syncStatus.lastSyncTime = new Date().toISOString();
+      
+      // حفظ حالة المزامنة في التخزين المحلي
       try {
-        toast({
-          title: "خطأ في المزامنة",
-          description: "تعذر الاتصال بقاعدة البيانات. سيتم استخدام البيانات المحلية.",
-          variant: "destructive",
-        });
+        localStorage.setItem('last_sync_time', syncStatus.lastSyncTime);
+        localStorage.setItem('last_sync_success', 'true');
+        localStorage.removeItem('last_sync_error');
       } catch (e) {
-        // تجاهل أخطاء عرض الإشعارات
-        // Ignore notification display errors
+        console.error('فشل في تخزين حالة المزامنة:', e);
       }
+      
+      // إطلاق حدث تحديث البيانات
+      try {
+        window.dispatchEvent(new CustomEvent('app_data_updated'));
+      } catch (e) {
+        console.warn('فشل في إطلاق حدث تحديث البيانات:', e);
+      }
+    } else {
+      // حفظ معلومات الفشل
+      try {
+        localStorage.setItem('last_sync_success', 'false');
+        localStorage.setItem('last_sync_failure', Date.now().toString());
+      } catch (e) {
+        console.error('فشل في تخزين معلومات فشل المزامنة:', e);
+      }
+    }
+    
+    return success;
+  } catch (error) {
+    console.error('خطأ غير متوقع أثناء المزامنة الموحدة:', error);
+    
+    syncStatus.isSuccessful = false;
+    syncStatus.lastError = error instanceof Error ? error.message : String(error);
+    
+    // حفظ معلومات الخطأ
+    try {
+      localStorage.setItem('last_sync_success', 'false');
+      localStorage.setItem('last_sync_error', syncStatus.lastError);
+    } catch (e) {
+      console.error('فشل في تخزين معلومات خطأ المزامنة:', e);
     }
     
     return false;
   } finally {
-    // تحرير الأقفال وإعادة تعيين الحالات
-    // Release locks and reset states
-    releaseSyncLock('unified-sync');
-    setIsSyncing(false);
-    setSyncActive(false);
-    syncStatus.isCurrentlySyncing = false;
+    syncStatus.inProgress = false;
   }
-};
-
-/**
- * وظيفة مزامنة موحدة للاستخدام العام
- * General-purpose unified sync function
- */
-export const syncDataUnified = async (options: {
-  forceRefresh?: boolean;
-  showNotifications?: boolean;
-} = {}): Promise<boolean> => {
-  const { forceRefresh = false, showNotifications = true } = options;
-  
-  // عرض إشعار بدء المزامنة
-  // Show sync start notification
-  if (showNotifications) {
-    try {
-      toast({
-        title: "جاري المزامنة",
-        description: "جاري تحديث البيانات...",
-      });
-    } catch (e) {
-      // تجاهل أخطاء عرض الإشعارات
-      // Ignore notification display errors
-    }
-  }
-  
-  try {
-    const result = await syncWithSupabaseUnified(forceRefresh);
-    
-    // عرض إشعار نجاح المزامنة
-    // Show sync success notification
-    if (result && showNotifications) {
-      try {
-        toast({
-          title: "تمت المزامنة",
-          description: "تم تحديث البيانات بنجاح",
-        });
-      } catch (e) {
-        // تجاهل أخطاء عرض الإشعارات
-        // Ignore notification display errors
-      }
-    }
-    
-    return result;
-  } catch (error) {
-    console.error('خطأ في مزامنة البيانات الموحدة:', error);
-    
-    // عرض إشعار فشل المزامنة
-    // Show sync failure notification
-    if (showNotifications) {
-      try {
-        toast({
-          title: "فشل في المزامنة",
-          description: "حدث خطأ أثناء تحديث البيانات",
-          variant: "destructive",
-        });
-      } catch (e) {
-        // تجاهل أخطاء عرض الإشعارات
-        // Ignore notification display errors
-      }
-    }
-    
-    return false;
-  }
-};
-
-/**
- * وظيفة للتحقق من حالة المزامنة الحالية
- * Function to check current sync state
- */
-export const getSyncStatus = () => {
-  return {
-    isCurrentlySyncing: syncStatus.isCurrentlySyncing,
-    lastSyncTime: syncStatus.lastSyncTime > 0 ? new Date(syncStatus.lastSyncTime).toISOString() : null,
-    syncCount: syncStatus.syncCount,
-    failedAttempts: syncStatus.failedAttempts
-  };
 };

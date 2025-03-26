@@ -13,4 +13,5 @@ export { initializeSyncProcess } from './initialization';
 // تصدير المساعدين
 // Export helpers
 export { executeSync } from './helpers/syncExecutor';
-export { createTimeoutPromise } from './helpers/timeoutHelper';
+export { createTimeoutPromise, isCooldownComplete, calculateAdaptiveWaitTime } from './helpers/timeoutHelper';
+export { syncState, resetConsecutiveAttempts, MAX_CONSECUTIVE_SYNCS } from './syncState';

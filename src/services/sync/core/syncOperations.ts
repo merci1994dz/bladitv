@@ -7,49 +7,15 @@
 import { setIsSyncing } from '../../dataStore';
 import { isSyncLocked, setSyncLock, releaseSyncLock, addToSyncQueue } from '../lock';
 import { setSyncActive } from '../status';
-import { getSkewProtectionParams } from '../remoteSync';
-import { checkBladiInfoAvailability } from '../remoteSync';
-import { 
-  createTimeoutPromise, 
-  isCooldownComplete, 
-  calculateAdaptiveWaitTime 
-} from './helpers/timeoutHelper';
-import { executeSync } from './helpers/syncExecutor';
+import { getSkewProtectionParams } from '../remote/sync/index';
 import { BLADI_INFO_SOURCES } from '../remote/sync/sources';
+import { syncState, resetConsecutiveAttempts, MAX_CONSECUTIVE_SYNCS } from './syncState';
+import { executeSync } from './helpers/syncExecutor';
+import { isCooldownComplete, calculateAdaptiveWaitTime, createTimeoutPromise } from './helpers/timeoutHelper';
+import { checkBladiInfoAvailability } from '../remote/sync/sourceAvailability';
 
 // Re-export the performInitialSync function from initialSync.ts
 export { performInitialSync } from './initialSync';
-
-// حد أقصى لعدد محاولات المزامنة المتتالية
-// Maximum number of consecutive sync attempts
-const MAX_CONSECUTIVE_SYNCS = 3;
-
-// تخزين معلومات عن محاولات المزامنة
-// Store information about sync attempts
-const syncState = {
-  consecutiveSyncAttempts: 0,
-  lastSyncAttemptTime: 0,
-  totalSyncAttempts: 0,
-  failedAttempts: 0,
-  cooldownPeriodMs: 5000, // 5 ثوانٍ كفترة انتظار أساسية
-  syncInProgress: false,
-  lastSuccessfulSync: 0
-};
-
-/**
- * إعادة تعيين عدد المحاولات المتتالية
- * Reset consecutive attempts counter
- */
-const resetConsecutiveAttempts = () => {
-  const now = Date.now();
-  
-  // إعادة تعيين فقط إذا مر وقت كافٍ منذ آخر محاولة
-  if (isCooldownComplete(syncState.lastSyncAttemptTime, syncState.cooldownPeriodMs * 2)) {
-    console.log('إعادة تعيين عداد المحاولات المتتالية بعد فترة سماح كافية');
-    syncState.consecutiveSyncAttempts = 0;
-    syncState.failedAttempts = 0;
-  }
-};
 
 /**
  * وظيفة المزامنة الرئيسية - محسنة مع آلية قفل آمنة ومعالجة الطوابير
