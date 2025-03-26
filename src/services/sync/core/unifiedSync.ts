@@ -79,11 +79,11 @@ export const syncWithSupabaseUnified = async (forceRefresh: boolean = false): Pr
     // الحصول على البيانات مع مهلة زمنية محددة
     // Get data with specified timeout
     const [channelsData, countriesData, categoriesData] = await Promise.all([
-      withTimeout(supabase.from('channels').select('*').order('id').then(res => res.data || []), 
+      withTimeout(Promise.resolve(supabase.from('channels').select('*').order('id').then(res => res.data || [])), 
         executionTimeout, 'جلب القنوات'),
-      withTimeout(supabase.from('countries').select('*').order('id').then(res => res.data || []), 
+      withTimeout(Promise.resolve(supabase.from('countries').select('*').order('id').then(res => res.data || [])), 
         executionTimeout, 'جلب الدول'),
-      withTimeout(supabase.from('categories').select('*').order('id').then(res => res.data || []), 
+      withTimeout(Promise.resolve(supabase.from('categories').select('*').order('id').then(res => res.data || [])), 
         executionTimeout, 'جلب الفئات')
     ]);
     
@@ -102,9 +102,14 @@ export const syncWithSupabaseUnified = async (forceRefresh: boolean = false): Pr
     
     // تحديث البيانات في الذاكرة
     // Update data in memory
-    channels.value = channelsData;
-    countries.value = countriesData;
-    categories.value = categoriesData;
+    channels.length = 0;
+    channels.push(...channelsData);
+    
+    countries.length = 0;
+    countries.push(...countriesData);
+    
+    categories.length = 0;
+    categories.push(...categoriesData);
     
     // حفظ البيانات في التخزين المحلي
     // Save data in local storage
