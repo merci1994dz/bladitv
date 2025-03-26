@@ -1,180 +1,146 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { Button } from "@/components/ui/button";
+import { checkSupabaseConnection } from '@/services/sync/supabase/connection/connectionCheck';
+import { useToast } from '@/hooks/use-toast';
+import { getSupabaseTableStats } from '@/services/sync/supabase/connection/connectionCheck';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Database, RefreshCw, ShieldAlert } from 'lucide-react';
-import { checkSupabaseTablesHealth } from '@/services/sync/supabase/connection/connectionCheck';
-import { checkAndFixConnectionIssues } from '@/services/sync/supabase/connection/errorFixer';
-import { toast } from '@/hooks/use-toast';
+import { AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 
 interface SupabaseConnectionStatusProps {
-  className?: string;
-}
-
-interface TableStatus {
-  [key: string]: boolean;
+  onConnectionCheck?: () => void;
+  showDetails?: boolean;
 }
 
 const SupabaseConnectionStatus: React.FC<SupabaseConnectionStatusProps> = ({ 
-  className = '' 
+  onConnectionCheck,
+  showDetails = false
 }) => {
-  const [isConnected, setIsConnected] = useState<boolean | null>(null);
-  const [isChecking, setIsChecking] = useState(false);
-  const [isFixing, setIsFixing] = useState(false);
-  const [tablesHealth, setTablesHealth] = useState<TableStatus | null>(null);
-  const [lastChecked, setLastChecked] = useState<Date | null>(null);
+  const { toast } = useToast();
+  const [isChecking, setIsChecking] = React.useState(false);
+  const [connectionStatus, setConnectionStatus] = React.useState<'unknown' | 'connected' | 'disconnected'>('unknown');
+  const [tableStats, setTableStats] = React.useState<Record<string, number> | null>(null);
+  const [lastChecked, setLastChecked] = React.useState<Date | null>(null);
 
-  // التحقق من الاتصال عند التحميل
-  useEffect(() => {
-    checkConnection();
-  }, []);
-
-  // وظيفة للتحقق من الاتصال
   const checkConnection = async () => {
-    setIsChecking(true);
-    
     try {
-      // التحقق من صحة جداول Supabase
-      const health = await checkSupabaseTablesHealth();
-      setTablesHealth(health);
+      setIsChecking(true);
+      const isConnected = await checkSupabaseConnection();
+      setConnectionStatus(isConnected ? 'connected' : 'disconnected');
       
-      // اعتبار الاتصال ناجحًا إذا كانت جميع الجداول بصحة جيدة
-      const allTablesHealthy = Object.values(health).every(status => status);
-      setIsConnected(allTablesHealthy);
+      if (isConnected && showDetails) {
+        const stats = await getSupabaseTableStats();
+        setTableStats(stats);
+      }
       
-      // تحديث وقت آخر فحص
       setLastChecked(new Date());
       
-      return allTablesHealthy;
+      if (onConnectionCheck) {
+        onConnectionCheck();
+      }
+      
+      toast({
+        title: isConnected ? "تم الاتصال بنجاح" : "فشل الاتصال",
+        description: isConnected 
+          ? "تم الاتصال بقاعدة البيانات Supabase بنجاح" 
+          : "تعذر الاتصال بقاعدة البيانات Supabase، يرجى التحقق من اتصالك",
+        variant: isConnected ? "default" : "destructive",
+      });
     } catch (error) {
-      console.error('خطأ في التحقق من اتصال Supabase:', error);
-      setIsConnected(false);
-      return false;
+      console.error('خطأ أثناء التحقق من الاتصال بـ Supabase:', error);
+      setConnectionStatus('disconnected');
+      
+      toast({
+        title: "خطأ في الاتصال",
+        description: "حدث خطأ أثناء محاولة الاتصال بـ Supabase",
+        variant: "destructive",
+      });
     } finally {
       setIsChecking(false);
     }
   };
 
-  // وظيفة لإصلاح مشاكل الاتصال
-  const fixConnectionIssues = async () => {
-    setIsFixing(true);
-    
-    try {
-      toast({
-        title: "جاري إصلاح مشاكل الاتصال",
-        description: "محاولة إصلاح مشاكل الاتصال بقاعدة بيانات Supabase...",
-        duration: 5000,
-      });
-      
-      const isFixed = await checkAndFixConnectionIssues();
-      
-      if (isFixed) {
-        toast({
-          title: "تم إصلاح المشكلة",
-          description: "تم إصلاح مشاكل الاتصال بقاعدة البيانات بنجاح",
-          duration: 3000,
-        });
-        
-        // التحقق من الاتصال مرة أخرى بعد الإصلاح
-        await checkConnection();
-      } else {
-        toast({
-          title: "تعذر إصلاح المشكلة",
-          description: "لم يتم التمكن من إصلاح مشاكل الاتصال تلقائيًا",
-          variant: "destructive",
-          duration: 4000,
-        });
-      }
-      
-      return isFixed;
-    } catch (error) {
-      console.error('خطأ في إصلاح مشاكل الاتصال:', error);
-      
-      toast({
-        title: "خطأ في الإصلاح",
-        description: "حدث خطأ أثناء محاولة إصلاح مشاكل الاتصال",
-        variant: "destructive",
-        duration: 4000,
-      });
-      
-      return false;
-    } finally {
-      setIsFixing(false);
-    }
-  };
-
-  // تحديد لون الشارة بناءً على حالة الاتصال
-  const getBadgeVariant = () => {
-    if (isConnected === null) return "outline";
-    return isConnected ? "success" : "destructive";
-  };
-
-  // تحديد نص حالة الاتصال
-  const getStatusText = () => {
-    if (isConnected === null) return "جاري التحقق...";
-    return isConnected ? "متصل" : "غير متصل";
-  };
+  React.useEffect(() => {
+    // فحص الاتصال عند تحميل المكون
+    checkConnection();
+  }, []);
 
   return (
-    <div className={`flex flex-col space-y-2 ${className}`}>
-      <div className="flex items-center justify-between">
+    <div className="rounded-lg border p-4 bg-card">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Database className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">حالة اتصال Supabase:</span>
-          <Badge variant={getBadgeVariant()} className="text-xs">
-            {isChecking ? "جاري التحقق..." : getStatusText()}
-          </Badge>
+          {connectionStatus === 'connected' ? (
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+          ) : connectionStatus === 'disconnected' ? (
+            <AlertCircle className="h-5 w-5 text-red-500" />
+          ) : (
+            <div className="h-5 w-5 rounded-full border-2 border-gray-300 border-t-transparent animate-spin" />
+          )}
+          <h3 className="font-medium">حالة الاتصال بـ Supabase</h3>
         </div>
         
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 text-xs"
-            onClick={checkConnection}
-            disabled={isChecking || isFixing}
-          >
-            <RefreshCw className={`h-3 w-3 mr-1 ${isChecking ? 'animate-spin' : ''}`} />
-            فحص
-          </Button>
-          
-          {!isConnected && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-200"
-              onClick={fixConnectionIssues}
-              disabled={isChecking || isFixing}
-            >
-              <ShieldAlert className="h-3 w-3 mr-1" />
-              {isFixing ? "جاري الإصلاح..." : "إصلاح"}
-            </Button>
-          )}
-        </div>
+        <Badge 
+          variant={
+            connectionStatus === 'connected' ? "outline" : 
+            connectionStatus === 'disconnected' ? "destructive" : 
+            "outline"
+          }
+          className={
+            connectionStatus === 'connected' ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" : ""
+          }
+        >
+          {connectionStatus === 'connected' ? 'متصل' : 
+           connectionStatus === 'disconnected' ? 'غير متصل' : 
+           'جاري الفحص...'}
+        </Badge>
       </div>
       
-      {tablesHealth && (
-        <div className="text-xs text-muted-foreground mt-1">
-          {lastChecked && (
-            <div className="mb-1">
-              آخر فحص: {lastChecked.toLocaleTimeString()}
-            </div>
-          )}
-          
-          <div className="grid grid-cols-2 gap-1">
-            {Object.entries(tablesHealth).map(([table, status]) => (
-              <Badge 
-                key={table}
-                variant={status ? "outline" : "destructive"} 
-                className="text-xs flex justify-between p-1"
-              >
-                <span>{table}</span>
-                <span>{status ? "✓" : "✗"}</span>
-              </Badge>
-            ))}
+      {showDetails && tableStats && (
+        <div className="mb-4 text-sm grid grid-cols-2 gap-2">
+          <div className="flex justify-between px-2 py-1 rounded bg-muted/50">
+            <span>القنوات:</span>
+            <span className="font-medium">{tableStats.channels || 0}</span>
+          </div>
+          <div className="flex justify-between px-2 py-1 rounded bg-muted/50">
+            <span>البلدان:</span>
+            <span className="font-medium">{tableStats.countries || 0}</span>
+          </div>
+          <div className="flex justify-between px-2 py-1 rounded bg-muted/50">
+            <span>الفئات:</span>
+            <span className="font-medium">{tableStats.categories || 0}</span>
+          </div>
+          <div className="flex justify-between px-2 py-1 rounded bg-muted/50">
+            <span>الإعدادات:</span>
+            <span className="font-medium">{tableStats.settings || 0}</span>
           </div>
         </div>
       )}
+      
+      {lastChecked && (
+        <div className="text-xs text-muted-foreground mb-4">
+          آخر فحص: {lastChecked.toLocaleTimeString()}
+        </div>
+      )}
+      
+      <Button 
+        onClick={checkConnection} 
+        disabled={isChecking}
+        variant={connectionStatus === 'disconnected' ? "destructive" : "outline"}
+        size="sm"
+        className="w-full"
+      >
+        {isChecking ? (
+          <>
+            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            جاري الفحص...
+          </>
+        ) : (
+          <>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            إعادة فحص الاتصال
+          </>
+        )}
+      </Button>
     </div>
   );
 };

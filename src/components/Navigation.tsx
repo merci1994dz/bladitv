@@ -56,7 +56,7 @@ const Navigation: React.FC = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t shadow-lg pb-safe">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-black/95 border-t border-white/10">
       <div className="flex justify-around items-center">
         {navigationItems.map((item) => (
           <Link
@@ -65,8 +65,8 @@ const Navigation: React.FC = () => {
             className={cn(
               "py-4 flex flex-col items-center justify-center flex-1 transition-colors duration-200",
               item.active 
-                ? "text-primary font-medium" 
-                : "text-muted-foreground hover:text-foreground/80",
+                ? "text-white font-medium" 
+                : "text-white/60 hover:text-white/80",
               isTV && "tv-focus-item"
             )}
             tabIndex={isTV ? 0 : undefined}

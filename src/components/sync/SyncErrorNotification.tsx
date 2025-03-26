@@ -1,298 +1,259 @@
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, Info, RefreshCw, CheckCircle, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle, RefreshCw, Info, XCircle, Database, Shield } from 'lucide-react';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { checkAndFixConnectionIssues } from '@/services/sync/supabase/connection/errorFixer';
-
-// Function to detect if running on Vercel
-const isRunningOnVercel = () => {
-  return typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
-};
-
-interface ErrorDetailsType {
-  type: string;
-  message: string;
-  errorCode?: string;
-  timestamp?: number;
-}
 
 interface SyncErrorNotificationProps {
-  syncError: string | null;
-  onRetry?: () => void;
-  errorDetails?: ErrorDetailsType | null;
+  error: Error | null;
+  onRetry?: () => Promise<void>;
+  onDismiss?: () => void;
+  syncActive?: boolean;
+  syncTimestamp?: string | null;
 }
 
-const SyncErrorNotification: React.FC<SyncErrorNotificationProps> = ({ 
-  syncError, 
+const SyncErrorNotification: React.FC<SyncErrorNotificationProps> = ({
+  error,
   onRetry,
-  errorDetails
+  onDismiss,
+  syncActive = false,
+  syncTimestamp = null
 }) => {
   const { toast } = useToast();
-  const [showError, setShowError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [errorCount, setErrorCount] = useState(0);
-  const [isDismissed, setIsDismissed] = useState(false);
-  const [isFixing, setIsFixing] = useState(false);
-  
-  // إعادة تعيين الرفض عند تغيير الخطأ
-  useEffect(() => {
-    if (syncError !== errorMessage) {
-      setIsDismissed(false);
+  const [isRetrying, setIsRetrying] = React.useState(false);
+  const [showDialog, setShowDialog] = React.useState(false);
+  const [errorDetails, setErrorDetails] = React.useState<{
+    title: string;
+    description: string;
+    severity: 'low' | 'medium' | 'high';
+    suggestions: string[];
+  }>({
+    title: 'خطأ في المزامنة',
+    description: 'حدث خطأ غير معروف أثناء محاولة المزامنة.',
+    severity: 'medium',
+    suggestions: ['حاول مرة أخرى لاحقًا', 'تحقق من اتصالك بالإنترنت']
+  });
+
+  React.useEffect(() => {
+    if (error) {
+      analyzeError(error);
     }
-  }, [syncError, errorMessage]);
-  
-  // استخدام أسلوب تأخير ذكي لعرض الأخطاء
-  useEffect(() => {
-    let errorTimeout: NodeJS.Timeout | null = null;
-    
-    if (syncError && !isDismissed) {
-      // تخزين رسالة الخطأ للاستخدام لاحقًا
-      setErrorMessage(syncError);
-      
-      // زيادة عداد الأخطاء لتتبع تكرار الأخطاء
-      setErrorCount(prev => {
-        // إعادة تعيين العداد إذا كان هذا خطأ جديد مختلف عن السابق
-        if (errorMessage && !syncError.includes(errorMessage)) {
-          return 1;
-        }
-        return prev + 1;
-      });
-      
-      // تحديد ما إذا كان ينبغي عرض الخطأ استنادًا إلى عدد المرات التي حدث فيها
-      const shouldShowImmediately = 
-        syncError.includes('تعذر الاتصال') || 
-        syncError.includes('فشل في المزامنة') ||
-        syncError.includes('خطأ حرج') ||
-        syncError.includes('duplicate key') ||
-        (errorDetails?.type === 'duplicate_key');
-      
-      // تأخير أقصر للأخطاء الحرجة
-      const delayTime = shouldShowImmediately ? 300 : (isRunningOnVercel() ? 2000 : 1000);
-      
-      errorTimeout = setTimeout(() => {
-        setShowError(true);
-        
-        // عرض إشعار فقط للأخطاء الهامة أو المتكررة
-        if (shouldShowImmediately || errorCount > 1) {
-          const isRecurring = errorCount > 1;
-          
-          toast({
-            title: isRecurring ? "استمرار مشكلة المزامنة" : "خطأ في المزامنة",
-            description: isRecurring
-              ? "تعذر تحديث البيانات بعد عدة محاولات. يرجى التحقق من اتصالك بالإنترنت"
-              : "تعذر تحديث البيانات. جاري إعادة المحاولة تلقائيًا...",
-            variant: isRecurring ? "destructive" : "default",
-            duration: isRecurring ? 8000 : 5000
-          });
-        }
-      }, delayTime);
-      
-      return () => {
-        if (errorTimeout) {
-          clearTimeout(errorTimeout);
-        }
-      };
-    } else {
-      // إذا تم حل الخطأ، قم بإخفاء رسالة الخطأ بعد تأخير قصير
-      errorTimeout = setTimeout(() => {
-        setShowError(false);
-        if (!syncError) {
-          setErrorMessage(null);
-          setErrorCount(0);
-        }
-      }, 1000);
-      
-      return () => {
-        if (errorTimeout) {
-          clearTimeout(errorTimeout);
-        }
-      };
+  }, [error]);
+
+  const analyzeError = (error: Error) => {
+    let title = 'خطأ في المزامنة';
+    let description = error.message || 'حدث خطأ غير معروف أثناء محاولة المزامنة.';
+    let severity: 'low' | 'medium' | 'high' = 'medium';
+    let suggestions: string[] = ['حاول مرة أخرى لاحقًا', 'تحقق من اتصالك بالإنترنت'];
+
+    // تحليل نوع الخطأ بناءً على الرسالة
+    if (description.includes('network') || description.includes('internet') || description.includes('connection')) {
+      title = 'خطأ في الاتصال';
+      description = 'يبدو أن هناك مشكلة في الاتصال بالإنترنت.';
+      severity = 'high';
+      suggestions = [
+        'تحقق من اتصالك بالإنترنت',
+        'تحقق من جدار الحماية أو إعدادات الشبكة',
+        'حاول استخدام شبكة مختلفة إذا كان ذلك ممكنًا'
+      ];
+    } else if (description.includes('timeout') || description.includes('timed out')) {
+      title = 'انتهاء مهلة الاتصال';
+      description = 'استغرقت عملية المزامنة وقتًا طويلاً ولم تكتمل.';
+      severity = 'medium';
+      suggestions = [
+        'تحقق من سرعة الإنترنت لديك',
+        'حاول مرة أخرى عندما يكون الاتصال أكثر استقرارًا',
+        'جرب استخدام مصدر بيانات مختلف'
+      ];
+    } else if (description.includes('permission') || description.includes('access') || description.includes('auth')) {
+      title = 'خطأ في الصلاحيات';
+      description = 'ليس لديك الصلاحيات اللازمة لإجراء هذه العملية.';
+      severity = 'high';
+      suggestions = [
+        'تحقق من تسجيل دخولك',
+        'قم بتسجيل الخروج وإعادة تسجيل الدخول',
+        'تواصل مع المسؤول للحصول على المساعدة'
+      ];
+    } else if (description.includes('duplicate') || description.includes('already exists')) {
+      title = 'خطأ بيانات مكررة';
+      description = 'هناك بيانات مكررة تمنع إكمال المزامنة.';
+      severity = 'low';
+      suggestions = [
+        'حاول إعادة تعيين البيانات المحلية',
+        'جرب خيار "مزامنة كاملة" لتجاوز هذه المشكلة'
+      ];
+    } else if (description.includes('database') || description.includes('data') || description.includes('storage')) {
+      title = 'خطأ في قاعدة البيانات';
+      description = 'حدثت مشكلة أثناء التعامل مع البيانات.';
+      severity = 'medium';
+      suggestions = [
+        'حاول مسح ذاكرة التخزين المؤقت في المتصفح',
+        'جرب استخدام وضع "مزامنة كاملة"',
+        'قد تحتاج إلى إعادة تعيين البيانات المحلية'
+      ];
     }
-  }, [syncError, toast, errorCount, errorMessage, isDismissed, errorDetails]);
-  
-  // لا تقديم شيء إذا لم يكن هناك خطأ أو تم رفضه أو لم يتم عرضه بعد
-  if (!showError || !errorMessage || isDismissed) {
+
+    setErrorDetails({
+      title,
+      description,
+      severity,
+      suggestions
+    });
+  };
+
+  const handleRetry = async () => {
+    if (onRetry) {
+      try {
+        setIsRetrying(true);
+        await onRetry();
+        toast({
+          title: "تمت إعادة المحاولة بنجاح",
+          description: "تم تجاوز المشكلة السابقة وإكمال المزامنة",
+          variant: "default",
+        });
+      } catch (retryError) {
+        console.error('فشلت إعادة المحاولة:', retryError);
+        toast({
+          title: "فشلت إعادة المحاولة",
+          description: "لم يتم حل المشكلة. يرجى المحاولة مرة أخرى لاحقًا.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsRetrying(false);
+      }
+    }
+  };
+
+  const handleDismiss = () => {
+    if (onDismiss) {
+      onDismiss();
+    }
+  };
+
+  // إذا لم يكن هناك خطأ، لا تظهر شيئًا
+  if (!error) {
     return null;
   }
-  
-  // تحديد نوع الخطأ استنادًا إلى المعلومات المتوفرة
-  const errorType = errorDetails?.type || 
-    (errorMessage.includes('duplicate key') || errorMessage.includes('23505') 
-      ? 'duplicate_key' 
-      : (errorMessage.includes('connection') || errorMessage.includes('اتصال') 
-        ? 'connection' 
-        : 'unknown'));
-  
-  // إنشاء رسالة خطأ أكثر تفصيلاً استنادًا إلى نوع الخطأ
-  let errorDetails2 = "تعذر الاتصال بمصادر البيانات. سيتم إعادة المحاولة تلقائيًا.";
-  let actionable = true;
-  
-  if (errorType === 'duplicate_key') {
-    errorDetails2 = "يوجد تعارض في قيود قاعدة البيانات. جاري محاولة الإصلاح تلقائياً.";
-  } else if (errorMessage.includes('CORS') || errorMessage.includes('origin')) {
-    errorDetails2 = "مشكلة في الوصول إلى مصادر البيانات بسبب قيود CORS. جرب مصدرًا آخرًا.";
-  } else if (errorMessage.includes('timeout') || errorMessage.includes('تجاوز المهلة')) {
-    errorDetails2 = "انتهت مهلة الاتصال بمصادر البيانات. تحقق من سرعة الاتصال.";
-  } else if (errorMessage.includes('Failed to fetch') || errorMessage.includes('fetch failed')) {
-    errorDetails2 = "تعذر الاتصال بمصادر البيانات. تحقق من اتصالك بالإنترنت.";
-  } else if (errorMessage.includes('authentication') || errorMessage.includes('مصادقة')) {
-    errorDetails2 = "خطأ في المصادقة. قد تحتاج إلى إعادة تسجيل الدخول.";
-    actionable = false;
-  }
 
-  // معالجة الضغط على زر إعادة المحاولة
-  const handleRetry = () => {
-    if (onRetry) {
-      toast({
-        title: "إعادة المحاولة",
-        description: "جارٍ إعادة محاولة المزامنة...",
-        duration: 3000,
-      });
-      onRetry();
-    } else {
-      toast({
-        title: "تعذرت إعادة المحاولة",
-        description: "لا توجد وظيفة إعادة محاولة متاحة",
-        variant: "destructive",
-        duration: 3000,
-      });
-    }
-  };
-  
-  // معالجة محاولة الإصلاح التلقائي
-  const handleAutoFix = async () => {
-    setIsFixing(true);
-    
-    toast({
-      title: "جاري محاولة الإصلاح التلقائي",
-      description: "محاولة إصلاح مشاكل الاتصال بقاعدة البيانات...",
-      duration: 5000,
-    });
-    
-    try {
-      const isFixed = await checkAndFixConnectionIssues();
-      
-      if (isFixed) {
-        toast({
-          title: "تم الإصلاح بنجاح",
-          description: "تم إصلاح مشاكل الاتصال بقاعدة البيانات. يمكنك الآن إعادة المحاولة.",
-          duration: 4000,
-        });
-        
-        // إعادة المحاولة تلقائياً بعد الإصلاح
-        if (onRetry) {
-          setTimeout(() => {
-            onRetry();
-          }, 1000);
-        }
-      } else {
-        toast({
-          title: "تعذر الإصلاح التلقائي",
-          description: "لم يتم التمكن من إصلاح المشكلة تلقائياً. حاول إعادة تحميل الصفحة.",
-          variant: "destructive",
-          duration: 5000,
-        });
-      }
-    } catch (error) {
-      console.error("خطأ أثناء محاولة الإصلاح التلقائي:", error);
-      
-      toast({
-        title: "خطأ في عملية الإصلاح",
-        description: "حدث خطأ أثناء محاولة إصلاح المشكلة. يرجى إعادة تحميل الصفحة.",
-        variant: "destructive",
-        duration: 5000,
-      });
-    } finally {
-      setIsFixing(false);
-    }
-  };
-  
-  // معالجة رفض الإشعار
-  const handleDismiss = () => {
-    setIsDismissed(true);
-    setShowError(false);
-  };
-  
-  // تحديد لون التنبيه بناءً على نوع الخطأ
-  const alertVariant = errorType === 'duplicate_key' ? "warning" : "destructive";
-  
   return (
-    <Alert variant={alertVariant} className="mb-4 animate-in fade-in-50 duration-300 relative">
-      {errorType === 'duplicate_key' ? (
-        <Database className="h-4 w-4" />
-      ) : (
+    <div className="space-y-4">
+      <Alert 
+        variant="destructive"
+        className={
+          errorDetails.severity === 'low' 
+            ? 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-300' 
+            : errorDetails.severity === 'medium'
+            ? 'bg-orange-50 border-orange-200 text-orange-800 dark:bg-orange-900/20 dark:border-orange-800 dark:text-orange-300'
+            : undefined // استخدم الافتراضي للخطورة العالية (destructive)
+        }
+      >
         <AlertCircle className="h-4 w-4" />
-      )}
-      
-      <AlertTitle className="flex justify-between items-center">
-        <span>
-          {errorType === 'duplicate_key' 
-            ? "مشكلة في قاعدة البيانات" 
-            : "خطأ في المزامنة"}
-        </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0 rounded-full"
-          onClick={handleDismiss}
-        >
-          <XCircle className="h-4 w-4" />
-          <span className="sr-only">رفض</span>
-        </Button>
-      </AlertTitle>
-      
-      <AlertDescription className="space-y-2">
-        <p>{errorDetails2}</p>
-        
-        {errorCount > 1 && (
-          <div className="text-xs opacity-80 mt-1">
-            حدث هذا الخطأ {errorCount} مرات
-          </div>
-        )}
-        
-        {isRunningOnVercel() && (
-          <div className="text-xs opacity-80 mt-1">
-            قد تكون المشكلة متعلقة بتشغيل التطبيق على Vercel.
-          </div>
-        )}
-        
-        {typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && (
-          <div className="text-xs opacity-70 truncate mt-1 bg-red-900/20 p-1 rounded">
-            {errorMessage}
-          </div>
-        )}
-        
-        <div className="mt-2 flex gap-2">
-          {actionable && onRetry && (
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={handleRetry}
-              disabled={isFixing}
-              className="bg-red-900/20 border-red-900/30 hover:bg-red-900/30 text-white"
-            >
-              <RefreshCw className="h-3 w-3 mr-2" />
-              إعادة المحاولة
-            </Button>
-          )}
+        <AlertTitle>{errorDetails.title}</AlertTitle>
+        <AlertDescription className="mt-2">
+          {errorDetails.description}
           
-          {(errorType === 'duplicate_key' || errorType === 'connection') && (
+          <div className="mt-2 flex gap-2">
+            {onRetry && (
+              <Button 
+                size="sm" 
+                onClick={handleRetry} 
+                disabled={isRetrying || syncActive}
+                variant={
+                  errorDetails.severity === 'low' ? "outline" :
+                  errorDetails.severity === 'medium' ? "outline" :
+                  "default"
+                }
+                className={
+                  errorDetails.severity === 'low' 
+                    ? 'bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300' 
+                    : errorDetails.severity === 'medium'
+                    ? 'bg-orange-100 hover:bg-orange-200 text-orange-800 border-orange-300'
+                    : undefined
+                }
+              >
+                {isRetrying ? (
+                  <>
+                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" /> جاري المحاولة...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-3 w-3 mr-1" /> إعادة المحاولة
+                  </>
+                )}
+              </Button>
+            )}
+            
             <Button 
               size="sm" 
               variant="outline" 
-              onClick={handleAutoFix}
-              disabled={isFixing}
-              className="bg-amber-900/20 border-amber-900/30 hover:bg-amber-900/30 text-white"
+              onClick={() => setShowDialog(true)}
             >
-              <Shield className="h-3 w-3 mr-2" />
-              {isFixing ? "جاري الإصلاح..." : "إصلاح تلقائي"}
+              <Info className="h-3 w-3 mr-1" /> تفاصيل أكثر
             </Button>
-          )}
-        </div>
-      </AlertDescription>
-    </Alert>
+            
+            {onDismiss && (
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={handleDismiss}
+                className="ml-auto"
+              >
+                تجاهل
+              </Button>
+            )}
+          </div>
+        </AlertDescription>
+      </Alert>
+      
+      <AlertDialog open={showDialog} onOpenChange={setShowDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>تفاصيل الخطأ</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <div className="text-sm text-gray-500 dark:text-gray-400 space-y-2">
+                <p><span className="font-medium">الخطأ:</span> {error.message}</p>
+                {syncTimestamp && (
+                  <p><span className="font-medium">آخر مزامنة ناجحة:</span> {new Date(syncTimestamp).toLocaleString()}</p>
+                )}
+                <p><span className="font-medium">مستوى الخطورة:</span> {
+                  errorDetails.severity === 'high' ? 'عالي' :
+                  errorDetails.severity === 'medium' ? 'متوسط' : 'منخفض'
+                }</p>
+              </div>
+              
+              <div className="mt-4">
+                <h4 className="font-medium mb-2">اقتراحات لحل المشكلة:</h4>
+                <ul className="list-disc list-inside space-y-1">
+                  {errorDetails.suggestions.map((suggestion, index) => (
+                    <li key={index} className="text-sm">{suggestion}</li>
+                  ))}
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>إغلاق</AlertDialogCancel>
+            {onRetry && (
+              <AlertDialogAction onClick={handleRetry} disabled={isRetrying}>
+                {isRetrying ? 'جاري المحاولة...' : 'إعادة المحاولة'}
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 };
 

@@ -24,11 +24,11 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
   onPlayChannel,
   onToggleFavorite
 }) => {
-  // Create a list of unique categories by ID
+  // إنشاء قائمة فريدة من الفئات بواسطة المعرف
   const uniqueCategories = React.useMemo(() => {
     if (!categories || categories.length === 0) return [];
     
-    // Use a Map to ensure uniqueness by ID
+    // استخدام خريطة لضمان الفرادة حسب المعرف
     const uniqueMap = new Map<string, Category>();
     
     categories.forEach(category => {
@@ -37,35 +37,41 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
       }
     });
     
-    // Convert Map values to an array and sort by name
+    // تحويل قيم الخريطة إلى مصفوفة وترتيبها حسب الاسم
     return Array.from(uniqueMap.values())
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [categories]);
 
   return (
-    <Tabs defaultValue="all" value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
-      <div className="bg-gradient-to-r from-primary/10 to-background p-4 rounded-xl mb-6 shadow-sm">
-        <TabsList className="flex flex-wrap h-auto py-2 px-2 gap-3 bg-background/70 backdrop-blur-sm rounded-xl shadow-inner">
-          <TabsTrigger 
-            value="all" 
-            className="rounded-md text-sm py-2 px-4 font-medium shadow-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200 hover:scale-105"
-          >
-            جميع القنوات
-          </TabsTrigger>
-          
-          {uniqueCategories.map((category) => (
-            <TabsTrigger 
-              key={category.id} 
-              value={category.id}
-              className="rounded-md text-sm py-2 px-4 font-medium shadow-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200 hover:scale-105"
-            >
-              {category.name}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+    <div className="w-full bg-black">
+      <div className="tv-tabs">
+        <div 
+          className={`tv-tab ${selectedCategory === 'all' ? 'active' : ''}`} 
+          onClick={() => setSelectedCategory('all')}
+        >
+          القنوات
+        </div>
+        <div 
+          className={`tv-tab ${selectedCategory === 'movies' ? 'active' : ''}`} 
+          onClick={() => setSelectedCategory('movies')}
+        >
+          الأفلام
+        </div>
+        <div 
+          className={`tv-tab ${selectedCategory === 'series' ? 'active' : ''}`} 
+          onClick={() => setSelectedCategory('series')}
+        >
+          المسلسلات
+        </div>
+        <div 
+          className={`tv-tab ${selectedCategory === 'sports' ? 'active' : ''}`} 
+          onClick={() => setSelectedCategory('sports')}
+        >
+          المباريات
+        </div>
       </div>
       
-      <TabsContent value={selectedCategory} className="mt-0 animate-fade-in">
+      <div className="animate-fade-in">
         <ChannelsList 
           channels={filteredChannels}
           countries={countries || []}
@@ -74,8 +80,8 @@ const CategoryTabs: React.FC<CategoryTabsProps> = ({
           onPlayChannel={onPlayChannel}
           onToggleFavorite={onToggleFavorite}
         />
-      </TabsContent>
-    </Tabs>
+      </div>
+    </div>
   );
 };
 

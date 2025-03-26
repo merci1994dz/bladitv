@@ -2,11 +2,9 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getCategories, getChannelsByCategory, toggleFavoriteChannel } from '@/services/api';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import ChannelCard from '@/components/ChannelCard';
-import VideoPlayer from '@/components/VideoPlayer';
 import { Channel } from '@/types';
 import { useToast } from "@/hooks/use-toast";
+import { Menu, RefreshCw, Bell, Search } from 'lucide-react';
 
 const Categories: React.FC = () => {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
@@ -58,76 +56,81 @@ const Categories: React.FC = () => {
 
   if (isLoadingCategories) {
     return (
-      <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950">
-        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-500 animate-pulse">جاري تحميل الفئات...</p>
+      <div className="min-h-screen bg-black flex justify-center items-center">
+        <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-white/70 animate-pulse">جاري تحميل الفئات...</p>
       </div>
     );
   }
 
   return (
-    <div className="pb-20 pt-4">
-      <header className="px-4 py-2 mb-6">
-        <h1 className="text-2xl font-bold text-center">الفئات</h1>
-      </header>
+    <div className="min-h-screen bg-black pb-20">
+      {/* شريط العنوان */}
+      <div className="tv-header">
+        <div className="flex items-center">
+          <button className="tv-icon-button mr-2">
+            <Menu size={24} />
+          </button>
+          <h1 className="tv-header-title">Genral TV</h1>
+        </div>
+        <div className="tv-header-actions">
+          <button className="tv-icon-button">
+            <Bell size={20} />
+          </button>
+          <button className="tv-icon-button">
+            <RefreshCw size={20} />
+          </button>
+          <button className="tv-icon-button">
+            <Search size={20} />
+          </button>
+        </div>
+      </div>
 
-      {selectedChannel && (
-        <VideoPlayer 
-          channel={selectedChannel} 
-          onClose={() => setSelectedChannel(null)} 
-        />
-      )}
+      {/* علامات التبويب */}
+      <div className="tv-tabs">
+        <div className="tv-tab active">القنوات</div>
+        <div className="tv-tab">الأفلام</div>
+        <div className="tv-tab">المسلسلات</div>
+        <div className="tv-tab">المباريات</div>
+      </div>
 
-      {categories && categories.length > 0 && (
-        <Tabs defaultValue={categories[0].id} dir="rtl" className="w-full">
-          <div className="relative">
-            <TabsList className="w-full overflow-x-auto flex justify-start mb-4 px-4 bg-transparent">
-              {categories.map(category => (
-                <TabsTrigger 
-                  key={category.id} 
-                  value={category.id}
-                  onClick={() => handleTabChange(category.id)}
-                  className="px-6 py-2 transition-all duration-200 hover:bg-primary/10"
-                >
-                  {category.name}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-background to-transparent pointer-events-none"></div>
-            <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none"></div>
-          </div>
-          
-          {categories.map(category => (
-            <TabsContent key={category.id} value={category.id} className="px-4 animate-fade-in">
-              {isLoadingChannels ? (
-                <div className="py-10 flex flex-col justify-center items-center">
-                  <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-2"></div>
-                  <p className="text-sm text-gray-500">جاري تحميل القنوات...</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {categoryChannels && categoryChannels.length > 0 ? (
-                    categoryChannels.map(channel => (
-                      <ChannelCard 
-                        key={channel.id} 
-                        channel={channel} 
-                        onPlay={handlePlayChannel}
-                        onToggleFavorite={handleToggleFavorite}
-                      />
-                    ))
-                  ) : (
-                    <div className="col-span-full py-10 text-center">
-                      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 max-w-md mx-auto">
-                        <p className="text-gray-500 mb-2">لا توجد قنوات في هذه الفئة</p>
-                        <p className="text-sm text-gray-400">يمكنك استكشاف فئات أخرى أو العودة لاحقًا</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </TabsContent>
-          ))}
-        </Tabs>
+      {/* عرض القنوات */}
+      {isLoadingChannels ? (
+        <div className="flex justify-center items-center min-h-[50vh]">
+          <div className="w-10 h-10 border-4 border-white border-t-transparent rounded-full animate-spin mb-2"></div>
+          <p className="text-white/70 text-sm">جاري تحميل القنوات...</p>
+        </div>
+      ) : (
+        <div className="tv-channel-grid">
+          {categoryChannels && categoryChannels.length > 0 ? (
+            categoryChannels.map(channel => (
+              <div key={channel.id} className="tv-channel-card">
+                <img 
+                  src={channel.logo} 
+                  alt={channel.name} 
+                  className="tv-channel-logo"
+                  onClick={() => handlePlayChannel(channel)}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'public/lovable-uploads/7767e4e3-bb19-4d88-905f-ca592b2eca1e.png';
+                  }}
+                />
+                <div className="tv-channel-name">{channel.name}</div>
+                {channel.isFavorite && (
+                  <div className="absolute top-2 right-2">
+                    <span className="text-yellow-500">★</span>
+                  </div>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="col-span-3 py-10 text-center">
+              <div className="bg-white/5 rounded-lg p-6 max-w-md mx-auto">
+                <p className="text-white/70 mb-2">لا توجد قنوات في هذه الفئة</p>
+                <p className="text-sm text-white/50">يمكنك استكشاف فئات أخرى أو العودة لاحقًا</p>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

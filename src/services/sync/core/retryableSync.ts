@@ -1,258 +1,173 @@
 
 /**
- * عمليات المزامنة المحسنة مع دعم إعادة المحاولة المتقدمة
- * Enhanced sync operations with advanced retry support
+ * وظائف المزامنة القابلة لإعادة المحاولة
  */
 
-import { retry, createProgressiveRetryStrategy } from '@/utils/retryStrategy';
 import { handleError } from '@/utils/errorHandling';
-import { setSyncActive } from '@/services/sync/status/syncState';
-import { setSyncError, clearSyncError, logSyncError } from '@/services/sync/status/errorHandling';
-import { setIsSyncing } from '@/services/dataStore';
 import { toast } from '@/hooks/use-toast';
-import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';
-import { analyzeNetworkError } from '@/services/sync/remote/fetch/errorHandling';
-import { checkSupabaseConnection } from '@/services/sync/supabase/connection/connectionCheck';
-import { handleSupabaseError } from '@/services/sync/supabase/syncErrorHandler';
+import { getExponentialBackoff } from '@/utils/retryStrategy';
+import { syncAllData } from './syncOperations';
 
 /**
- * تنفيذ عملية مزامنة مع دعم إعادة المحاولة والتعامل مع الأخطاء
- * Execute a sync operation with retry support and error handling
+ * وظيفة مزامنة قابلة لإعادة المحاولة تلقائيًا
+ * @param maxRetries أقصى عدد لمحاولات إعادة المزامنة
+ * @param forceRefresh ما إذا كان يجب تجاهل التخزين المؤقت وإجبار التحديث
  */
-export async function executeRetryableSync<T>(
-  syncOperation: () => Promise<T>,
-  operationName: string,
-  criticalOperation: boolean = false,
-  timeout: number = 20000
-): Promise<T | null> {
-  // تحقق من الاتصال بـ Supabase أولاً
-  const isConnected = await checkSupabaseConnection();
-  if (!isConnected) {
-    console.warn(`تعذر الاتصال بـ Supabase قبل بدء عملية ${operationName}`);
-    
+export const retryableSync = async (
+  maxRetries: number = 3,
+  forceRefresh: boolean = false
+): Promise<boolean> => {
+  let retryCount = 0;
+  let lastError: Error | null = null;
+
+  const isNetworkError = (err: unknown): boolean => {
+    if (err instanceof Error) {
+      return (
+        err.message.includes('network') ||
+        err.message.includes('internet') ||
+        err.message.includes('offline') ||
+        err.message.includes('connection') ||
+        err.message.toLowerCase().includes('timeout') ||
+        err.message.toLowerCase().includes('failed to fetch')
+      );
+    }
+    return false;
+  };
+
+  const isAuthError = (err: unknown): boolean => {
+    if (err instanceof Error) {
+      return (
+        err.message.includes('authentication') ||
+        err.message.includes('auth') ||
+        err.message.includes('permission') ||
+        err.message.includes('access') ||
+        err.message.includes('token') ||
+        err.message.includes('unauthorized') ||
+        err.message.includes('forbidden')
+      );
+    }
+    return false;
+  };
+
+  const isDataError = (err: unknown): boolean => {
+    if (err instanceof Error) {
+      return (
+        err.message.includes('data') ||
+        err.message.includes('database') ||
+        err.message.includes('duplicate') ||
+        err.message.includes('constraint') ||
+        err.message.includes('schema')
+      );
+    }
+    return false;
+  };
+
+  // تنفيذ محاولة المزامنة مع توقيت إعادة المحاولة التصاعدي
+  while (retryCount <= maxRetries) {
+    try {
+      // إذا كانت هناك محاولة إعادة، عرض إشعار
+      if (retryCount > 0) {
+        toast({
+          title: `محاولة إعادة المزامنة (${retryCount}/${maxRetries})`,
+          description: "جاري محاولة المزامنة مرة أخرى بعد فشل المحاولة السابقة",
+          duration: 3000,
+        });
+        
+        // تأخير متزايد بين المحاولات
+        const backoffTime = getExponentialBackoff(retryCount, 1000, 30000);
+        await new Promise(resolve => setTimeout(resolve, backoffTime));
+      }
+
+      // محاولة المزامنة
+      const result = await syncAllData(forceRefresh);
+      
+      // إذا نجحت المزامنة بعد محاولة إعادة، عرض إشعار
+      if (retryCount > 0) {
+        toast({
+          title: "تمت المزامنة بنجاح",
+          description: "تم تجاوز الخطأ السابق وإكمال المزامنة بنجاح",
+          duration: 3000,
+        });
+      }
+      
+      return result;
+    } catch (error) {
+      const syncError = handleError(error, 'المزامنة القابلة لإعادة المحاولة');
+      lastError = syncError;
+      retryCount++;
+      
+      // تصنيف نوع الخطأ لتحديد ما إذا كان يجب الاستمرار في المحاولة
+      const shouldContinueRetrying = retryCount <= maxRetries && (
+        isNetworkError(error) || 
+        (isDataError(error) && retryCount <= 1) // إعادة محاولة أخطاء البيانات مرة واحدة فقط
+      );
+      
+      // لا تعيد المحاولة لأخطاء المصادقة
+      if (isAuthError(error)) {
+        console.error('خطأ في المصادقة، لن تتم إعادة المحاولة:', syncError);
+        toast({
+          title: "خطأ في المصادقة",
+          description: "فشلت المزامنة بسبب مشكلة في المصادقة. يرجى تسجيل الدخول مرة أخرى.",
+          variant: "destructive",
+          duration: 5000,
+        });
+        break;
+      }
+      
+      if (!shouldContinueRetrying) {
+        console.error(`توقفت إعادة المحاولة بعد ${retryCount} محاولات:`, syncError);
+        break;
+      }
+      
+      console.warn(`فشلت المزامنة (محاولة ${retryCount}/${maxRetries}):`, syncError.message);
+    }
+  }
+
+  // إذا وصلنا إلى هنا، فقد فشلت جميع المحاولات
+  if (lastError) {
     toast({
-      title: "تعذر الاتصال بقاعدة البيانات",
-      description: "جاري استخدام البيانات المخزنة محلياً. تحقق من اتصالك بالإنترنت.",
+      title: "فشلت جميع محاولات المزامنة",
+      description: `فشلت المزامنة بعد ${maxRetries} محاولات. آخر خطأ: ${lastError.message}`,
       variant: "destructive",
       duration: 5000,
     });
-    
-    return null;
   }
-
-  setSyncActive(true);
-  setIsSyncing(true);
-  clearSyncError();
   
-  // تحديد عدد المحاولات بناءً على ما إذا كان التطبيق يعمل على Vercel
-  const maxRetries = isRunningOnVercel() ? 5 : 3;
-  
-  try {
-    return await retry(
-      syncOperation,
-      {
-        ...createProgressiveRetryStrategy(maxRetries, criticalOperation),
-        maxDelay: timeout, // إضافة maxDelay بشكل صريح من معلمة timeout
-        onRetry: (error, attempt, delay) => {
-          console.log(`إعادة محاولة ${operationName} (${attempt}/${maxRetries}) بعد ${delay}ms / Retrying ${operationName} (${attempt}/${maxRetries}) after ${delay}ms`);
-          
-          if (attempt === 1) {
-            toast({
-              title: "جاري إعادة المحاولة / Retrying",
-              description: `فشلت عملية ${operationName}، جاري إعادة المحاولة تلقائيًا... / ${operationName} failed, automatically retrying...`,
-              duration: 3000,
-            });
-          }
-        },
-        onFinalFailure: (error, attempts) => {
-          // تحليل الخطأ لمزيد من المعلومات
-          const errorAnalysis = analyzeNetworkError(error);
-          
-          // محاولة معالجة أخطاء Supabase
-          const isSBError = error.message?.includes('duplicate key') || 
-                           error.message?.includes('23505') ||
-                           error.message?.includes('constraint');
-                           
-          if (isSBError) {
-            handleSupabaseError(error, operationName);
-          }
-          
-          // تعيين خطأ المزامنة مع معلومات إضافية
-          setSyncError(`فشلت عملية ${operationName} بعد ${attempts} محاولات: ${errorAnalysis.message}`, {
-            retryable: errorAnalysis.retryable,
-            attemptCount: attempts,
-            code: errorAnalysis.code,
-            details: {
-              ...errorAnalysis.details,
-              operationName,
-              critical: errorAnalysis.critical,
-              maxRetries
-            }
-          });
-          
-          // تحسين الرسالة المعروضة بناءً على نوع العملية
-          let errorTitle = "فشلت المزامنة / Sync Failed";
-          let errorMessage = `تعذر إكمال عملية ${operationName} بعد ${attempts} محاولات. سيتم استخدام البيانات المحلية.`;
-          
-          if (errorAnalysis.critical) {
-            errorTitle = "خطأ حرج في المزامنة / Critical Sync Error";
-            errorMessage = `حدث خطأ حرج أثناء ${operationName}. يرجى التحقق من اتصالك وإعادة تحميل التطبيق.`;
-          } else if (isRunningOnVercel()) {
-            errorMessage = `تعذر إكمال عملية ${operationName} بعد ${attempts} محاولات على Vercel. سيتم استخدام البيانات المحلية.`;
-          }
-            
-          toast({
-            title: errorTitle,
-            description: errorMessage,
-            variant: "destructive",
-            duration: errorAnalysis.critical ? 10000 : 5000,
-          });
-        }
-      }
-    );
-  } catch (error) {
-    // تم التعامل مع الخطأ النهائي في onFinalFailure
-    // Final error was handled in onFinalFailure
-    return null;
-  } finally {
-    setIsSyncing(false);
-    setSyncActive(false);
-  }
-}
+  return false;
+};
 
 /**
- * تنفيذ استعلام مع إعادة المحاولة وتسجيل الخروج التلقائي
- * Execute a query with retry and automatic fallback
+ * وظيفة مزامنة مع إمكانية إعادة المحاولة يدويًا
+ * @param forceRefresh ما إذا كان يجب تجاهل التخزين المؤقت وإجبار التحديث
  */
-export async function executeRetryableQuery<T>(
-  queryFn: () => Promise<T>,
-  queryName: string,
-  fallbackValue: T
-): Promise<T> {
-  // تحديد عدد المحاولات بناءً على ما إذا كان التطبيق يعمل على Vercel
-  const maxRetries = isRunningOnVercel() ? 3 : 2;
-  
+export const manualRetryableSync = async (forceRefresh: boolean = false): Promise<{
+  success: boolean;
+  error: Error | null;
+  retry: () => Promise<boolean>;
+}> => {
   try {
-    return await retry(
-      queryFn,
-      {
-        ...createProgressiveRetryStrategy(maxRetries),
-        onRetry: (error, attempt, delay) => {
-          // تسجيل محاولة إعادة الاستعلام
-          console.log(`محاولة استعلام ${queryName} (${attempt}/${maxRetries}) بعد ${delay}ms`);
-        },
-        onFinalFailure: (error) => {
-          // تسجيل الخطأ بتفاصيل أكثر
-          console.error(`فشل الاستعلام ${queryName}: / Query ${queryName} failed:`, error);
-          
-          // تحليل الخطأ
-          const errorAnalysis = analyzeNetworkError(error);
-          
-          // محاولة معالجة الخطأ إذا كان متعلقًا بـ Supabase
-          const isSBError = error.message?.includes('duplicate key') || 
-                           error.message?.includes('23505') ||
-                           error.message?.includes('constraint');
-                           
-          if (isSBError) {
-            handleSupabaseError(error, `query:${queryName}`);
-          }
-          
-          // تسجيل الخطأ في نظام إدارة الأخطاء
-          logSyncError(error, `query:${queryName}`, false);
+    const result = await syncAllData(forceRefresh);
+    return {
+      success: result,
+      error: null,
+      retry: async () => await manualRetryableSync(forceRefresh).then(r => r.success)
+    };
+  } catch (error) {
+    const syncError = error instanceof Error ? error : new Error(String(error));
+    console.error('خطأ في المزامنة اليدوية:', syncError);
+    
+    return {
+      success: false,
+      error: syncError,
+      retry: async () => {
+        try {
+          const result = await syncAllData(forceRefresh);
+          return result;
+        } catch (retryError) {
+          console.error('فشلت إعادة المحاولة اليدوية:', retryError);
+          return false;
         }
       }
-    );
-  } catch (error) {
-    console.warn(`استخدام القيمة الاحتياطية للاستعلام ${queryName} بعد الفشل / Using fallback value for query ${queryName} after failure`);
-    
-    // إظهار إشعار فقط للاستعلامات المهمة
-    if (queryName.includes('channels') || queryName.includes('categories') || queryName.includes('countries')) {
-      toast({
-        title: "تعذر تحديث البيانات",
-        description: `سيتم استخدام البيانات المخزنة محليًا لـ ${queryName}`,
-        duration: 3000,
-      });
-    }
-    
-    return fallbackValue;
+    };
   }
-}
-
-/**
- * تنفيذ عملية مع مؤشر تقدم وإشعارات مناسبة
- * Execute an operation with progress indication and proper notifications
- */
-export async function executeOperationWithProgress<T>(
-  operation: () => Promise<T>,
-  options: {
-    operationName: string;
-    loadingMessage: string;
-    successMessage: string;
-    errorMessage: string;
-    maxRetries?: number;
-    showToast?: boolean;
-  }
-): Promise<T | null> {
-  const {
-    operationName,
-    loadingMessage,
-    successMessage,
-    errorMessage,
-    maxRetries = 2,
-    showToast = true
-  } = options;
-  
-  // إظهار إشعار البدء
-  let toastId;
-  if (showToast) {
-    toastId = toast({
-      title: operationName,
-      description: loadingMessage,
-      duration: 3000,
-    });
-  }
-  
-  try {
-    // تنفيذ العملية مع إعادة المحاولة
-    const result = await retry(
-      operation,
-      createProgressiveRetryStrategy(maxRetries)
-    );
-    
-    // إظهار إشعار النجاح
-    if (showToast) {
-      toast({
-        title: operationName,
-        description: successMessage,
-        duration: 3000,
-      });
-    }
-    
-    return result;
-  } catch (error) {
-    // معالجة الخطأ
-    handleError(error, operationName);
-    
-    // محاولة معالجة الخطأ إذا كان متعلقًا بـ Supabase
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    const isSBError = errorMsg.includes('duplicate key') || 
-                      errorMsg.includes('23505') ||
-                      errorMsg.includes('constraint');
-                      
-    if (isSBError) {
-      handleSupabaseError(error, operationName);
-    }
-    
-    // إظهار إشعار الخطأ
-    if (showToast) {
-      toast({
-        title: `خطأ في ${operationName}`,
-        description: errorMessage,
-        variant: "destructive",
-        duration: 5000,
-      });
-    }
-    
-    return null;
-  }
-}
+};

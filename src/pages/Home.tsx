@@ -10,6 +10,7 @@ import HomeHeader from '@/components/header/HomeHeader';
 import RecentlyWatchedChannels from '@/components/recently-watched/RecentlyWatchedChannels';
 import HomeTitleSection from '@/components/home/HomeTitleSection';
 import CategoryTabs from '@/components/home/CategoryTabs';
+import { Menu, RefreshCw, Bell, Search } from 'lucide-react';
 
 const Home: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -47,12 +48,12 @@ const Home: React.FC = () => {
     queryFn: getRecentlyWatchedChannels,
   });
 
-  // Handle playing a channel
+  // معالجة تشغيل قناة
   const handlePlayChannel = (channel: Channel) => {
     playChannel(channel.id).catch(console.error);
   };
 
-  // Handle toggling a channel as favorite
+  // معالجة تبديل قناة كمفضلة
   const handleToggleFavorite = (channelId: string) => {
     toggleFavoriteChannel(channelId).catch(console.error);
   };
@@ -62,52 +63,48 @@ const Home: React.FC = () => {
     return channel.category === selectedCategory;
   }) || [];
 
-  // Show loading indicator while loading data
+  // إظهار مؤشر التحميل أثناء تحميل البيانات
   if (isLoadingChannels || isLoadingCategories) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <HomeHeader />
-        <div className="flex justify-center items-center min-h-[60vh]">
-          <LoadingIndicator size="large" text="جاري تحميل القنوات..." />
-        </div>
+      <div className="min-h-screen bg-black flex justify-center items-center">
+        <LoadingIndicator size="large" text="جاري تحميل القنوات..." />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-background/95">
-      <div className="container mx-auto px-4 py-6 pb-20">
-        <HomeHeader />
-        
-        <div className="mb-8 rounded-xl overflow-hidden shadow-lg">
-          <HomeTitleSection refetchChannels={refetchChannels} />
-          <div className="bg-card/50 backdrop-blur-sm p-5 rounded-xl border-t border-primary/10">
-            <AdvancedSearch className="mb-2" />
-          </div>
+    <div className="min-h-screen bg-black pb-20">
+      {/* شريط العنوان */}
+      <div className="tv-header">
+        <div className="flex items-center">
+          <button className="tv-icon-button mr-2">
+            <Menu size={24} />
+          </button>
+          <h1 className="tv-header-title">Genral TV</h1>
         </div>
-        
-        {/* Recently watched channels */}
-        {recentlyWatched && recentlyWatched.length > 0 && (
-          <div className="mb-8 bg-gradient-to-r from-primary/10 via-primary/5 to-background p-5 rounded-xl shadow-md">
-            <RecentlyWatchedChannels 
-              channels={recentlyWatched} 
-              isLoading={isLoadingRecent}
-              onChannelClick={handlePlayChannel} 
-            />
-          </div>
-        )}
-
-        {/* Category tabs */}
-        <CategoryTabs 
-          selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
-          categories={categories}
-          filteredChannels={filteredChannels}
-          countries={countries}
-          onPlayChannel={handlePlayChannel}
-          onToggleFavorite={handleToggleFavorite}
-        />
+        <div className="tv-header-actions">
+          <button className="tv-icon-button">
+            <Bell size={20} />
+          </button>
+          <button className="tv-icon-button">
+            <RefreshCw size={20} />
+          </button>
+          <button className="tv-icon-button">
+            <Search size={20} />
+          </button>
+        </div>
       </div>
+      
+      {/* علامات التبويب والقنوات */}
+      <CategoryTabs 
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+        categories={categories}
+        filteredChannels={filteredChannels}
+        countries={countries}
+        onPlayChannel={handlePlayChannel}
+        onToggleFavorite={handleToggleFavorite}
+      />
     </div>
   );
 };
