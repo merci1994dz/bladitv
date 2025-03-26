@@ -1,14 +1,19 @@
 
+/**
+ * آلية المزامنة مع المصادر الخارجية
+ * Synchronization mechanism with external sources
+ */
+
 import { channels, countries, categories, setIsSyncing } from '../dataStore';
 import { fetchRemoteData } from './remote/fetch';
 import { storeRemoteData } from './remote/storeData';
 import { updateLastSyncTime } from './config';
-import { syncWithRemoteSource as remoteSyncWithSource } from './remote/sync/syncWithRemote';
+import { syncWithRemoteSource } from './remote/sync/syncWithRemote';
 import { checkBladiInfoAvailability } from './remote/sync/bladiInfoSync';
 
 // Re-export these functions to make them available to other modules
 export { checkBladiInfoAvailability };
-export const syncWithRemoteSource = remoteSyncWithSource;
+export { syncWithRemoteSource };
 export { getSkewProtectionParams } from './remote/fetch/skewProtection';
 
 /**
