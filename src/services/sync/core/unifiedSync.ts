@@ -1,4 +1,3 @@
-
 /**
  * واجهة موحدة للمزامنة للاستخدام في واجهة المستخدم
  * Unified sync interface for UI usage
@@ -136,4 +135,16 @@ export const syncDataUnified = async (options: SyncOptions = {}): Promise<boolea
   } finally {
     syncStatus.inProgress = false;
   }
+};
+
+/**
+ * واجهة لمزامنة Supabase - تستخدم وظيفة المزامنة الموحدة
+ * Interface for Supabase sync - uses the unified sync function
+ */
+export const syncWithSupabaseUnified = async (forceRefresh: boolean = false): Promise<boolean> => {
+  return await syncDataUnified({ 
+    forceRefresh, 
+    showNotifications: false,
+    timeout: 30000
+  });
 };
