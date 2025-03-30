@@ -1,8 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { syncWithSupabase, setupRealtimeSync, initializeSupabaseTables } from '@/services/sync/supabaseSync';
-import { checkBladiInfoAvailability } from '@/services/sync/remote/sync/sourceAvailability';
-import { useToast } from '@/hooks/use-toast';
+import { syncWithSupabase, setupRealtimeSync, initializeSupabaseTables, checkBladiInfoAvailability } from '@/services/sync/supabaseSync';
 import { checkConnectivityIssues } from '@/services/sync/status';
+import { useToast } from '@/hooks/use-toast';
 
 export const useAutoSync = () => {
   const { toast } = useToast();

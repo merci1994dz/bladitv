@@ -27,5 +27,8 @@ export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> =
 };
 
 // Export functions with clear names to avoid any confusion
-export const setupRealtimeSync = setupSupabaseRealtimeSync;
+export { setupSupabaseRealtimeSync as setupRealtimeSync };
 export { initializeSupabaseTables };
+
+// Re-export the checkBladiInfoAvailability function for convenience
+export { checkBladiInfoAvailability } from './remote/sync/sourceAvailability';

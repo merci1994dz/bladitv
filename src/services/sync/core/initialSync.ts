@@ -1,29 +1,49 @@
 
 /**
- * وظائف التهيئة والمزامنة الأولية
- * Initialization and initial sync functions
+ * المزامنة الأولية والتحميل
+ * Initial synchronization and loading
  */
 
-import { checkBladiInfoAvailability } from '../remote/sync/sourceAvailability';
-import { syncAllData } from './syncOperations';
+import { syncWithSupabaseUnified } from './unifiedSync';
+import { syncState } from './syncState';
 
 /**
- * تنفيذ المزامنة الأولية عند بدء التطبيق
- * Perform initial synchronization on app startup
+ * تنفيذ المزامنة الأولية
+ * Perform initial synchronization
  * 
- * @param forceInitialSync تجاهل التخزين المؤقت وفرض المزامنة الأولية
+ * @param forceRefresh تجاهل التخزين المؤقت وفرض التحديث
+ * @returns وعد بنتيجة المزامنة
  */
-export const performInitialSync = async (forceInitialSync = false): Promise<boolean> => {
-  console.log('بدء تنفيذ المزامنة الأولية...');
+export const performInitialSync = async (forceRefresh = false): Promise<boolean> => {
+  syncState.totalSyncAttempts++;
+  syncState.consecutiveSyncAttempts++;
   
   try {
-    // التحقق من توفر مصادر البيانات أولاً
-    await checkBladiInfoAvailability();
+    console.log('بدء المزامنة الأولية، الوضع الإجباري =', forceRefresh);
     
-    // تنفيذ المزامنة الأولية
-    return await syncAllData(forceInitialSync);
+    // إعادة تعيين عداد المحاولات إذا كان هذا تحديث قسري
+    if (forceRefresh) {
+      syncState.consecutiveSyncAttempts = 1;
+    }
+    
+    // تنفيذ المزامنة
+    const result = await syncWithSupabaseUnified(forceRefresh);
+    
+    // تحديث حالة المزامنة بناءً على النتيجة
+    if (result) {
+      syncState.consecutiveSyncAttempts = 0;
+      syncState.lastSyncSuccess = true;
+      syncState.lastSuccessTime = new Date().toISOString();
+    } else {
+      syncState.failedAttempts++;
+      syncState.lastSyncSuccess = false;
+    }
+    
+    return result;
   } catch (error) {
-    console.error('فشل في تنفيذ المزامنة الأولية:', error);
+    console.error('خطأ في المزامنة الأولية:', error);
+    syncState.failedAttempts++;
+    syncState.lastSyncSuccess = false;
     return false;
   }
 };
