@@ -1,8 +1,6 @@
-
 import { useEffect, useState, useCallback } from 'react';
-import { syncWithSupabase } from '@/services/sync/supabaseSync';
-import { setupRealtimeSync, initializeSupabaseTables } from '@/services/sync/supabaseSync';
-import { checkBladiInfoAvailability } from '@/services/sync/remote/syncOperations';
+import { syncWithSupabase, setupRealtimeSync, initializeSupabaseTables } from '@/services/sync/supabaseSync';
+import { checkBladiInfoAvailability } from '@/services/sync/remote/sync/sourceAvailability';
 import { useToast } from '@/hooks/use-toast';
 import { checkConnectivityIssues } from '@/services/sync/status';
 
@@ -16,12 +14,10 @@ export const useAutoSync = () => {
     hasServerAccess: boolean;
   }>({ hasInternet: navigator.onLine, hasServerAccess: false });
   
-  // إعادة تعيين حالة الخطأ
   const resetSyncError = useCallback(() => {
     setSyncError(null);
   }, []);
   
-  // التحقق من حالة الشبكة
   const checkNetworkStatus = useCallback(async () => {
     try {
       const status = await checkConnectivityIssues();
@@ -34,10 +30,8 @@ export const useAutoSync = () => {
     }
   }, []);
   
-  // التحقق من مصادر البيانات المتاحة مع آلية تجنب الأخطاء
   const checkSourceAvailability = useCallback(async () => {
     try {
-      // التحقق من حالة الشبكة أولاً
       const { hasInternet, hasServerAccess } = await checkNetworkStatus();
       
       if (!hasInternet || !hasServerAccess) {
@@ -61,7 +55,6 @@ export const useAutoSync = () => {
     }
   }, [checkNetworkStatus]);
   
-  // تهيئة جداول Supabase مع محاولات إعادة
   const initializeSupabase = useCallback(async () => {
     try {
       setIsSyncing(true);
@@ -80,7 +73,6 @@ export const useAutoSync = () => {
     }
   }, []);
   
-  // تنفيذ المزامنة الأولية مع Supabase
   const performInitialSync = useCallback(async () => {
     console.log('بدء المزامنة الأولية مع Supabase...');
     try {
@@ -94,7 +86,6 @@ export const useAutoSync = () => {
         console.warn('فشلت المزامنة مع Supabase، جاري المحاولة مرة أخرى...');
         setSyncError('لم يمكن الاتصال بـ Supabase');
         
-        // محاولة المزامنة مرة أخرى بعد تأخير
         setTimeout(async () => {
           try {
             const retrySuccess = await syncWithSupabase(false);
@@ -118,7 +109,6 @@ export const useAutoSync = () => {
     }
   }, []);
   
-  // معالجة إعادة الاتصال بالشبكة
   const handleOnline = useCallback(() => {
     checkNetworkStatus().then(({ hasInternet, hasServerAccess }) => {
       if (hasInternet) {
@@ -138,7 +128,6 @@ export const useAutoSync = () => {
     }).catch(console.error);
   }, [toast, checkNetworkStatus, checkSourceAvailability]);
   
-  // معالجة التركيز على التبويب (مع تأخير لمنع المزامنات المتعددة)
   const handleFocus = useCallback(() => {
     setTimeout(() => {
       console.log('تم اكتشاف العودة إلى التبويب، جاري التحقق من التحديثات...');
@@ -151,7 +140,6 @@ export const useAutoSync = () => {
     }, 1000);
   }, [checkNetworkStatus, isSyncing]);
   
-  // التحقق من حالة الشبكة عند تحميل المكون
   useEffect(() => {
     checkNetworkStatus().catch(console.error);
   }, [checkNetworkStatus]);

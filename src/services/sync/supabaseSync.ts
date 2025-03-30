@@ -5,6 +5,7 @@
  */
 
 import { syncWithSupabaseUnified } from './core/unifiedSync';
+// Import functions directly from their source modules
 import { setupSupabaseRealtimeSync } from './supabase/realtime/realtimeSync';
 import { initializeSupabaseTables } from './supabase/initialize';
 
@@ -25,6 +26,6 @@ export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> =
   }
 };
 
-// Re-export required functions
-export { setupSupabaseRealtimeSync as setupRealtimeSync };
+// Export functions with clear names to avoid any confusion
+export const setupRealtimeSync = setupSupabaseRealtimeSync;
 export { initializeSupabaseTables };
