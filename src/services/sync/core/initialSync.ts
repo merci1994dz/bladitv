@@ -34,6 +34,7 @@ export const performInitialSync = async (forceRefresh = false): Promise<boolean>
       syncState.consecutiveSyncAttempts = 0;
       syncState.lastSyncSuccess = true;
       syncState.lastSuccessTime = new Date().toISOString();
+      syncState.lastSuccessfulSync = Date.now();
     } else {
       syncState.failedAttempts++;
       syncState.lastSyncSuccess = false;

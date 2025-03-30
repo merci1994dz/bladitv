@@ -1,159 +1,103 @@
-import { useEffect, useState, useCallback } from 'react';
-import { syncWithSupabase, setupRealtimeSync, initializeSupabaseTables, checkBladiInfoAvailability } from '@/services/sync/supabaseSync';
-import { checkConnectivityIssues } from '@/services/sync/status';
-import { useToast } from '@/hooks/use-toast';
 
+import { useState, useEffect, useCallback } from 'react';
+import { syncWithSupabase, initializeSupabaseTables } from '@/services/sync/supabaseSync';
+import { checkBladiInfoAvailability } from '@/services/sync/sourceCheck';
+
+// تعريف نوع لخطأ المزامنة
+interface SyncError {
+  message: string;
+  code?: string;
+  time: string;
+}
+
+/**
+ * هوك مخصص للمزامنة التلقائية
+ */
 export const useAutoSync = () => {
-  const { toast } = useToast();
-  const [syncError, setSyncError] = useState<string | null>(null);
-  const [availableSource, setAvailableSource] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [networkStatus, setNetworkStatus] = useState<{
-    hasInternet: boolean;
-    hasServerAccess: boolean;
-  }>({ hasInternet: navigator.onLine, hasServerAccess: false });
+  const [availableSource, setAvailableSource] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<SyncError | null>(null);
   
-  const resetSyncError = useCallback(() => {
-    setSyncError(null);
-  }, []);
-  
-  const checkNetworkStatus = useCallback(async () => {
-    try {
-      const status = await checkConnectivityIssues();
-      setNetworkStatus(status);
-      return status;
-    } catch (error) {
-      console.error('خطأ في فحص حالة الشبكة:', error);
-      setNetworkStatus({ hasInternet: navigator.onLine, hasServerAccess: false });
-      return { hasInternet: navigator.onLine, hasServerAccess: false };
-    }
-  }, []);
-  
+  // التحقق من توفر المصادر الخارجية
   const checkSourceAvailability = useCallback(async () => {
     try {
-      const { hasInternet, hasServerAccess } = await checkNetworkStatus();
-      
-      if (!hasInternet || !hasServerAccess) {
-        console.warn('تعذر الوصول إلى المصادر الخارجية بسبب مشاكل في الاتصال');
-        return null;
-      }
-      
-      const availableUrl = await checkBladiInfoAvailability();
-      setAvailableSource(availableUrl);
-      
-      if (availableUrl) {
-        console.log(`وجدنا مصدر بيانات متاح: ${availableUrl}`);
-      } else {
-        console.warn('لم نتمكن من العثور على أي مصدر بيانات متاح');
-      }
-      
-      return availableUrl;
+      const source = await checkBladiInfoAvailability();
+      setAvailableSource(source);
+      return source;
     } catch (error) {
       console.error('خطأ في التحقق من توفر المصادر:', error);
+      setSyncError({
+        message: 'فشل التحقق من توفر المصادر',
+        time: new Date().toISOString()
+      });
       return null;
     }
-  }, [checkNetworkStatus]);
+  }, []);
   
+  // تهيئة Supabase
   const initializeSupabase = useCallback(async () => {
     try {
-      setIsSyncing(true);
-      const initialized = await initializeSupabaseTables();
-      
-      if (!initialized) {
-        console.warn('فشل في تهيئة Supabase، قد تكون هناك حاجة لإعادة المحاولة');
-      }
-      
-      return initialized;
+      return await initializeSupabaseTables();
     } catch (error) {
       console.error('خطأ في تهيئة Supabase:', error);
+      setSyncError({
+        message: 'فشل تهيئة Supabase',
+        time: new Date().toISOString()
+      });
       return false;
-    } finally {
-      setIsSyncing(false);
     }
   }, []);
   
+  // تنفيذ المزامنة الأولية
   const performInitialSync = useCallback(async () => {
-    console.log('بدء المزامنة الأولية مع Supabase...');
     try {
       setIsSyncing(true);
-      const success = await syncWithSupabase(false);
-      
-      if (success) {
-        console.log('تمت المزامنة الأولية بنجاح مع Supabase');
-        setSyncError(null);
-      } else {
-        console.warn('فشلت المزامنة مع Supabase، جاري المحاولة مرة أخرى...');
-        setSyncError('لم يمكن الاتصال بـ Supabase');
-        
-        setTimeout(async () => {
-          try {
-            const retrySuccess = await syncWithSupabase(false);
-            if (retrySuccess) {
-              console.log('نجحت إعادة المحاولة للمزامنة مع Supabase');
-              setSyncError(null);
-            }
-          } catch (retryError) {
-            console.error('فشلت إعادة محاولة المزامنة:', retryError);
-          }
-        }, 10000);
-      }
-      
-      return success;
+      // استخدام forceRefresh=true للمزامنة الأولية
+      const result = await syncWithSupabase(true);
+      return result;
     } catch (error) {
-      console.error('خطأ في المزامنة الأولية مع Supabase:', error);
-      setSyncError(String(error));
+      console.error('خطأ في المزامنة الأولية:', error);
+      setSyncError({
+        message: 'فشل المزامنة الأولية',
+        time: new Date().toISOString()
+      });
       return false;
     } finally {
       setIsSyncing(false);
     }
   }, []);
   
+  // معالج عودة الاتصال بالشبكة
   const handleOnline = useCallback(() => {
-    checkNetworkStatus().then(({ hasInternet, hasServerAccess }) => {
-      if (hasInternet) {
-        toast({
-          title: "تم استعادة الاتصال",
-          description: hasServerAccess 
-            ? "جاري تحديث البيانات من Supabase..." 
-            : "تم استعادة الاتصال المحلي. جاري محاولة الوصول للخوادم...",
-          duration: 5000,
-        });
-        
-        if (hasServerAccess) {
-          syncWithSupabase(false).catch(console.error);
-          checkSourceAvailability().catch(console.error);
-        }
-      }
-    }).catch(console.error);
-  }, [toast, checkNetworkStatus, checkSourceAvailability]);
+    console.log('عاد الاتصال بالشبكة، جاري التحقق من المزامنة...');
+    checkSourceAvailability();
+  }, [checkSourceAvailability]);
   
+  // معالج استعادة التركيز
   const handleFocus = useCallback(() => {
-    setTimeout(() => {
-      console.log('تم اكتشاف العودة إلى التبويب، جاري التحقق من التحديثات...');
-      
-      checkNetworkStatus().then(({ hasInternet, hasServerAccess }) => {
-        if (hasInternet && hasServerAccess && !isSyncing) {
-          syncWithSupabase(false).catch(console.error);
-        }
-      }).catch(console.error);
-    }, 1000);
-  }, [checkNetworkStatus, isSyncing]);
+    console.log('تمت استعادة التركيز، التحقق من الحاجة للمزامنة...');
+    checkSourceAvailability();
+  }, [checkSourceAvailability]);
   
+  // إعداد مستمعي أحداث الشبكة والتركيز
   useEffect(() => {
-    checkNetworkStatus().catch(console.error);
-  }, [checkNetworkStatus]);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [handleOnline, handleFocus]);
   
   return {
-    syncError,
-    availableSource,
-    networkStatus,
     isSyncing,
+    availableSource,
+    syncError,
     checkSourceAvailability,
     initializeSupabase,
     performInitialSync,
     handleOnline,
-    handleFocus,
-    resetSyncError,
-    checkNetworkStatus
+    handleFocus
   };
 };

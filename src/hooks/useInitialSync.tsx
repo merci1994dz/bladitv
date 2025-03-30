@@ -1,5 +1,6 @@
+
 import { useEffect, useRef, useState } from 'react';
-import { syncWithSupabase, setupRealtimeSync } from '@/services/sync/supabaseSync';
+import { syncWithSupabase, setupRealtimeSync, initializeSupabaseTables } from '@/services/sync/supabaseSync';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { useToast } from '@/hooks/use-toast';
 import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';
@@ -10,8 +11,6 @@ import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';
 export const useInitialSync = () => {
   const {
     checkSourceAvailability,
-    initializeSupabase,
-    performInitialSync,
     isSyncing
   } = useAutoSync();
   
@@ -46,13 +45,13 @@ export const useInitialSync = () => {
       
       // تهيئة Supabase
       console.log("جاري تهيئة Supabase...");
-      const supabaseInitialized = await initializeSupabase();
+      const supabaseInitialized = await initializeSupabaseTables();
       
       if (supabaseInitialized) {
         console.log("تم تهيئة Supabase بنجاح، جاري تنفيذ المزامنة الأولية...");
         
         // تنفيذ المزامنة الأولية
-        const syncSuccess = await performInitialSync();
+        const syncSuccess = await syncWithSupabase(true);
         
         if (syncSuccess) {
           setIsInitialized(true);
