@@ -1,3 +1,4 @@
+
 /**
  * واجهة موحدة للمزامنة للاستخدام في واجهة المستخدم
  * Unified sync interface for UI usage
