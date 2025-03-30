@@ -10,6 +10,7 @@ import HomeHeader from '@/components/header/HomeHeader';
 import RecentlyWatchedChannels from '@/components/recently-watched/RecentlyWatchedChannels';
 import HomeTitleSection from '@/components/home/HomeTitleSection';
 import CategoryTabs from '@/components/home/CategoryTabs';
+import HomeSync from '@/components/home/HomeSync';
 import { Menu, RefreshCw, Bell, Search } from 'lucide-react';
 
 const Home: React.FC = () => {
@@ -83,11 +84,9 @@ const Home: React.FC = () => {
           <h1 className="tv-header-title">Genral TV</h1>
         </div>
         <div className="tv-header-actions">
+          <HomeSync refetchChannels={refetchChannels} />
           <button className="tv-icon-button">
             <Bell size={20} />
-          </button>
-          <button className="tv-icon-button">
-            <RefreshCw size={20} />
           </button>
           <button className="tv-icon-button">
             <Search size={20} />

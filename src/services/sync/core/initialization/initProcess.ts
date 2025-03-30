@@ -4,8 +4,8 @@
  * Initialize the synchronization process
  */
 
-import { performInitialSync } from '../initialSync';
 import { syncState } from '../syncState';
+import { performInitialSync } from '../syncOperations';
 
 /**
  * تهيئة عملية المزامنة وضبط المتغيرات اللازمة
