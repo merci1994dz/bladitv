@@ -1,6 +1,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
-import { syncWithSupabase, setupRealtimeSync, initializeSupabaseTables } from '@/services/sync/supabaseSync';
+import { syncWithSupabase } from '@/services/sync/supabaseSync';
+import { setupRealtimeSync, initializeSupabaseTables } from '@/services/sync/supabaseSync';
 import { checkBladiInfoAvailability } from '@/services/sync/remote/syncOperations';
 import { useToast } from '@/hooks/use-toast';
 import { checkConnectivityIssues } from '@/services/sync/status';

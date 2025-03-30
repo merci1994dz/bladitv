@@ -5,6 +5,8 @@
  */
 
 import { syncWithSupabaseUnified } from './core/unifiedSync';
+import { setupSupabaseRealtimeSync } from './supabase/realtime/realtimeSync';
+import { initializeSupabaseTables } from './supabase/initialize';
 
 /**
  * مزامنة البيانات مع Supabase
@@ -22,3 +24,7 @@ export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> =
     return false;
   }
 };
+
+// Re-export required functions
+export { setupSupabaseRealtimeSync as setupRealtimeSync };
+export { initializeSupabaseTables };

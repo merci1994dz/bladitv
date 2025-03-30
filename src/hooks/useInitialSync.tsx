@@ -1,6 +1,7 @@
 
 import { useEffect, useRef, useState } from 'react';
-import { syncWithSupabase, setupRealtimeSync } from '@/services/sync/supabaseSync';
+import { syncWithSupabase } from '@/services/sync/supabaseSync';
+import { setupRealtimeSync } from '@/services/sync/supabaseSync';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { useToast } from '@/hooks/use-toast';
 import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';
