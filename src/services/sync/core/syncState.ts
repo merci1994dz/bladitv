@@ -17,7 +17,9 @@ export const syncState = {
   failedAttempts: 0,
   cooldownPeriodMs: 5000, // 5 ثوانٍ كفترة انتظار أساسية
   syncInProgress: false,
-  lastSuccessfulSync: 0
+  lastSuccessfulSync: 0,
+  lastSyncSuccess: false,
+  lastSuccessTime: '',
 };
 
 // استيراد الدالة المساعدة مباشرة بدلاً من استخدام require
