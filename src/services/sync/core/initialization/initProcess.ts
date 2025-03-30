@@ -5,7 +5,7 @@
  */
 
 import { syncState } from '../syncState';
-import { performInitialSync } from '../syncOperations';
+import { performInitialSync } from '../initialSync';
 
 /**
  * تهيئة عملية المزامنة وضبط المتغيرات اللازمة

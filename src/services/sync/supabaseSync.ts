@@ -1,39 +1,24 @@
 
 /**
- * عمليات المزامنة مع Supabase
- * Supabase synchronization operations
+ * واجهة لمزامنة البيانات مع Supabase
+ * Interface for syncing data with Supabase
  */
 
-import { initializeSupabaseTables } from './supabase/initialize';
-import { isRunningOnVercel } from './remote/fetch/skewProtection';
-import { handleSupabaseError } from './supabase/syncErrorHandler';
-import { addForceRefreshMarkers } from './publish/updateMarkers';
 import { syncWithSupabaseUnified } from './core/unifiedSync';
-import { setupSupabaseRealtimeSync } from './supabase/realtime/realtimeSync';
 
 /**
  * مزامنة البيانات مع Supabase
  * Synchronize data with Supabase
+ * 
+ * @param forceRefresh فرض التحديث بغض النظر عن التخزين المؤقت
+ * @returns وعد بنتيجة العملية
  */
-export async function syncWithSupabase(forceRefresh: boolean = false): Promise<boolean> {
-  console.log('بدء المزامنة مع Supabase، التحديث الإجباري = / Starting sync with Supabase, force refresh =', forceRefresh);
-  
-  // تعيين علامات التحديث الإجباري عند الحاجة
-  if (forceRefresh) {
-    addForceRefreshMarkers();
-  }
-  
+export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> => {
   try {
-    // استخدام وظيفة المزامنة الموحدة
+    console.log('بدء مزامنة البيانات مع Supabase، الوضع الإجباري =', forceRefresh);
     return await syncWithSupabaseUnified(forceRefresh);
   } catch (error) {
-    // معالجة الخطأ باستخدام معالج الأخطاء المتخصص
-    await handleSupabaseError(error);
-    throw error;
+    console.error('فشل في مزامنة البيانات مع Supabase:', error);
+    return false;
   }
-}
-
-// تصدير الدوال المهمة
-export { setupSupabaseRealtimeSync as setupRealtimeSync };
-export { initializeSupabaseTables };
-export { syncWithSupabaseUnified };
+};

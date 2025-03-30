@@ -20,13 +20,14 @@ export const syncState = {
   lastSuccessfulSync: 0
 };
 
+// استيراد الدالة المساعدة مباشرة بدلاً من استخدام require
+import { isCooldownComplete } from './helpers/timeoutHelper';
+
 /**
  * إعادة تعيين عدد المحاولات المتتالية
  * Reset consecutive attempts counter
  */
 export const resetConsecutiveAttempts = () => {
-  const { isCooldownComplete } = require('./helpers/timeoutHelper');
-  
   // إعادة تعيين فقط إذا مر وقت كافٍ منذ آخر محاولة
   if (isCooldownComplete(syncState.lastSyncAttemptTime, syncState.cooldownPeriodMs * 2)) {
     console.log('إعادة تعيين عداد المحاولات المتتالية بعد فترة سماح كافية');
