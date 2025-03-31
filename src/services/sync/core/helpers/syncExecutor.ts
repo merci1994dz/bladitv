@@ -19,14 +19,14 @@ import { syncWithRemoteSource } from '../../remote/sync';
 export const executeSync = async (
   source: string | null,
   forceRefresh: boolean,
-  cacheBuster: string,
+  cacheBuster?: string,
   timeoutPromise?: Promise<boolean>
 ): Promise<boolean> => {
   try {
     if (source) {
       // المزامنة مع مصدر محدد
       // Sync with specific source
-      return await syncWithRemoteSource(source, forceRefresh, cacheBuster);
+      return await syncWithRemoteSource(source, forceRefresh);
     }
     
     // لم يتم تحديد مصدر
