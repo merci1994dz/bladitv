@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import SyncStatus from '../SyncStatus';
 import ConnectivityIndicator from '../sync/ConnectivityIndicator';
 import { syncWithBladiInfo } from '@/services/sync';
 import { useToast } from '@/hooks/use-toast';
-import { getLastSyncTime } from '@/services/sync/status';
+import { getLastSyncTime } from '@/services/sync/status/timestamp';
 
 interface HomeHeaderProps {
   isSimple?: boolean;

@@ -1,3 +1,4 @@
+
 import { setSyncActive } from '../status';
 import { setSyncError, clearSyncError } from '../status/errorHandling';
 import { setSyncTimestamp } from '../status/timestamp';
@@ -131,7 +132,7 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
       console.warn('لم يتم العثور على أي مصدر متاح، سيتم محاولة جميع المصادر الخارجية / No available source found, will try all external sources');
     }
     
-    const syncPromise = executeSync(availableSource, forceRefresh || true, fullCacheBuster);
+    const syncPromise = executeSync(availableSource, forceRefresh || true, fullCacheBuster, timeoutPromise);
     const result = await Promise.race([syncPromise, timeoutPromise]);
     
     if (result) {

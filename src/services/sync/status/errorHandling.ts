@@ -13,6 +13,12 @@ interface SyncError {
   message: string;
   time: string;
   code?: string;
+  details?: {
+    source?: string;
+    type?: string;
+    reason?: string;
+    timestamp?: number;
+  };
 }
 
 /**
