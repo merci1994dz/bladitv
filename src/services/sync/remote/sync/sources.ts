@@ -1,39 +1,28 @@
 
 /**
- * Remote data sources configuration
+ * مصادر البيانات الخارجية
+ * External data sources
  */
 
-// تحسين قائمة المصادر وإعطاء الأولوية للمصادر الأكثر موثوقية
+// مصادر Bladi Info
+// Bladi Info sources
 export const BLADI_INFO_SOURCES = [
-  // مصادر CDN (الأكثر موثوقية عادة)
-  'https://cdn.jsdelivr.net/gh/lovable-iq/bladi-info@main/api/channels.json',
-  'https://cdn.jsdelivr.net/gh/bladitv/channels@master/channels.json',
+  // المصادر المحلية للتطوير
+  // Local sources for development
+  '/data/channels.json',
   
-  // المصادر الرئيسية
-  'https://bladitv.lovable.app/api/channels.json',
-  'https://bladi-info.com/api/channels.json',
+  // CDNs للإنتاج
+  // CDNs for production
+  'https://cdn.jsdelivr.net/gh/yourusername/data-repo@main/data/channels.json',
   
-  // مصادر Firebase و Vercel (مستضافة على منصات موثوقة)
-  'https://bladitv-db.web.app/api/channels.json',
-  'https://bladi-tv-default-rtdb.firebaseio.com/channels.json',
-  'https://bladiinfo-api.vercel.app/api/channels.json',
-  
-  // مصادر Netlify (مستضافة على منصات موثوقة)
-  'https://bladiinfo-backup.netlify.app/api/channels.json',
-  'https://bladitv-api.netlify.app/api/channels.json',
-  
-  // مصادر JSON خارجية
-  'https://api.jsonbin.io/v3/b/bladiinfo-channels/latest',
-  'https://api.npoint.io/bladiinfo-channels',
-  
-  // المصدر المحلي كآخر خيار (سنحاول تجنب استخدامه حسب طلب المستخدم)
-  '/data/fallback-channels.json'
+  // مصادر احتياطية
+  // Backup sources
+  'https://example.com/data/channels.json',
 ];
 
-// إضافة مصادر CORS Proxy لتخطي قيود CORS
+// قائمة بروكسيات CORS للمساعدة في الوصول للمصادر
+// List of CORS proxies to help access sources
 export const CORS_PROXIES = [
-  'https://api.allorigins.win/raw?url=',
   'https://cors-anywhere.herokuapp.com/',
-  'https://cors.bridged.cc/',
-  'https://crossorigin.me/'
+  'https://api.allorigins.win/raw?url='
 ];

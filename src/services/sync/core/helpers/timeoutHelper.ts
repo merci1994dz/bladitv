@@ -1,45 +1,64 @@
 
 /**
- * وظائف مساعدة للتعامل مع المهل الزمنية والتأخير
- * Helper functions for timeout and delay handling
+ * وظائف مساعدة للتعامل مع المهل الزمنية والتأخيرات
+ * Helper functions for handling timeouts and delays
  */
 
 /**
+ * التحقق مما إذا كانت فترة الانتظار قد اكتملت
+ * Check if cooldown period is complete
+ * 
+ * @param lastTime آخر وقت للنشاط
+ * @param cooldownMs فترة الانتظار بالمللي ثانية
+ * @returns ما إذا كانت فترة الانتظار قد اكتملت
+ */
+export const isCooldownComplete = (lastTime: number, cooldownMs: number): boolean => {
+  const now = Date.now();
+  return now - lastTime > cooldownMs;
+};
+
+/**
  * إنشاء وعد مع مهلة زمنية
- * Create a promise with a timeout
+ * Create a promise with timeout
+ * 
+ * @param timeoutMs المهلة الزمنية بالمللي ثانية
+ * @returns وعد يتم رفضه بعد انتهاء المهلة الزمنية
  */
 export const createTimeoutPromise = (timeoutMs: number): Promise<boolean> => {
-  return new Promise((resolve) => {
+  return new Promise((_, reject) => {
     setTimeout(() => {
-      resolve(false);
+      reject(new Error(`تم تجاوز المهلة الزمنية (${timeoutMs}ms)`));
     }, timeoutMs);
   });
 };
 
 /**
- * التحقق مما إذا اكتملت فترة الانتظار
- * Check if cooldown period is complete
+ * حساب وقت الانتظار التكيفي بناءً على عدد المحاولات
+ * Calculate adaptive wait time based on number of attempts
+ * 
+ * @param attempts عدد المحاولات
+ * @returns وقت الانتظار بالمللي ثانية
  */
-export const isCooldownComplete = (lastTime: number, cooldownMs: number): boolean => {
-  return Date.now() - lastTime >= cooldownMs;
-};
-
-/**
- * حساب وقت الانتظار التكيفي بناءً على عدد المحاولات الفاشلة
- * Calculate adaptive wait time based on failure count
- */
-export const calculateAdaptiveWaitTime = (failureCount: number): number => {
-  // زيادة وقت الانتظار تدريجيًا مع زيادة عدد الفشل
-  // 5 ثوانٍ للمحاولة الأولى، ثم 15 ثانية، ثم 30 ثانية، ثم دقيقة واحدة
-  const baseWaitTimeMs = 5000;
+export const calculateAdaptiveWaitTime = (attempts: number): number => {
+  // وقت انتظار أساسي 5 ثوانٍ
+  // Base wait time 5 seconds
+  const baseWaitTime = 5000;
   
-  if (failureCount <= 1) {
-    return baseWaitTimeMs;
-  } else if (failureCount === 2) {
-    return 15000; // 15 ثانية
-  } else if (failureCount === 3) {
-    return 30000; // 30 ثانية
-  } else {
-    return 60000; // دقيقة واحدة
-  }
+  // زيادة وقت الانتظار بشكل تدريجي مع زيادة عدد المحاولات
+  // Gradually increase wait time with more attempts
+  // استخدام مضاعف أسي لتحقيق تباطؤ أكثر مع كل محاولة فاشلة
+  // Use exponential multiplier to achieve more backoff with each failed attempt
+  const multiplier = Math.min(Math.pow(1.5, attempts), 10);
+  
+  // إضافة تباين عشوائي (± 20%)
+  // Add random jitter (± 20%)
+  const jitterFactor = 0.8 + (Math.random() * 0.4);
+  
+  // حساب وقت الانتظار النهائي
+  // Calculate final wait time
+  const waitTime = baseWaitTime * multiplier * jitterFactor;
+  
+  // الحد الأقصى لوقت الانتظار هو 5 دقائق
+  // Max wait time is 5 minutes
+  return Math.min(Math.round(waitTime), 5 * 60 * 1000);
 };

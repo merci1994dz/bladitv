@@ -1,7 +1,8 @@
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { syncWithSupabase } from '@/services/sync/supabaseSync';
 import { forceDataRefresh } from '@/services/sync/index';
-import { checkBladiInfoAvailability } from '@/services/sync/remote/syncOperations';
+import { checkBladiInfoAvailability } from '@/services/sync/remote/sync/sourceAvailability';
 import { useToast } from '@/hooks/use-toast';
 import { handleError } from '@/utils/errorHandling';
 import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';

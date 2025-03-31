@@ -1,31 +1,65 @@
 
-import { STORAGE_KEYS, REMOTE_CONFIG } from '../config';
+/**
+ * إعدادات المزامنة والمعلومات التهيئة
+ * Sync settings and configuration information
+ */
 
-// Helper function to get/set last sync time
-export const getLastSyncTime = (): string | null => {
-  return localStorage.getItem(STORAGE_KEYS.LAST_SYNC_TIME) || localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
+// مفاتيح التخزين المحلي
+// Local storage keys
+export const STORAGE_KEYS = {
+  CHANNELS: 'channels',
+  COUNTRIES: 'countries',
+  CATEGORIES: 'categories',
+  LAST_SYNC_TIME: 'last_sync_time',
+  FORCE_REFRESH: 'force_refresh',
+  LAST_SUCCESSFUL_SOURCE: 'last_successful_source',
+  DATA_VERSION: 'data_version'
 };
 
-export const updateLastSyncTime = (): string => {
-  const lastSyncTime = new Date().toISOString();
-  localStorage.setItem(STORAGE_KEYS.LAST_SYNC_TIME, lastSyncTime);
-  localStorage.setItem(STORAGE_KEYS.LAST_SYNC, lastSyncTime); // For backward compatibility
-  return lastSyncTime;
-};
+// وقت التخزين المؤقت للبيانات (30 دقيقة)
+// Cache time for data (30 minutes)
+export const DATA_CACHE_TIME = 30 * 60 * 1000;
 
-// Helper function to check if sync is needed
-export const isSyncNeeded = (): boolean => {
-  const hasChannels = !!localStorage.getItem(STORAGE_KEYS.CHANNELS);
-  const hasCategories = !!localStorage.getItem(STORAGE_KEYS.CATEGORIES);
-  const hasCountries = !!localStorage.getItem(STORAGE_KEYS.COUNTRIES);
-  
-  // Also check if last sync was more than a day ago
-  const lastSyncStr = localStorage.getItem(STORAGE_KEYS.LAST_SYNC_TIME) || localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
-  if (lastSyncStr) {
-    const lastSync = new Date(lastSyncStr);
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    if (lastSync < oneDayAgo) return true;
+// تحديث وقت آخر مزامنة
+// Update last sync time
+export const updateLastSyncTime = () => {
+  try {
+    const now = new Date().toISOString();
+    localStorage.setItem(STORAGE_KEYS.LAST_SYNC_TIME, now);
+  } catch (error) {
+    console.error('خطأ في تحديث وقت آخر مزامنة:', error);
   }
-  
-  return !hasChannels || !hasCategories || !hasCountries;
+};
+
+// الحصول على وقت آخر مزامنة
+// Get last sync time
+export const getLastSyncTime = (): string | null => {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.LAST_SYNC_TIME);
+  } catch (error) {
+    console.error('خطأ في الحصول على وقت آخر مزامنة:', error);
+    return null;
+  }
+};
+
+// فحص ما إذا كان التحديث الإجباري مطلوبًا
+// Check if force refresh is required
+export const isForceRefreshRequired = (): boolean => {
+  try {
+    const forceRefresh = localStorage.getItem(STORAGE_KEYS.FORCE_REFRESH);
+    return forceRefresh === 'true';
+  } catch (error) {
+    console.error('خطأ في فحص ما إذا كان التحديث الإجباري مطلوبًا:', error);
+    return false;
+  }
+};
+
+// تنظيف علامة التحديث الإجباري
+// Clear force refresh flag
+export const clearForceRefreshFlag = () => {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.FORCE_REFRESH);
+  } catch (error) {
+    console.error('خطأ في تنظيف علامة التحديث الإجباري:', error);
+  }
 };
