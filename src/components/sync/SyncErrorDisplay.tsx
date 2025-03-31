@@ -1,177 +1,85 @@
 
-import React, { useEffect, useState, useCallback } from 'react';
-import SyncErrorNotification from './SyncErrorNotification';
-import { getSyncError, clearSyncError } from '@/services/sync/status/errorHandling';
-import { toast } from '@/hooks/use-toast';
-import { retry, createProgressiveRetryStrategy } from '@/utils/retryStrategy';
-import { isSyncInProgress } from '@/services/sync/status/syncState';
-import { checkSupabaseConnection } from '@/services/sync/supabase/connection/connectionCheck';
+import React from 'react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { getSyncError } from '@/services/sync/status/errorHandling';
 
-interface SyncErrorDisplayProps {
-  syncError: string | null;
-  onRetry?: () => Promise<void>;
+// Define SyncError type to match what's being used
+export interface SyncError {
+  message: string;
+  time: string;
+  code?: string;
+  details?: {
+    source?: string;
+    type?: string;
+    reason?: string;
+    timestamp?: number;
+  };
 }
 
-/**
- * SyncErrorDisplay component to display sync errors
- * This component gets the error from localStorage if not provided directly
- */
-const SyncErrorDisplay: React.FC<SyncErrorDisplayProps> = ({ 
-  syncError: propsSyncError,
-  onRetry 
+interface SyncErrorDisplayProps {
+  error?: SyncError | null;
+  onRetry?: () => void;
+  onDismiss?: () => void;
+  compact?: boolean;
+}
+
+const SyncErrorDisplay: React.FC<SyncErrorDisplayProps> = ({
+  error = getSyncError(),
+  onRetry,
+  onDismiss,
+  compact = false
 }) => {
-  const [localSyncError, setLocalSyncError] = useState<string | null>(null);
-  const [isRetrying, setIsRetrying] = useState(false);
-  const [errorDetails, setErrorDetails] = useState<{ 
-    type: string; 
-    message: string;
-    errorCode?: string;
-    timestamp?: number;
-  } | null>(null);
-  
-  // إذا لم يتم توفير خطأ مباشر، قم بالتحقق من التخزين المحلي
-  useEffect(() => {
-    if (propsSyncError === null) {
-      try {
-        const storedError = getSyncError();
-        if (storedError) {
-          setLocalSyncError(storedError.message);
-          
-          // تعيين تفاصيل الخطأ إذا كانت متوفرة
-          if (storedError.details) {
-            setErrorDetails({
-              type: storedError.details.code || 'unknown',
-              message: storedError.message,
-              errorCode: storedError.details.code,
-              timestamp: storedError.timestamp
-            });
-          }
-        } else {
-          setLocalSyncError(null);
-          setErrorDetails(null);
-        }
-      } catch (error) {
-        console.error('فشل في استرداد خطأ المزامنة من التخزين المحلي:', error);
-        setLocalSyncError(null);
-        setErrorDetails(null);
-      }
-    } else if (propsSyncError) {
-      // تحليل الخطأ المقدم مباشرة
-      const isDuplicateKey = propsSyncError.includes('duplicate key') || 
-                             propsSyncError.includes('23505');
-      
-      const isConnectionError = propsSyncError.includes('connection') || 
-                                propsSyncError.includes('اتصال') ||
-                                propsSyncError.includes('network');
-      
-      setErrorDetails({
-        type: isDuplicateKey ? 'duplicate_key' : 
-              isConnectionError ? 'connection' : 'unknown',
-        message: propsSyncError,
-        timestamp: Date.now()
-      });
-    }
-  }, [propsSyncError]);
-  
-  // التعامل مع أخطاء المفاتيح المكررة تلقائياً
-  useEffect(() => {
-    if (errorDetails?.type === 'duplicate_key' && !isRetrying) {
-      console.log('محاولة إصلاح خطأ المفتاح المكرر تلقائياً...');
-      
-      const fixDuplicateKeyError = async () => {
-        try {
-          setIsRetrying(true);
-          // محاولة معالجة خطأ المفتاح المكرر (هنا يمكن إضافة منطق خاص)
-          const isFixed = true; // تم تعديله من استدعاء الوظيفة غير الموجودة
-          
-          if (isFixed) {
-            // في حالة النجاح، قم بمسح الخطأ
-            clearSyncError();
-            setLocalSyncError(null);
-            setErrorDetails(null);
-            
-            toast({
-              title: "تم إصلاح المشكلة",
-              description: "تم إصلاح مشكلة المفتاح المكرر",
-              duration: 3000,
-            });
-            
-            // إعادة المحاولة إذا كان متاحاً
-            if (onRetry) {
-              await onRetry();
-            }
-          }
-        } catch (error) {
-          console.error('فشل في إصلاح خطأ المفتاح المكرر:', error);
-        } finally {
-          setIsRetrying(false);
-        }
-      };
-      
-      fixDuplicateKeyError();
-    }
-  }, [errorDetails, isRetrying, onRetry]);
-  
-  // وظيفة إعادة المحاولة المحسنة مع آلية التأخير التقدمي
-  const handleRetry = useCallback(async () => {
-    if (!onRetry || isRetrying || isSyncInProgress()) {
-      return;
-    }
-    
-    setIsRetrying(true);
-    
-    try {
-      // التحقق من اتصال Supabase أولاً
-      const isConnected = await checkSupabaseConnection();
-      
-      if (!isConnected) {
-        toast({
-          title: "تعذر الاتصال",
-          description: "لا يمكن الاتصال بـ Supabase. تحقق من اتصالك بالإنترنت.",
-          variant: "destructive",
-          duration: 5000,
-        });
-        return;
-      }
-      
-      await retry(
-        async () => {
-          await onRetry();
-          // في حالة النجاح، قم بمسح الخطأ
-          clearSyncError();
-          setLocalSyncError(null);
-          setErrorDetails(null);
-          
-          toast({
-            title: "نجحت إعادة المحاولة",
-            description: "تم تحديث البيانات بنجاح",
-            duration: 3000,
-          });
-        },
-        createProgressiveRetryStrategy(2, true)
-      );
-    } catch (error) {
-      console.error('فشلت إعادة المحاولة:', error);
-      toast({
-        title: "فشلت إعادة المحاولة",
-        description: "تعذر تحديث البيانات. يرجى المحاولة مرة أخرى لاحقًا.",
-        variant: "destructive",
-        duration: 5000,
-      });
-    } finally {
-      setIsRetrying(false);
-    }
-  }, [onRetry, isRetrying]);
-  
-  // استخدم الخطأ من الخارج إذا كان موجودًا، وإلا استخدم الخطأ المحلي
-  const finalError = propsSyncError || localSyncError;
+  if (!error) return null;
   
   return (
-    <SyncErrorNotification 
-      syncError={finalError} 
-      onRetry={handleRetry} 
-      errorDetails={errorDetails} 
-    />
+    <div className={`bg-red-50 border border-red-200 rounded-lg p-4 ${compact ? 'text-sm' : ''}`}>
+      <div className="flex items-start">
+        <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 mr-2 flex-shrink-0" />
+        <div className="flex-1">
+          <h4 className="text-red-800 font-medium">خطأ في المزامنة</h4>
+          <p className="text-red-700 mt-1">{error.message}</p>
+          
+          {error.details && !compact && (
+            <div className="mt-2 text-xs text-red-600">
+              {error.details.source && <div>المصدر: {error.details.source}</div>}
+              {error.details.type && <div>النوع: {error.details.type}</div>}
+              {error.details.reason && <div>السبب: {error.details.reason}</div>}
+              {error.details.timestamp && (
+                <div>الوقت: {new Date(error.details.timestamp).toLocaleString()}</div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {(onRetry || onDismiss) && (
+        <div className="flex gap-2 mt-3 justify-end">
+          {onRetry && (
+            <Button 
+              size="sm" 
+              onClick={onRetry}
+              variant="outline"
+              className="flex items-center"
+            >
+              <RefreshCw className="h-3.5 w-3.5 mr-1" />
+              إعادة المحاولة
+            </Button>
+          )}
+          
+          {onDismiss && (
+            <Button 
+              size="sm" 
+              onClick={onDismiss}
+              variant="ghost"
+              className="text-red-700 hover:text-red-800"
+            >
+              تجاهل
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
   );
 };
 

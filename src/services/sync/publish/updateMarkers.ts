@@ -45,3 +45,39 @@ export const addForceRefreshMarkers = (): void => {
   localStorage.setItem('force_reload_all', 'true');
   localStorage.setItem('refresh_timestamp', timestamp);
 };
+
+// Create update marker for data sync events
+export const createUpdateMarker = (type: string = 'data'): string => {
+  const timestamp = Date.now().toString();
+  
+  if (type === 'channel') {
+    addChannelUpdateMarkers(timestamp);
+  } else if (type === 'force') {
+    addForceRefreshMarkers();
+  } else {
+    addUpdateMarkers(timestamp);
+  }
+  
+  return timestamp;
+};
+
+// Check for updates by comparing timestamps
+export const checkForUpdates = (): { hasUpdates: boolean; timestamp: string | null } => {
+  const lastUpdate = localStorage.getItem('data_version');
+  const lastChecked = localStorage.getItem('last_update_check');
+  const forceRefresh = localStorage.getItem('force_browser_refresh');
+  
+  // Determine if there are updates
+  const hasUpdates = 
+    (lastUpdate && lastChecked && lastUpdate > lastChecked) || 
+    forceRefresh === 'true';
+    
+  // Update the last checked timestamp
+  const currentTime = Date.now().toString();
+  localStorage.setItem('last_update_check', currentTime);
+  
+  return {
+    hasUpdates,
+    timestamp: lastUpdate
+  };
+};
