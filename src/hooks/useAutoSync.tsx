@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { syncWithSupabase, initializeSupabaseTables } from '@/services/sync/supabaseSync';
-import { checkBladiInfoAvailability } from '@/services/sync/sourceCheck';
+import { checkBladiInfoAvailability } from '@/services/sync/remote/sync/sourceAvailability';
 
 // تعريف نوع لخطأ المزامنة
 interface SyncError {
@@ -90,6 +90,11 @@ export const useAutoSync = () => {
     };
   }, [handleOnline, handleFocus]);
   
+  // إضافة دالة لإعادة تعيين خطأ المزامنة
+  const resetSyncError = useCallback(() => {
+    setSyncError(null);
+  }, []);
+  
   return {
     isSyncing,
     availableSource,
@@ -98,6 +103,7 @@ export const useAutoSync = () => {
     initializeSupabase,
     performInitialSync,
     handleOnline,
-    handleFocus
+    handleFocus,
+    resetSyncError
   };
 };

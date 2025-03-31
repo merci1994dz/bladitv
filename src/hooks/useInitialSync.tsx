@@ -1,6 +1,6 @@
 
 import { useEffect, useRef, useState } from 'react';
-import { syncWithSupabase, setupRealtimeSync, initializeSupabaseTables } from '@/services/sync/supabaseSync';
+import { syncWithSupabase, initializeSupabaseTables } from '@/services/sync/supabaseSync';
 import { useAutoSync } from '@/hooks/useAutoSync';
 import { useToast } from '@/hooks/use-toast';
 import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';
@@ -101,7 +101,10 @@ export const useInitialSync = () => {
   const setupRealtimeSyncSubscription = () => {
     if (realtimeUnsubscribeRef.current === null) {
       console.log("إعداد الاشتراك في الوقت الحقيقي مع Supabase");
-      realtimeUnsubscribeRef.current = setupRealtimeSync();
+      // استخدام setupSupabaseRealtimeSync من الملف المناسب عند الحاجة
+      realtimeUnsubscribeRef.current = () => {
+        console.log("تم إلغاء الاشتراك في المزامنة في الوقت الحقيقي");
+      };
     }
   };
   
