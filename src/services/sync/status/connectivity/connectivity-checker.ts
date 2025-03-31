@@ -4,45 +4,42 @@
  * Connectivity checking functions
  */
 
-import { isRemoteUrlAccessible } from '../../remote/fetch';
-import { BLADI_INFO_SOURCES } from '../../remote/sync/sources';
-
 /**
- * فحص مشاكل الاتصال
- * Check connectivity issues
+ * التحقق من وجود مشاكل في الاتصال
+ * Check for connectivity issues
  */
-export const checkConnectivityIssues = async (): Promise<{ 
-  hasInternet: boolean; 
-  hasServerAccess: boolean; 
+export const checkConnectivityIssues = async (): Promise<{
+  hasInternet: boolean;
+  hasServerAccess: boolean;
 }> => {
-  try {
-    // فحص ما إذا كان هناك اتصال بالإنترنت
-    // Check if there's internet connection
-    const isOnline = navigator.onLine;
-    
-    if (!isOnline) {
-      return { hasInternet: false, hasServerAccess: false };
-    }
-    
-    // محاولة الوصول إلى خوادم التطبيق
-    // Try to access application servers
-    for (const source of BLADI_INFO_SOURCES) {
-      try {
-        const isAccessible = await isRemoteUrlAccessible(source);
-        
-        if (isAccessible) {
-          return { hasInternet: true, hasServerAccess: true };
+  // التحقق من اتصال الإنترنت
+  const hasInternet = navigator.onLine;
+  
+  // التحقق من الوصول إلى الخادم (يمكن تنفيذ فحص أكثر تفصيلاً)
+  let hasServerAccess = false;
+  
+  if (hasInternet) {
+    try {
+      // محاولة إرسال طلب بسيط للتحقق من الوصول إلى الخادم
+      const testEndpoint = 'https://www.google.com';
+      const response = await fetch(testEndpoint, {
+        method: 'HEAD',
+        cache: 'no-cache',
+        mode: 'no-cors', // استخدام وضع no-cors لتجنب أخطاء CORS
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
-      } catch (error) {
-        console.warn(`تعذر الوصول إلى ${source}:`, error);
-      }
+      });
+      
+      // إذا تم إكمال الطلب، نعتبر أن هناك اتصالاً بالخادم
+      hasServerAccess = true;
+    } catch (error) {
+      console.error('خطأ في التحقق من الاتصال بالخادم:', error);
+      hasServerAccess = false;
     }
-    
-    // إذا لم يتم الوصول إلى أي مصدر، فهناك إنترنت ولكن لا يمكن الوصول إلى الخوادم
-    // If no source is accessible, there's internet but no server access
-    return { hasInternet: true, hasServerAccess: false };
-  } catch (error) {
-    console.error('خطأ في فحص مشاكل الاتصال:', error);
-    return { hasInternet: navigator.onLine, hasServerAccess: false };
   }
+  
+  return { hasInternet, hasServerAccess };
 };

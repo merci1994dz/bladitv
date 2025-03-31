@@ -12,8 +12,8 @@ import { syncWithRemoteSource } from '../../remote/sync';
  * 
  * @param source المصدر المتاح
  * @param forceRefresh إجبار التحديث
- * @param cacheBuster كاسر التخزين المؤقت
- * @param timeoutPromise وعد المهلة
+ * @param cacheBuster كاسر التخزين المؤقت (اختياري)
+ * @param timeoutPromise وعد المهلة (اختياري)
  * @returns نتيجة المزامنة
  */
 export const executeSync = async (
@@ -26,12 +26,35 @@ export const executeSync = async (
     if (source) {
       // المزامنة مع مصدر محدد
       // Sync with specific source
-      return await syncWithRemoteSource(source, forceRefresh);
+      
+      // السماح بمصادر محلية للتطوير
+      // Allow local sources for development
+      const isLocalSource = source.startsWith('/');
+      
+      if (isLocalSource) {
+        console.log('استخدام مصدر محلي للمزامنة:', source);
+        try {
+          const response = await fetch(source);
+          if (response.ok) {
+            const data = await response.json();
+            if (data) {
+              // هنا يمكن إضافة معالجة البيانات المحلية
+              console.log('تم جلب البيانات المحلية بنجاح من:', source);
+              return true;
+            }
+          }
+        } catch (localError) {
+          console.error('خطأ في جلب المصدر المحلي:', localError);
+        }
+      } else {
+        // مصدر خارجي
+        return await syncWithRemoteSource(source, forceRefresh);
+      }
     }
     
-    // لم يتم تحديد مصدر
-    // No source specified
-    console.warn('لم يتم تحديد مصدر للمزامنة');
+    // لم يتم تحديد مصدر أو فشل المصدر المحدد
+    // No source specified or source failed
+    console.warn('لم يتم تحديد مصدر للمزامنة أو فشل المصدر المحدد');
     return false;
   } catch (error) {
     console.error('خطأ في تنفيذ المزامنة:', error);

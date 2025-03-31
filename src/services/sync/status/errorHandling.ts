@@ -9,7 +9,7 @@
 const SYNC_ERROR_KEY = 'sync_error';
 
 // Types for error management
-interface SyncError {
+export interface SyncError {
   message: string;
   time: string;
   code?: string;
@@ -30,7 +30,10 @@ export const setSyncError = (errorMessage: string, errorCode?: string): void => 
     const error: SyncError = {
       message: errorMessage,
       time: new Date().toISOString(),
-      code: errorCode
+      code: errorCode,
+      details: {
+        timestamp: Date.now()
+      }
     };
     
     localStorage.setItem(SYNC_ERROR_KEY, JSON.stringify(error));
