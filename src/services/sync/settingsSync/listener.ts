@@ -1,74 +1,91 @@
 
 /**
- * مستمع لتغييرات الإعدادات
- * Listener for settings changes
+ * مستمع لتحديثات الإعدادات
+ * Settings update listener
  */
 
 import { syncData } from '../index';
-import { getLastSyncTime } from '../config';
+import { getLastSyncTime } from '../status/timestamp';
 
-// إعداد مستمع لتغييرات الإعدادات
-export const setupSettingsSyncListener = (): (() => void) => {
-  console.log('إعداد مستمع لتغييرات الإعدادات...');
-  
-  // مستمع للتحقق من وجود علامة التحديث الإجباري
-  const checkForRefreshFlag = async () => {
-    try {
-      // التحقق من وجود علامة التحديث الإجباري في التخزين المحلي
-      const forceRefresh = localStorage.getItem('force_browser_refresh');
-      
-      if (forceRefresh === 'true') {
-        console.log('تم اكتشاف علامة التحديث الإجباري، جاري المزامنة...');
+// مفتاح تخزين وقت آخر تحقق من الإعدادات
+// Storage key for last settings check time
+const LAST_SETTINGS_CHECK_KEY = 'last_settings_check';
+
+/**
+ * إعداد مستمع لمزامنة الإعدادات
+ * Setup settings sync listener
+ */
+export const setupSettingsSyncListener = (): void => {
+  try {
+    // تعيين فترة التحقق (بالمللي ثانية)
+    // Set check interval (in milliseconds)
+    const checkInterval = 60000; // كل دقيقة
+    
+    // وظيفة التحقق من تحديثات الإعدادات
+    // Function to check for settings updates
+    const checkForSettingsUpdates = async () => {
+      try {
+        // التحقق من وقت آخر تحقق
+        // Check for last check time
+        const lastCheckStr = localStorage.getItem(LAST_SETTINGS_CHECK_KEY);
+        const lastCheck = lastCheckStr ? parseInt(lastCheckStr, 10) : 0;
+        const now = Date.now();
         
-        // مسح العلامة
-        localStorage.removeItem('force_browser_refresh');
-        
-        // تنفيذ المزامنة
-        await syncData(true);
-        
-        // إطلاق حدث تحديث البيانات
-        const event = new CustomEvent('app_data_updated', {
-          detail: { source: 'settings_sync', timestamp: Date.now() }
-        });
-        window.dispatchEvent(event);
+        // إذا مر وقت كافٍ منذ آخر تحقق
+        // If enough time has passed since last check
+        if (now - lastCheck > checkInterval) {
+          // تحديث وقت آخر تحقق
+          // Update last check time
+          localStorage.setItem(LAST_SETTINGS_CHECK_KEY, now.toString());
+          
+          // فحص التحديثات
+          // Check for updates
+          console.log('التحقق من تحديثات الإعدادات...');
+          
+          // محاولة المزامنة
+          // Try to sync
+          await syncData();
+        }
+      } catch (error) {
+        console.error('خطأ في التحقق من تحديثات الإعدادات:', error);
       }
-    } catch (error) {
-      console.error('خطأ في التحقق من علامة التحديث الإجباري:', error);
-    }
-  };
-  
-  // فحص فوري
-  checkForRefreshFlag();
-  
-  // إعداد فحص دوري
-  const intervalId = setInterval(checkForRefreshFlag, 60000); // كل دقيقة
-  
-  // مستمع لتغييرات التخزين المحلي
-  const handleStorageChange = (event: StorageEvent) => {
-    if (event.key === 'force_browser_refresh' && event.newValue === 'true') {
-      console.log('تم اكتشاف تغيير في علامة التحديث الإجباري، جاري المزامنة...');
-      checkForRefreshFlag();
-    }
-  };
-  
-  // إعداد مستمع التخزين المحلي
-  window.addEventListener('storage', handleStorageChange);
-  
-  // دالة التنظيف
-  return () => {
-    clearInterval(intervalId);
-    window.removeEventListener('storage', handleStorageChange);
-  };
-};
-
-// الحصول على حالة المزامنة الحالية
-export const getSyncStatus = () => {
-  const lastSyncTime = getLastSyncTime();
-  const lastSync = lastSyncTime ? new Date(lastSyncTime) : null;
-  
-  return {
-    lastSync,
-    lastSyncFormatted: lastSync ? lastSync.toLocaleString() : 'لم تتم المزامنة بعد',
-    hasEverSynced: !!lastSyncTime
-  };
+    };
+    
+    // إعداد فترة التحقق
+    // Setup check interval
+    const intervalId = setInterval(checkForSettingsUpdates, checkInterval);
+    
+    // إضافة مستمع لحدث تحديث الإعدادات
+    // Add listener for settings update event
+    const handleSettingsUpdate = async (event: CustomEvent) => {
+      try {
+        console.log('تم استلام حدث تحديث الإعدادات:', event.detail);
+        
+        // تحديث وقت آخر تحقق
+        // Update last check time
+        localStorage.setItem(LAST_SETTINGS_CHECK_KEY, Date.now().toString());
+        
+        // محاولة المزامنة
+        // Try to sync
+        await syncData(true);
+      } catch (error) {
+        console.error('خطأ في معالجة تحديث الإعدادات:', error);
+      }
+    };
+    
+    window.addEventListener('settings_updated', handleSettingsUpdate as EventListener);
+    
+    // إضافة وظيفة التنظيف عند تفريغ الصفحة
+    // Add cleanup function when page unloads
+    window.addEventListener('beforeunload', () => {
+      clearInterval(intervalId);
+      window.removeEventListener('settings_updated', handleSettingsUpdate as EventListener);
+    });
+    
+    // تشغيل التحقق الأولي بعد فترة قصيرة
+    // Run initial check after short delay
+    setTimeout(checkForSettingsUpdates, 5000);
+  } catch (error) {
+    console.error('خطأ في إعداد مستمع مزامنة الإعدادات:', error);
+  }
 };

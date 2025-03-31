@@ -13,7 +13,8 @@ export {
 // Export sync error management functions
 export {
   setSyncError,
-  clearSyncError
+  clearSyncError,
+  getSyncError
 } from './errorHandling';
 
 // Export timestamp management functions
@@ -25,7 +26,7 @@ export {
 // Export connectivity checking functions
 export {
   checkConnectivityIssues
-} from './connectivity/connectivity-checker';
+} from './connectivity';
 
 // Re-export all for backward compatibility
 export * from './syncState';

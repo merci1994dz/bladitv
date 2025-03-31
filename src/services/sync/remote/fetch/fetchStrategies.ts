@@ -59,7 +59,7 @@ export const tryDirectFetchStrategy = async (url: string, retryCount: number, si
     console.log(`محاولة الطلب المباشر للرابط: ${urlWithCache}`);
     
     // إنشاء الرؤوس الأساسية مع رؤوس إضافية للتغلب على قيود CORS
-    let headers: Record<string, string> = {
+    let headerEntries: Record<string, string> = {
       'Accept': 'application/json, text/plain, */*',
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
@@ -73,18 +73,24 @@ export const tryDirectFetchStrategy = async (url: string, retryCount: number, si
     };
     
     // إضافة رؤوس حماية التزامن
-    headers = addSkewProtectionHeaders(headers);
+    headerEntries = addSkewProtectionHeaders(headerEntries);
     
     // تكييف خيارات الطلب بناءً على المتصفح وعدد المحاولات
     // تعديل استراتيجية mode بناءً على رقم المحاولة
     const mode = retryCount <= 2 ? 'cors' : (retryCount <= 4 ? 'no-cors' : 'cors');
+    
+    // تحويل Record<string, string> إلى Headers
+    const headers = new Headers();
+    Object.entries(headerEntries).forEach(([key, value]) => {
+      headers.append(key, value);
+    });
     
     let fetchOptions: RequestInit = {
       method: 'GET',
       headers,
       cache: 'no-store',
       signal,
-      mode,
+      mode: mode as RequestMode,
       credentials: 'omit',
       referrer: window.location.origin,
       referrerPolicy: 'origin'

@@ -27,3 +27,7 @@ export const setIsSyncing = (syncing: boolean) => {
 export const getIsSyncing = (): boolean => {
   return isSyncing;
 };
+
+// تصدير متغير isSyncing للتوافق الخلفي
+// Export isSyncing variable for backward compatibility
+export { isSyncing };

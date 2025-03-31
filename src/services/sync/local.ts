@@ -1,70 +1,86 @@
 
 /**
- * وظائف المزامنة المحلية
- * Local sync functions
+ * المزامنة مع البيانات المحلية
+ * Syncing with local data
  */
 
-import { loadFromLocalStorage, saveChannelsToStorage } from '../dataStore/storage';
-import { updateLastSyncTime } from './config';
+import { channels, countries, categories } from '../dataStore/state';
+import { STORAGE_KEYS } from './config';
 
 /**
  * تحميل البيانات من التخزين المحلي
  * Load data from local storage
  */
-export const loadLocalData = async (): Promise<boolean> => {
+export const loadFromLocalStorage = (): void => {
   try {
-    const loaded = loadFromLocalStorage();
-    
-    if (loaded) {
-      console.log('تم تحميل البيانات من التخزين المحلي بنجاح');
-      return true;
+    // تحميل القنوات
+    // Load channels
+    const channelsData = localStorage.getItem(STORAGE_KEYS.CHANNELS);
+    if (channelsData) {
+      const parsedChannels = JSON.parse(channelsData);
+      channels.length = 0;
+      channels.push(...parsedChannels);
     }
     
-    console.warn('لم يتم العثور على بيانات محلية');
-    return false;
+    // تحميل البلدان
+    // Load countries
+    const countriesData = localStorage.getItem(STORAGE_KEYS.COUNTRIES);
+    if (countriesData) {
+      const parsedCountries = JSON.parse(countriesData);
+      countries.length = 0;
+      countries.push(...parsedCountries);
+    }
+    
+    // تحميل الفئات
+    // Load categories
+    const categoriesData = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
+    if (categoriesData) {
+      const parsedCategories = JSON.parse(categoriesData);
+      categories.length = 0;
+      categories.push(...parsedCategories);
+    }
   } catch (error) {
-    console.error('خطأ في تحميل البيانات المحلية:', error);
-    return false;
+    console.error('خطأ في تحميل البيانات من التخزين المحلي:', error);
   }
 };
 
 /**
- * حفظ البيانات في التخزين المحلي
+ * حفظ البيانات إلى التخزين المحلي
  * Save data to local storage
  */
-export const saveLocalData = async (): Promise<boolean> => {
+export const saveChannelsToStorage = (): void => {
   try {
-    const saved = await saveChannelsToStorage();
-    
-    if (saved) {
-      console.log('تم حفظ البيانات في التخزين المحلي بنجاح');
-      updateLastSyncTime();
-      return true;
-    }
-    
-    console.error('فشل حفظ البيانات في التخزين المحلي');
-    return false;
+    localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(channels));
+    localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(countries));
+    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
   } catch (error) {
-    console.error('خطأ في حفظ البيانات المحلية:', error);
+    console.error('خطأ في حفظ البيانات إلى التخزين المحلي:', error);
+  }
+};
+
+/**
+ * مزامنة البيانات من التخزين المحلي
+ * Sync data from local storage
+ */
+export const syncWithLocalData = async (): Promise<boolean> => {
+  try {
+    loadFromLocalStorage();
+    return true;
+  } catch (error) {
+    console.error('خطأ في مزامنة البيانات من التخزين المحلي:', error);
     return false;
   }
 };
 
 /**
- * حذف جميع البيانات المحلية
- * Clear all local data
+ * الحصول على وقت آخر مزامنة
+ * Get last sync time
  */
-export const clearLocalData = (): boolean => {
+export const getLastSyncTime = (): string | null => {
   try {
-    localStorage.removeItem('channels');
-    localStorage.removeItem('countries');
-    localStorage.removeItem('categories');
-    localStorage.removeItem('last_sync_time');
-    
-    console.log('تم حذف جميع البيانات المحلية');
-    return true;
+    return localStorage.getItem(STORAGE_KEYS.LAST_SYNC_TIME);
   } catch (error) {
-    console.error('خطأ في حذف البيانات المحلية:', error);
-    return false;
+    console.error('خطأ في الحصول على وقت آخر مزامنة:', error);
+    return null;
   }
 };

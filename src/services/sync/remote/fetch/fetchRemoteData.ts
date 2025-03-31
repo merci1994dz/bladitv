@@ -4,61 +4,75 @@
  * Functions for fetching data from external sources
  */
 
-import { addSkewProtectionHeaders } from './skewProtection';
+import { fetchWithAllStrategies } from './fetchStrategies';
 
 /**
- * التحقق من إمكانية الوصول إلى عنوان URL
- * Check if a URL is accessible
+ * جلب البيانات من مصدر خارجي
+ * Fetch data from remote source
  */
-export const isRemoteUrlAccessible = async (url: string): Promise<boolean> => {
+export const fetchRemoteData = async (url: string): Promise<any> => {
+  console.log(`جلب البيانات من ${url}...`);
+  
+  // استخدام الإشارة للتمكن من إلغاء الطلب
+  // Use signal to be able to cancel the request
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
+  
   try {
-    // Use HEAD request instead of GET for better performance
-    const method = url.startsWith('/') ? 'GET' : 'HEAD';
+    // محاولة جلب البيانات باستخدام جميع الاستراتيجيات المتاحة
+    // Try fetching data using all available strategies
+    const data = await fetchWithAllStrategies(url, 0, controller.signal);
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    
-    const headers = new Headers();
-    addSkewProtectionHeaders(headers);
-    
-    const response = await fetch(url, {
-      method,
-      headers,
-      signal: controller.signal,
-      cache: 'no-store'
-    });
-    
+    // إلغاء المهلة
+    // Cancel timeout
     clearTimeout(timeoutId);
-    return response.ok;
+    
+    return data;
   } catch (error) {
-    console.warn(`تعذر الوصول إلى ${url}:`, error);
-    return false;
+    console.error(`خطأ في جلب البيانات من ${url}:`, error);
+    
+    // إلغاء المهلة
+    // Cancel timeout
+    clearTimeout(timeoutId);
+    
+    throw error;
   }
 };
 
 /**
- * جلب البيانات من مصدر خارجي
- * Fetch data from an external source
+ * التحقق مما إذا كان عنوان URL الخارجي قابلاً للوصول
+ * Check if remote URL is accessible
  */
-export const fetchRemoteData = async (url: string): Promise<any> => {
+export const isRemoteUrlAccessible = async (url: string): Promise<boolean> => {
+  console.log(`التحقق من إمكانية الوصول إلى ${url}...`);
+  
+  // استخدام الإشارة للتمكن من إلغاء الطلب
+  // Use signal to be able to cancel the request
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds timeout
+  
   try {
-    const headers = new Headers();
-    addSkewProtectionHeaders(headers);
-    
+    // محاولة الاتصال بالعنوان
+    // Try connecting to the URL
     const response = await fetch(url, {
-      method: 'GET',
-      headers,
-      cache: 'no-store'
+      method: 'HEAD',
+      cache: 'no-store',
+      signal: controller.signal,
+      mode: 'no-cors'
     });
     
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    // إلغاء المهلة
+    // Cancel timeout
+    clearTimeout(timeoutId);
     
-    const data = await response.json();
-    return data;
+    return response.status >= 200 && response.status < 400;
   } catch (error) {
-    console.error(`خطأ في جلب البيانات من ${url}:`, error);
-    throw error;
+    console.warn(`تعذر الوصول إلى ${url}:`, error);
+    
+    // إلغاء المهلة
+    // Cancel timeout
+    clearTimeout(timeoutId);
+    
+    return false;
   }
 };

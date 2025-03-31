@@ -1,81 +1,48 @@
 
 /**
- * وظائف فحص حالة الاتصال
- * Functions for checking connectivity status
+ * وظائف فحص الاتصال
+ * Connectivity checking functions
  */
 
 import { isRemoteUrlAccessible } from '../../remote/fetch';
-import { checkBladiInfoAvailability } from '../../remote/sync/sourceAvailability';
+import { BLADI_INFO_SOURCES } from '../../remote/sync/sources';
 
 /**
  * فحص مشاكل الاتصال
  * Check connectivity issues
  */
-export const checkConnectivityIssues = async (): Promise<{
-  hasInternet: boolean;
-  hasServerAccess: boolean;
-  details?: string;
+export const checkConnectivityIssues = async (): Promise<{ 
+  hasInternet: boolean; 
+  hasServerAccess: boolean; 
 }> => {
-  // التحقق من الاتصال بالإنترنت
-  // Check for internet connection
-  const hasInternet = navigator.onLine;
-  
-  if (!hasInternet) {
-    return {
-      hasInternet: false,
-      hasServerAccess: false,
-      details: 'No internet connection'
-    };
-  }
-  
   try {
-    // محاولة الوصول إلى مصادر البيانات
-    // Try to access data sources
-    const availableSource = await checkBladiInfoAvailability();
+    // فحص ما إذا كان هناك اتصال بالإنترنت
+    // Check if there's internet connection
+    const isOnline = navigator.onLine;
     
-    if (availableSource) {
-      return {
-        hasInternet: true,
-        hasServerAccess: true,
-        details: `Available source: ${availableSource}`
-      };
+    if (!isOnline) {
+      return { hasInternet: false, hasServerAccess: false };
     }
     
-    // محاولة الوصول إلى خدمات معروفة للتحقق من الاتصال
-    // Try to access known services to verify connection
-    const services = [
-      'https://www.google.com',
-      'https://www.cloudflare.com',
-      'https://www.microsoft.com'
-    ];
-    
-    let serviceAccessible = false;
-    
-    for (const service of services) {
+    // محاولة الوصول إلى خوادم التطبيق
+    // Try to access application servers
+    for (const source of BLADI_INFO_SOURCES) {
       try {
-        const canAccess = await isRemoteUrlAccessible(service);
-        if (canAccess) {
-          serviceAccessible = true;
-          break;
+        const isAccessible = await isRemoteUrlAccessible(source);
+        
+        if (isAccessible) {
+          return { hasInternet: true, hasServerAccess: true };
         }
-      } catch (err) {
-        // Continue to next service
+      } catch (error) {
+        console.warn(`تعذر الوصول إلى ${source}:`, error);
       }
     }
     
-    return {
-      hasInternet: true,
-      hasServerAccess: serviceAccessible,
-      details: serviceAccessible 
-        ? 'Can access internet but not data sources' 
-        : 'Internet connection appears limited'
-    };
+    // إذا لم يتم الوصول إلى أي مصدر، فهناك إنترنت ولكن لا يمكن الوصول إلى الخوادم
+    // If no source is accessible, there's internet but no server access
+    return { hasInternet: true, hasServerAccess: false };
   } catch (error) {
-    console.error('Error checking connectivity:', error);
-    return {
-      hasInternet: true,
-      hasServerAccess: false,
-      details: `Error during check: ${error instanceof Error ? error.message : String(error)}`
-    };
+    console.error('خطأ في فحص مشاكل الاتصال:', error);
+    return { hasInternet: navigator.onLine, hasServerAccess: false };
   }
 };

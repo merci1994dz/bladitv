@@ -1,10 +1,22 @@
 
 import { channels, countries, categories } from './dataStore';
-import { getLastSyncTime } from './sync/config';
+import { getLastSyncTime } from './sync/status/timestamp';
 import { syncData } from './sync';
 
+// جلب البيانات الحالية للنسخة الاحتياطية
+// Get current data for backup
+export const createBackup = () => {
+  return {
+    channels,
+    countries,
+    categories,
+    exportDate: new Date().toISOString(),
+    lastSyncTime: getLastSyncTime() || ''
+  };
+};
+
 // استيراد البيانات من ملف
-export const importDataFromFile = async (file: File): Promise<boolean> => {
+export const importBackup = async (file: File): Promise<boolean> => {
   try {
     return new Promise<boolean>((resolve, reject) => {
       const reader = new FileReader();
@@ -71,16 +83,10 @@ export const importDataFromFile = async (file: File): Promise<boolean> => {
 };
 
 // تصدير البيانات إلى ملف
-export const exportDataToFile = (): void => {
+export const exportBackup = (): void => {
   try {
     // تجميع البيانات للتصدير
-    const exportData = {
-      channels,
-      countries,
-      categories,
-      exportDate: new Date().toISOString(),
-      lastSyncTime: getLastSyncTime()
-    };
+    const exportData = createBackup();
     
     // تحويل البيانات إلى سلسلة JSON
     const jsonString = JSON.stringify(exportData, null, 2);

@@ -1,71 +1,55 @@
 
-// دالة محسّنة للتأكد من تحديث الإعدادات مع المستخدمين
-export const broadcastSettingsUpdate = (): void => {
-  // إضافة طابع زمني لإعلام جميع نوافذ المتصفح بالتغيير
-  const timestamp = Date.now().toString();
-  
-  // محاولة استخدام عدة طرق للنشر للتوافق مع مختلف المتصفحات
+/**
+ * وظائف بث تحديثات الإعدادات
+ * Settings updates broadcast functions
+ */
+
+/**
+ * بث تحديث الإعدادات
+ * Broadcast settings update
+ */
+export const broadcastSettingsUpdate = (settings: Record<string, any>): void => {
   try {
-    // استخدام localStorage - الطريقة الأساسية
-    localStorage.setItem('settings_updated', timestamp);
-    localStorage.setItem('bladi_info_update', timestamp);
-    localStorage.setItem('force_refresh', 'true');
-    localStorage.setItem('data_version', timestamp);
-    localStorage.setItem('nocache_version', timestamp);
+    console.log('بث تحديث الإعدادات:', settings);
     
-    // استخدام sessionStorage أيضًا كطريقة إضافية
-    sessionStorage.setItem('update_notification', timestamp);
+    // حفظ البيانات في التخزين المحلي
+    // Save data to local storage
+    const timestamp = Date.now();
+    localStorage.setItem('settings_update_timestamp', timestamp.toString());
+    localStorage.setItem('settings_update_data', JSON.stringify(settings));
     
-    // استخدام cookies كطريقة ثالثة (مدة صلاحية يوم واحد)
-    document.cookie = `update_check=${timestamp}; path=/; max-age=86400`;
-    
-    // تأخير بعض التغييرات لضمان الانتشار
-    setTimeout(() => {
-      localStorage.setItem('delayed_update', timestamp);
-      localStorage.setItem('bladi_update_version', timestamp);
-    }, 200);
-    
-    console.log('تم نشر تحديث الإعدادات للمستخدمين عبر عدة قنوات:', timestamp);
+    // إطلاق حدث تحديث الإعدادات
+    // Dispatch settings update event
+    const event = new CustomEvent('settings_updated', {
+      detail: { settings, timestamp }
+    });
+    window.dispatchEvent(event);
   } catch (error) {
-    console.error('فشل في نشر تحديث الإعدادات:', error);
+    console.error('خطأ في بث تحديث الإعدادات:', error);
   }
 };
 
-// دالة محسنة لفرض إعادة تحميل التطبيق لجميع المستخدمين
+/**
+ * إجبار إعادة تحميل التطبيق لجميع المستخدمين
+ * Force app reload for all users
+ */
 export const forceAppReloadForAllUsers = (): void => {
-  const timestamp = Date.now().toString();
-  
-  // نشر عبر جميع القنوات المتاحة
-  localStorage.setItem('force_browser_refresh', 'true');
-  localStorage.setItem('bladi_force_refresh', 'true');
-  localStorage.setItem('refresh_timestamp', timestamp);
-  localStorage.setItem('data_version', timestamp);
-  localStorage.setItem('force_app_reload', 'true');
-  localStorage.setItem('app_update_required', timestamp);
-  
-  // استخدام sessionStorage للمتصفحات التي قد لا تدعم التخزين المحلي
   try {
-    sessionStorage.setItem('force_reload', 'true');
-    sessionStorage.setItem('app_update', timestamp);
-  } catch (e) {
-    console.error('خطأ في تخزين البيانات في sessionStorage:', e);
+    console.log('إجبار إعادة تحميل التطبيق لجميع المستخدمين...');
+    
+    // تعيين علامات إعادة التحميل القسري
+    // Set force reload flags
+    const timestamp = Date.now();
+    localStorage.setItem('force_app_reload', 'true');
+    localStorage.setItem('force_app_reload_timestamp', timestamp.toString());
+    
+    // إطلاق حدث إعادة تحميل التطبيق
+    // Dispatch app reload event
+    const event = new CustomEvent('force_app_reload', {
+      detail: { timestamp }
+    });
+    window.dispatchEvent(event);
+  } catch (error) {
+    console.error('خطأ في إجبار إعادة تحميل التطبيق لجميع المستخدمين:', error);
   }
-  
-  // استخدام cookies كطريقة إضافية
-  try {
-    document.cookie = `force_reload=${timestamp}; path=/; max-age=3600`;
-    document.cookie = `app_update=${timestamp}; path=/; max-age=3600`;
-  } catch (e) {
-    console.error('خطأ في تخزين البيانات في cookies:', e);
-  }
-  
-  // تطبيق على المتصفح الحالي بعد تأخير قصير
-  setTimeout(() => {
-    // إعادة تحميل الصفحة مع إضافة معلمات منع التخزين المؤقت
-    const cacheBuster = Date.now();
-    window.location.href = window.location.href.split('?')[0] + 
-      `?reload=${cacheBuster}&nocache=${cacheBuster}&t=${cacheBuster}`;
-  }, 500);
-  
-  console.log('تم إرسال أمر إعادة التحميل لجميع المستخدمين:', timestamp);
 };

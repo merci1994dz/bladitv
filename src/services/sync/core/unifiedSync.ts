@@ -1,69 +1,63 @@
 
 /**
- * وظيفة مزامنة موحدة للتعامل مع جميع مصادر المزامنة
- * Unified sync function to handle all sync sources
+ * وظائف المزامنة الموحدة
+ * Unified sync functions
  */
 
-import { checkSourceAvailability } from './sourceCheck';
-import { syncWithSupabase } from '../supabase/operations/dataSync';
+import { syncWithSupabase } from '../supabase/sync';
 import { syncWithBladiInfo } from '../remote/sync/bladiInfoSync';
-import { updateLastSyncTime } from '../config';
-import { setSyncTimestamp } from '../status/timestamp';
+import { setSyncActive } from '../status';
+import { updateLastSyncTime } from '../status/timestamp';
 
-// Export the main function for use in other modules
-export const syncWithSupabaseUnified = async (forceRefresh = false): Promise<boolean> => {
+// خيارات المزامنة
+interface SyncOptions {
+  forceRefresh?: boolean;
+  showNotifications?: boolean;
+}
+
+/**
+ * المزامنة الموحدة مع جميع المصادر
+ * Unified sync with all sources
+ */
+export const syncDataUnified = async (options?: SyncOptions): Promise<boolean> => {
+  const forceRefresh = options?.forceRefresh ?? false;
+  const showNotifications = options?.showNotifications ?? true;
+  
   try {
-    console.log('بدء مزامنة البيانات مع Supabase بشكل موحد...');
+    console.log('بدء المزامنة الموحدة...');
     
-    // Try syncing with Supabase first
+    // تعيين حالة المزامنة كنشطة
+    setSyncActive(true);
+    
+    // أولاً، محاولة المزامنة مع Supabase
+    console.log('محاولة المزامنة مع Supabase...');
     const supabaseResult = await syncWithSupabase(forceRefresh);
     
     if (supabaseResult) {
       console.log('تمت المزامنة بنجاح مع Supabase');
+      updateLastSyncTime();
+      setSyncActive(false);
       return true;
     }
     
-    // If Supabase sync fails, try syncing with Bladi Info
-    console.log('محاولة المزامنة مع مصادر Bladi Info...');
+    // إذا فشلت المزامنة مع Supabase، محاولة المزامنة مع Bladi Info
+    console.log('فشلت المزامنة مع Supabase، محاولة المزامنة مع Bladi Info...');
+    
     const bladiResult = await syncWithBladiInfo(forceRefresh);
     
     if (bladiResult) {
-      console.log('تمت المزامنة بنجاح مع مصادر Bladi Info');
+      console.log('تمت المزامنة بنجاح مع Bladi Info');
+      updateLastSyncTime();
+      setSyncActive(false);
       return true;
     }
     
-    console.warn('فشلت جميع محاولات المزامنة');
+    console.log('فشلت جميع محاولات المزامنة');
+    setSyncActive(false);
     return false;
   } catch (error) {
     console.error('خطأ في المزامنة الموحدة:', error);
-    return false;
-  } finally {
-    // Update sync timestamp
-    updateLastSyncTime();
-    setSyncTimestamp(new Date().toISOString());
-  }
-};
-
-// Additional utility function that can be used to sync data with options
-export const syncDataUnified = async (options: {
-  forceRefresh?: boolean;
-  showNotifications?: boolean;
-} = {}): Promise<boolean> => {
-  const { forceRefresh = false, showNotifications = true } = options;
-  
-  try {
-    return await syncWithSupabaseUnified(forceRefresh);
-  } catch (error) {
-    console.error('خطأ في مزامنة البيانات:', error);
+    setSyncActive(false);
     return false;
   }
-};
-
-// Get sync status information
-export const getSyncStatus = () => {
-  return {
-    lastSyncTime: localStorage.getItem('last_sync_time') || null,
-    syncCount: Number(localStorage.getItem('sync_count') || '0'),
-    lastSource: localStorage.getItem('last_sync_source') || null
-  };
 };

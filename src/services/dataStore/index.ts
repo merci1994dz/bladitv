@@ -1,6 +1,6 @@
 
 // Main export file for data store functionality
-import { channels, countries, categories, isSyncing, setIsSyncing } from './state';
+import { channels, countries, categories, setIsSyncing, getIsSyncing } from './state';
 import { saveChannelsToStorage, loadFromLocalStorage } from './storage';
 import { addChannelToMemory, removeChannelFromMemory, updateChannelInMemory } from './channelOperations';
 
@@ -13,8 +13,8 @@ export {
   channels,
   countries,
   categories,
-  isSyncing,
   setIsSyncing,
+  getIsSyncing,
   
   // Storage operations
   saveChannelsToStorage,
