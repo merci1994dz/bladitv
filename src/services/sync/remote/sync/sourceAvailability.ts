@@ -1,103 +1,55 @@
 
 /**
- * Functionality for checking availability of remote sources
+ * فحص توفر مصادر Bladi Info
+ * Check availability of Bladi Info sources
  */
 
-import { STORAGE_KEYS } from '../../../config';
+import { isRemoteUrlAccessible } from '../fetch';
 import { BLADI_INFO_SOURCES } from './sources';
 
 /**
- * فحص توفر مصادر Bladi Info والعودة بأول مصدر متاح
- * Check availability of Bladi Info sources and return the first available source
+ * فحص توفر أي من مصادر Bladi Info
+ * Check if any Bladi Info source is available
+ * 
+ * @returns عنوان URL للمصدر المتاح، أو null إذا لم يكن هناك مصدر متاح
  */
 export const checkBladiInfoAvailability = async (): Promise<string | null> => {
-  // أولاً، التحقق من آخر مصدر ناجح
-  // First, check the last successful source
-  try {
-    const lastSuccessfulSource = localStorage.getItem(STORAGE_KEYS.LAST_SUCCESSFUL_SOURCE);
-    if (lastSuccessfulSource) {
-      console.log(`التحقق من آخر مصدر ناجح: ${lastSuccessfulSource}`);
-      
-      // المصادر المحلية دائمًا متاحة
-      // Local sources are always available
-      if (lastSuccessfulSource.startsWith('/')) {
-        return lastSuccessfulSource;
-      }
-      
-      // فحص إمكانية الوصول للمصدر الخارجي
-      // Check accessibility of external source
+  console.log('التحقق من توفر مصادر Bladi Info...');
+  
+  // أولاً، محاولة الوصول إلى المصادر المحلية (للتطوير)
+  // First, try to access local sources (for development)
+  for (const source of BLADI_INFO_SOURCES) {
+    if (source.startsWith('/')) {
       try {
-        const { isRemoteUrlAccessible } = await import('../fetch');
-        const isAccessible = await isRemoteUrlAccessible(lastSuccessfulSource);
+        const response = await fetch(source);
+        
+        if (response.ok) {
+          console.log(`المصدر المحلي متاح: ${source}`);
+          return source;
+        }
+      } catch (error) {
+        console.warn(`تعذر الوصول إلى المصدر المحلي ${source}:`, error);
+      }
+    }
+  }
+  
+  // ثم، محاولة الوصول إلى المصادر الخارجية
+  // Then, try to access external sources
+  for (const source of BLADI_INFO_SOURCES) {
+    if (!source.startsWith('/')) {
+      try {
+        const isAccessible = await isRemoteUrlAccessible(source);
         
         if (isAccessible) {
-          console.log(`آخر مصدر ناجح لا يزال متاحًا: ${lastSuccessfulSource}`);
-          return lastSuccessfulSource;
-        } else {
-          console.log(`آخر مصدر ناجح لم يعد متاحًا: ${lastSuccessfulSource}`);
+          console.log(`المصدر الخارجي متاح: ${source}`);
+          return source;
         }
-      } catch (e) {
-        console.warn(`فشل فحص إمكانية الوصول إلى آخر مصدر ناجح:`, e);
+      } catch (error) {
+        console.warn(`تعذر الوصول إلى المصدر الخارجي ${source}:`, error);
       }
     }
-  } catch (e) {
-    // تجاهل أخطاء التخزين
-    // Ignore storage errors
   }
   
-  // ترتيب المصادر حسب الأولوية
-  // Order sources by priority
-  const prioritySources = [
-    // المصادر المحلية أولاً (الأكثر موثوقية)
-    // Local sources first (most reliable)
-    ...BLADI_INFO_SOURCES.filter(url => url.startsWith('/')),
-    
-    // ثم CDNs
-    // Then CDNs
-    ...BLADI_INFO_SOURCES.filter(url => url.includes('cdn.jsdelivr.net')),
-    
-    // ثم باقي المصادر
-    // Then remaining sources
-    ...BLADI_INFO_SOURCES.filter(url => !url.startsWith('/') && !url.includes('cdn.jsdelivr.net'))
-  ];
-  
-  // جعل القائمة فريدة (بدون تكرار)
-  // Make the list unique (without duplicates)
-  const uniqueSources = [...new Set(prioritySources)];
-  
-  // تنفيذ الفحص بالتوازي لتحسين الأداء
-  // Perform checks in parallel to improve performance
-  const accessibilityChecks = uniqueSources.map(async (url) => {
-    try {
-      // المصادر المحلية دائمًا متاحة
-      // Local sources are always available
-      if (url.startsWith('/')) {
-        return { url, isAccessible: true };
-      }
-      
-      // فحص إمكانية الوصول للمصادر الخارجية
-      // Check accessibility of external sources
-      const { isRemoteUrlAccessible } = await import('../fetch');
-      const isAccessible = await isRemoteUrlAccessible(url);
-      
-      return { url, isAccessible };
-    } catch (error) {
-      console.warn(`خطأ أثناء فحص ${url}:`, error);
-      return { url, isAccessible: false };
-    }
-  });
-  
-  // انتظار اكتمال الفحوصات المتوازية
-  // Wait for parallel checks to complete
-  const results = await Promise.all(accessibilityChecks);
-  
-  // العثور على أول مصدر متاح
-  // Find the first available source
-  const availableSource = results.find(result => result.isAccessible);
-  
-  if (availableSource) {
-    return availableSource.url;
-  }
-  
+  console.log('لم يتم العثور على أي مصدر متاح');
   return null;
 };

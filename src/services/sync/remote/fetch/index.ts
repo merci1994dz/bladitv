@@ -5,4 +5,4 @@
  */
 
 export { fetchRemoteData, isRemoteUrlAccessible } from './fetchRemoteData';
-export { getSkewProtectionParams, isRunningOnVercel } from './skewProtection';
+export { getSkewProtectionParams, isRunningOnVercel, addSkewProtectionHeaders } from './skewProtection';

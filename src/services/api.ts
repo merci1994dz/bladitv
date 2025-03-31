@@ -1,3 +1,4 @@
+
 // هذا الملف يعمل كنقطة تصدير رئيسية لجميع خدمات API
 
 // إعادة تصدير كل شيء من وحدات الخدمة
@@ -8,8 +9,8 @@ export * from './adminService';
 export * from './sync';  // تم التحديث لاستخدام وحدة المزامنة الجديدة
 export * from './historyService';
 
-// Import the syncAllData function for the forceSync implementation
-import { syncAllData } from './sync';
+// Import the syncData function for the forceSync implementation
+import { syncData } from './sync';
 
 export const getRecentlyWatchedChannels = async () => {
   try {
@@ -53,7 +54,7 @@ export const getRecentlyWatchedChannels = async () => {
  */
 export const forceSync = async (): Promise<boolean> => {
   try {
-    return await syncAllData(true);
+    return await syncData(true);
   } catch (error) {
     console.error('Error in forceSync:', error);
     return false;

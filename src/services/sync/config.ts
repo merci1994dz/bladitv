@@ -63,3 +63,32 @@ export const clearForceRefreshFlag = () => {
     console.error('خطأ في تنظيف علامة التحديث الإجباري:', error);
   }
 };
+
+// فحص ما إذا كانت المزامنة مطلوبة
+// Check if sync is needed
+export const isSyncNeeded = (): boolean => {
+  try {
+    // التحقق من وجود علامة التحديث الإجباري
+    // Check for force refresh flag
+    if (isForceRefreshRequired()) {
+      return true;
+    }
+    
+    // التحقق من وقت آخر مزامنة
+    // Check for last sync time
+    const lastSyncTimeStr = getLastSyncTime();
+    if (!lastSyncTimeStr) {
+      return true; // لم يتم المزامنة من قبل
+    }
+    
+    const lastSyncTime = new Date(lastSyncTimeStr).getTime();
+    const currentTime = Date.now();
+    
+    // التحقق مما إذا كان قد مر وقت كافٍ منذ آخر مزامنة
+    // Check if enough time has passed since last sync
+    return (currentTime - lastSyncTime) > DATA_CACHE_TIME;
+  } catch (error) {
+    console.error('خطأ في فحص ما إذا كانت المزامنة مطلوبة:', error);
+    return false;
+  }
+};

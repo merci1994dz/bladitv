@@ -1,49 +1,43 @@
 
 /**
- * حماية انحراف التزامن لمنع المشاكل في البيئات المختلفة
- * Sync skew protection to prevent issues in different environments
+ * حماية من الانحراف الزمني
+ * Protection against time skew
  */
 
 /**
  * التحقق مما إذا كان التطبيق يعمل على Vercel
- * Check if the app is running on Vercel
+ * Check if the application is running on Vercel
  */
 export const isRunningOnVercel = (): boolean => {
-  // تحقق من وجود متغيرات Vercel البيئية المعروفة
-  // Check for known Vercel environment variables
-  const isVercelEnv = typeof process !== 'undefined' && 
-                      (process.env.VERCEL || 
-                       process.env.VERCEL_ENV || 
-                       process.env.NEXT_PUBLIC_VERCEL_ENV);
-  
-  // تحقق من الـ URL للتأكد من أن الموقع يستضاف على Vercel
-  // Check URL to confirm site is hosted on Vercel
-  const isVercelDomain = typeof window !== 'undefined' && 
-                         (window.location.hostname.endsWith('.vercel.app') || 
-                          window.location.hostname.includes('vercel-analytics'));
-  
-  // تحقق من localStorage لاكتشاف ما إذا كنا قد حددناه مسبقًا
-  // Check localStorage to see if we've determined it previously
-  const storedVercelFlag = typeof window !== 'undefined' && 
-                          window.localStorage && 
-                          window.localStorage.getItem('vercel_deployment') === 'true';
-  
-  return Boolean(isVercelEnv || isVercelDomain || storedVercelFlag);
+  // Vercel sets this environment variable
+  return typeof window !== 'undefined' && 
+    (window.location.hostname.includes('vercel.app') || 
+    localStorage.getItem('is_vercel') === 'true');
 };
 
 /**
- * الحصول على معلمات حماية انحراف التزامن
- * Get sync skew protection parameters
+ * الحصول على معلمات الحماية من الانحراف الزمني
+ * Get skew protection parameters
  */
-export const getSkewProtectionParams = (): string | null => {
+export const getSkewProtectionParams = (): string => {
   if (isRunningOnVercel()) {
-    // إضافة معلمات خاصة ببيئة Vercel
-    // Add Vercel-specific parameters
-    const vercelBuildId = process.env.VERCEL_GIT_COMMIT_SHA || 
-                          process.env.VERCEL_GITHUB_COMMIT_SHA || 
-                          'unknown-vercel-build';
-    return `vercel=true&buildId=${vercelBuildId}`;
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2, 15);
+    return `_vercel_no_cache=${timestamp}&_vercel_unique=${randomId}`;
   }
-  
-  return null;
+  return '';
+};
+
+/**
+ * إضافة رؤوس الحماية من الانحراف الزمني
+ * Add skew protection headers
+ */
+export const addSkewProtectionHeaders = (headers: Headers): Headers => {
+  if (isRunningOnVercel()) {
+    headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    headers.set('Pragma', 'no-cache');
+    headers.set('Expires', '0');
+    headers.set('X-Vercel-No-Cache', Date.now().toString());
+  }
+  return headers;
 };

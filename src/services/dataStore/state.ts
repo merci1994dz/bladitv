@@ -1,14 +1,29 @@
 
+/**
+ * حالة مخزن البيانات المحلية
+ * Local data store state
+ */
+
 import { Channel, Country, Category } from '@/types';
-import { initialState } from './types';
 
-// Memory cache state
-export let channels: Channel[] = initialState.channels;
-export let countries: Country[] = initialState.countries;
-export let categories: Category[] = initialState.categories;
-export let isSyncing: boolean = initialState.isSyncing;
+// حالة المزامنة
+// Sync state
+let isSyncing = false;
 
-// Function to update sync state
-export const setIsSyncing = (value: boolean) => {
-  isSyncing = value;
+// بيانات التطبيق المحلية
+// Local application data
+export const channels: Channel[] = [];
+export const countries: Country[] = [];
+export const categories: Category[] = [];
+
+// تعيين حالة المزامنة
+// Set sync state
+export const setIsSyncing = (syncing: boolean) => {
+  isSyncing = syncing;
+};
+
+// الحصول على حالة المزامنة
+// Get sync state
+export const getIsSyncing = (): boolean => {
+  return isSyncing;
 };

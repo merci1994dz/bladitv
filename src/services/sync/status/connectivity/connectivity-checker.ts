@@ -1,104 +1,81 @@
 
 /**
- * الوظيفة الرئيسية لفحص الاتصال واختبار توفر الخوادم
- * Main function for connectivity checking and server availability testing
+ * وظائف فحص حالة الاتصال
+ * Functions for checking connectivity status
  */
 
-import { 
-  getCachedConnectivityResult, 
-  isRecentCheck, 
-  cacheConnectivityResult 
-} from './cache';
-import { checkEndpointsAccessibility } from './endpoint-checker';
-import { ConnectivityCheckResult } from './types';
+import { isRemoteUrlAccessible } from '../../remote/fetch';
+import { checkBladiInfoAvailability } from '../../remote/sync/sourceAvailability';
 
 /**
- * فحص ما إذا كانت هناك أي مشاكل اتصال تعرقل المزامنة
- * Check if there are any connectivity issues hindering synchronization
- * with enhanced retry support and detailed diagnostics
+ * فحص مشاكل الاتصال
+ * Check connectivity issues
  */
-export const checkConnectivityIssues = async (): Promise<{ hasInternet: boolean, hasServerAccess: boolean }> => {
-  // محاولة استرداد نتائج الفحص المخزنة وتقييم صلاحيتها
-  // Try to retrieve stored check results and evaluate their validity
-  const cachedResult = getCachedConnectivityResult();
-  
-  // إذا كانت النتائج المخزنة حديثة وصالحة، استخدمها
-  // If stored results are recent and valid, use them
-  if (cachedResult && isRecentCheck(cachedResult.timestamp)) {
-    return {
-      hasInternet: cachedResult.hasInternet,
-      hasServerAccess: cachedResult.hasServerAccess
-    };
-  }
-  
-  // التحقق من حالة الإنترنت أولاً
-  // Check internet status first
+export const checkConnectivityIssues = async (): Promise<{
+  hasInternet: boolean;
+  hasServerAccess: boolean;
+  details?: string;
+}> => {
+  // التحقق من الاتصال بالإنترنت
+  // Check for internet connection
   const hasInternet = navigator.onLine;
   
-  // إذا لم يكن هناك اتصال بالإنترنت، ارجع النتيجة على الفور
-  // If there is no internet connection, return the result immediately
   if (!hasInternet) {
-    const result: ConnectivityCheckResult = { 
-      hasInternet: false, 
+    return {
+      hasInternet: false,
       hasServerAccess: false,
-      timestamp: Date.now()
+      details: 'No internet connection'
     };
-    cacheConnectivityResult(result);
-    return result;
   }
   
-  // إذا كان هناك اتصال بالإنترنت، فحص الوصول إلى الخوادم
-  // If there is internet connection, check server access
   try {
-    // فحص الوصول إلى الخوادم باستخدام استراتيجية إعادة المحاولة التدريجية
-    // Check server access using progressive retry strategy
-    const endpoints = await checkEndpointsAccessibility();
+    // محاولة الوصول إلى مصادر البيانات
+    // Try to access data sources
+    const availableSource = await checkBladiInfoAvailability();
     
-    // اعتبار الاتصال ناجحًا إذا نجح الوصول إلى خادم واحد على الأقل
-    // Consider connection successful if at least one server is accessible
-    const hasServerAccess = endpoints.some(endpoint => endpoint.success);
-    
-    // تكوين نتيجة فحص الاتصال
-    // Configure connection check result
-    const result: ConnectivityCheckResult = {
-      hasInternet,
-      hasServerAccess,
-      timestamp: Date.now(),
-      endpoints
-    };
-    
-    // تخزين نتيجة الفحص للاستخدام لاحقًا
-    // Store check result for later use
-    cacheConnectivityResult(result);
-    
-    // ارجاع نتيجة فحص الاتصال
-    // Return connection check result
-    return {
-      hasInternet,
-      hasServerAccess
-    };
-  } catch (error) {
-    console.warn('خطأ أثناء فحص الاتصال بالخوادم: / Error during server connection check:', error);
-    
-    // في حالة الخطأ، استخدم النتائج المخزنة إذا كانت متاحة
-    // In case of error, use stored results if available
-    if (cachedResult) {
+    if (availableSource) {
       return {
-        hasInternet: hasInternet,  // استخدم حالة الاتصال الحالية / Use current connection status
-        hasServerAccess: cachedResult.hasServerAccess
+        hasInternet: true,
+        hasServerAccess: true,
+        details: `Available source: ${availableSource}`
       };
     }
     
-    // إذا لم تكن هناك نتائج مخزنة، افترض عدم وجود اتصال بالخادم
-    // If there are no stored results, assume no server connection
-    const result: ConnectivityCheckResult = {
-      hasInternet,
-      hasServerAccess: false,
-      timestamp: Date.now()
+    // محاولة الوصول إلى خدمات معروفة للتحقق من الاتصال
+    // Try to access known services to verify connection
+    const services = [
+      'https://www.google.com',
+      'https://www.cloudflare.com',
+      'https://www.microsoft.com'
+    ];
+    
+    let serviceAccessible = false;
+    
+    for (const service of services) {
+      try {
+        const canAccess = await isRemoteUrlAccessible(service);
+        if (canAccess) {
+          serviceAccessible = true;
+          break;
+        }
+      } catch (err) {
+        // Continue to next service
+      }
+    }
+    
+    return {
+      hasInternet: true,
+      hasServerAccess: serviceAccessible,
+      details: serviceAccessible 
+        ? 'Can access internet but not data sources' 
+        : 'Internet connection appears limited'
     };
-    
-    cacheConnectivityResult(result);
-    
-    return result;
+  } catch (error) {
+    console.error('Error checking connectivity:', error);
+    return {
+      hasInternet: true,
+      hasServerAccess: false,
+      details: `Error during check: ${error instanceof Error ? error.message : String(error)}`
+    };
   }
 };

@@ -1,30 +1,47 @@
 
 /**
- * مسؤول عن إدارة أوقات المزامنة
+ * إدارة طوابع الوقت للمزامنة
+ * Sync timestamp management
  */
-
-import { STORAGE_KEYS } from '../../config';
 
 /**
  * تعيين طابع وقت المزامنة
+ * Set sync timestamp
  */
-export const setSyncTimestamp = (timestamp: string): void => {
+export const setSyncTimestamp = () => {
+  const now = new Date();
+  
   try {
-    localStorage.setItem(STORAGE_KEYS.LAST_SYNC_TIME, timestamp);
-    localStorage.setItem(STORAGE_KEYS.LAST_SYNC, timestamp); // للتوافق مع التطبيقات القديمة
+    localStorage.setItem('last_sync_time', now.toISOString());
+    localStorage.setItem('last_sync_timestamp', now.getTime().toString());
   } catch (e) {
-    console.error('خطأ في تعيين وقت المزامنة:', e);
+    console.error('فشل في تعيين طابع وقت المزامنة:', e);
   }
 };
 
 /**
- * الحصول على آخر وقت مزامنة
+ * الحصول على وقت آخر مزامنة
+ * Get last sync time
  */
 export const getLastSyncTime = (): string | null => {
   try {
-    return localStorage.getItem(STORAGE_KEYS.LAST_SYNC_TIME) || localStorage.getItem(STORAGE_KEYS.LAST_SYNC);
+    return localStorage.getItem('last_sync_time');
   } catch (e) {
-    console.error('خطأ في الحصول على آخر وقت مزامنة:', e);
+    console.error('فشل في الحصول على وقت آخر مزامنة:', e);
+    return null;
+  }
+};
+
+/**
+ * الحصول على طابع وقت آخر مزامنة
+ * Get last sync timestamp
+ */
+export const getLastSyncTimestamp = (): number | null => {
+  try {
+    const timestampStr = localStorage.getItem('last_sync_timestamp');
+    return timestampStr ? parseInt(timestampStr, 10) : null;
+  } catch (e) {
+    console.error('فشل في الحصول على طابع وقت آخر مزامنة:', e);
     return null;
   }
 };

@@ -1,130 +1,146 @@
 
-import { STORAGE_KEYS } from './config';
 import { channels, countries, categories } from './dataStore';
-import { syncAllData, getLastSyncTime } from './sync';
-import { toast } from '@/hooks/use-toast';
+import { getLastSyncTime } from './sync/config';
+import { syncData } from './sync';
 
-interface BackupData {
-  channels: any[];
-  countries: any[];
-  categories: any[];
-  lastSyncTime: string;
-  version: string;
-  createdAt: string;
-}
-
-// إنشاء نسخة احتياطية من البيانات
-export const createBackup = (): BackupData => {
-  // جمع البيانات من التخزين المحلي
-  const channelsData = JSON.parse(localStorage.getItem(STORAGE_KEYS.CHANNELS) || '[]');
-  const countriesData = JSON.parse(localStorage.getItem(STORAGE_KEYS.COUNTRIES) || '[]');
-  const categoriesData = JSON.parse(localStorage.getItem(STORAGE_KEYS.CATEGORIES) || '[]');
-  const lastSyncTime = getLastSyncTime() || new Date().toISOString();
-  
-  // إنشاء كائن النسخة الاحتياطية
-  const backupData: BackupData = {
-    channels: channelsData,
-    countries: countriesData,
-    categories: categoriesData,
-    lastSyncTime: lastSyncTime || new Date().toISOString(),
-    version: '1.0',
-    createdAt: new Date().toISOString()
-  };
-  
-  return backupData;
-};
-
-// تصدير النسخة الاحتياطية كملف
-export const exportBackup = (): void => {
+// استيراد البيانات من ملف
+export const importDataFromFile = async (file: File): Promise<boolean> => {
   try {
-    const backupData = createBackup();
-    const dataStr = JSON.stringify(backupData, null, 2);
-    const dataUri = `data:application/json;charset=utf-8,${encodeURIComponent(dataStr)}`;
-    
-    // إنشاء رابط تنزيل وتنفيذه
-    const exportFileDefaultName = `tv-app-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-    
-    toast({
-      title: "تم إنشاء النسخة الاحتياطية",
-      description: "تم تصدير البيانات بنجاح"
+    return new Promise<boolean>((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = async (e) => {
+        try {
+          const fileContent = e.target?.result as string;
+          const importedData = JSON.parse(fileContent);
+          
+          // التحقق من صحة البيانات
+          if (!importedData.channels || !Array.isArray(importedData.channels)) {
+            throw new Error('ملف غير صالح: لا يحتوي على بيانات القنوات');
+          }
+          
+          // حفظ البيانات في التخزين المحلي
+          localStorage.setItem('channels', JSON.stringify(importedData.channels));
+          
+          if (importedData.countries && Array.isArray(importedData.countries)) {
+            localStorage.setItem('countries', JSON.stringify(importedData.countries));
+          }
+          
+          if (importedData.categories && Array.isArray(importedData.categories)) {
+            localStorage.setItem('categories', JSON.stringify(importedData.categories));
+          }
+          
+          // تحديث الحالة في الذاكرة
+          channels.length = 0;
+          countries.length = 0;
+          categories.length = 0;
+          
+          channels.push(...importedData.channels);
+          
+          if (importedData.countries) {
+            countries.push(...importedData.countries);
+          }
+          
+          if (importedData.categories) {
+            categories.push(...importedData.categories);
+          }
+          
+          // إطلاق حدث تحديث البيانات
+          const event = new CustomEvent('app_data_updated', {
+            detail: { source: 'import', timestamp: Date.now() }
+          });
+          window.dispatchEvent(event);
+          
+          resolve(true);
+        } catch (error) {
+          console.error('خطأ في معالجة ملف الاستيراد:', error);
+          reject(error);
+        }
+      };
+      
+      reader.onerror = () => {
+        reject(new Error('فشل قراءة الملف'));
+      };
+      
+      reader.readAsText(file);
     });
   } catch (error) {
-    console.error('خطأ أثناء تصدير النسخة الاحتياطية:', error);
-    toast({
-      title: "فشل إنشاء النسخة الاحتياطية",
-      description: "حدث خطأ أثناء تصدير البيانات",
-      variant: "destructive"
-    });
+    console.error('خطأ في استيراد البيانات من ملف:', error);
+    return false;
   }
 };
 
-// استيراد النسخة الاحتياطية من ملف
-export const importBackup = (file: File): Promise<boolean> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    
-    reader.onload = (event) => {
-      try {
-        if (!event.target?.result) {
-          throw new Error("فشل قراءة الملف");
-        }
-        
-        const backupData: BackupData = JSON.parse(event.target.result as string);
-        
-        // التحقق من صحة البيانات
-        if (!backupData.channels || !backupData.countries || !backupData.categories) {
-          throw new Error("تنسيق ملف النسخة الاحتياطية غير صالح");
-        }
-        
-        // تخزين البيانات في التخزين المحلي
-        localStorage.setItem(STORAGE_KEYS.CHANNELS, JSON.stringify(backupData.channels));
-        localStorage.setItem(STORAGE_KEYS.COUNTRIES, JSON.stringify(backupData.countries));
-        localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(backupData.categories));
-        
-        if (backupData.lastSyncTime) {
-          localStorage.setItem(STORAGE_KEYS.LAST_SYNC_TIME, backupData.lastSyncTime);
-          if (STORAGE_KEYS.LAST_SYNC) {
-            localStorage.setItem(STORAGE_KEYS.LAST_SYNC, backupData.lastSyncTime);
-          }
-        }
-        
-        // تحديث البيانات في الذاكرة
-        syncAllData()
-          .then(() => {
-            toast({
-              title: "تم استعادة النسخة الاحتياطية",
-              description: "تم استيراد البيانات بنجاح"
-            });
-            resolve(true);
-          })
-          .catch((error) => {
-            console.error('خطأ أثناء مزامنة البيانات بعد الاستعادة:', error);
-            reject(error);
-          });
-      } catch (error) {
-        console.error('خطأ أثناء استيراد النسخة الاحتياطية:', error);
-        toast({
-          title: "فشل استعادة النسخة الاحتياطية",
-          description: "تنسيق الملف غير صالح أو البيانات تالفة",
-          variant: "destructive"
-        });
-        reject(error);
-      }
+// تصدير البيانات إلى ملف
+export const exportDataToFile = (): void => {
+  try {
+    // تجميع البيانات للتصدير
+    const exportData = {
+      channels,
+      countries,
+      categories,
+      exportDate: new Date().toISOString(),
+      lastSyncTime: getLastSyncTime()
     };
     
-    reader.onerror = () => {
-      toast({
-        title: "فشل قراءة الملف",
-        description: "حدث خطأ أثناء قراءة ملف النسخة الاحتياطية",
-        variant: "destructive"
-      });
-      reject(new Error("خطأ في قراءة الملف"));
-    };
+    // تحويل البيانات إلى سلسلة JSON
+    const jsonString = JSON.stringify(exportData, null, 2);
     
-    reader.readAsText(file);
-  });
+    // إنشاء Blob و URL للتنزيل
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    // إنشاء رابط تنزيل وهمي
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `bladi_tv_export_${new Date().toISOString().split('T')[0]}.json`;
+    
+    // إضافة الرابط إلى المستند والنقر عليه وإزالته
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // تحرير URL
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('خطأ في تصدير البيانات إلى ملف:', error);
+  }
+};
+
+// مزامنة البيانات مع الخوادم البعيدة
+export const syncWithRemoteServers = async (): Promise<boolean> => {
+  try {
+    return await syncData(true);
+  } catch (error) {
+    console.error('خطأ في المزامنة مع الخوادم البعيدة:', error);
+    return false;
+  }
+};
+
+// استعادة البيانات الافتراضية
+export const restoreDefaultData = async (): Promise<boolean> => {
+  try {
+    // مسح التخزين المحلي
+    localStorage.removeItem('channels');
+    localStorage.removeItem('countries');
+    localStorage.removeItem('categories');
+    
+    // إعادة تعيين المصفوفات
+    channels.length = 0;
+    countries.length = 0;
+    categories.length = 0;
+    
+    // محاولة المزامنة مع المصادر الافتراضية
+    await syncData(true);
+    
+    // إطلاق حدث تحديث البيانات
+    const event = new CustomEvent('app_data_updated', {
+      detail: { source: 'restore_default', timestamp: Date.now() }
+    });
+    window.dispatchEvent(event);
+    
+    return true;
+  } catch (error) {
+    console.error('خطأ في استعادة البيانات الافتراضية:', error);
+    return false;
+  }
 };

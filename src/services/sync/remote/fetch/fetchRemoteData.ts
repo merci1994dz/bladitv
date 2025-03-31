@@ -1,34 +1,38 @@
 
 /**
- * وظيفة محسنة لجلب البيانات من مصادر خارجية
- * Optimized function for fetching data from external sources
+ * وظائف جلب البيانات من المصادر الخارجية
+ * Functions for fetching data from external sources
  */
 
-import { validateRemoteData } from '../../remoteValidation';
+import { addSkewProtectionHeaders } from './skewProtection';
 
 /**
- * جلب الملف المحلي
- * Fetch local file
+ * التحقق من إمكانية الوصول إلى عنوان URL
+ * Check if a URL is accessible
  */
-export const fetchLocalFile = async (localPath: string): Promise<any> => {
+export const isRemoteUrlAccessible = async (url: string): Promise<boolean> => {
   try {
-    const response = await fetch(localPath, {
-      method: 'GET',
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
+    // Use HEAD request instead of GET for better performance
+    const method = url.startsWith('/') ? 'GET' : 'HEAD';
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const headers = new Headers();
+    addSkewProtectionHeaders(headers);
+    
+    const response = await fetch(url, {
+      method,
+      headers,
+      signal: controller.signal,
+      cache: 'no-store'
     });
     
-    if (!response.ok) {
-      throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
-    }
-    
-    return await response.json();
+    clearTimeout(timeoutId);
+    return response.ok;
   } catch (error) {
-    console.error(`فشل في جلب الملف المحلي ${localPath}:`, error);
-    throw error;
+    console.warn(`تعذر الوصول إلى ${url}:`, error);
+    return false;
   }
 };
 
@@ -36,53 +40,25 @@ export const fetchLocalFile = async (localPath: string): Promise<any> => {
  * جلب البيانات من مصدر خارجي
  * Fetch data from an external source
  */
-export const fetchRemoteData = async (remoteUrl: string): Promise<any> => {
-  // التعامل مع الملفات المحلية
-  if (remoteUrl.startsWith('/')) {
-    return fetchLocalFile(remoteUrl);
-  }
-  
+export const fetchRemoteData = async (url: string): Promise<any> => {
   try {
-    const response = await fetch(remoteUrl, {
+    const headers = new Headers();
+    addSkewProtectionHeaders(headers);
+    
+    const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
+      headers,
+      cache: 'no-store'
     });
     
     if (!response.ok) {
-      throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
     
     const data = await response.json();
     return data;
   } catch (error) {
-    console.error(`فشل في جلب البيانات من ${remoteUrl}:`, error);
+    console.error(`خطأ في جلب البيانات من ${url}:`, error);
     throw error;
-  }
-};
-
-/**
- * فحص ما إذا كان هناك مشكلة في الشبكة عند الاتصال بمصدر خارجي
- * Check if there's a network problem when connecting to an external source
- */
-export const isRemoteUrlAccessible = async (url: string): Promise<boolean> => {
-  try {
-    const response = await fetch(url, {
-      method: 'HEAD',
-      mode: 'no-cors',
-      cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
-      }
-    });
-    
-    return true;
-  } catch (error) {
-    console.warn(`فشل فحص الوصول إلى ${url}:`, error);
-    return false;
   }
 };

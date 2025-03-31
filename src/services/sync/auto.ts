@@ -1,7 +1,7 @@
 
 import { REMOTE_CONFIG } from '../config';
-import { isSyncing } from '../dataStore';
-import { syncAllData } from './index';
+import { setIsSyncing, getIsSyncing } from '../dataStore';
+import { syncData } from './index';
 import { isSyncNeeded, getLastSyncTime } from './config';
 
 // Setup automatic sync
@@ -13,13 +13,13 @@ export const setupAutoSync = (): (() => void) => {
   
   // Sync on initialization if needed
   if (isSyncNeeded()) {
-    syncAllData().catch(console.error);
+    syncData().catch(console.error);
   }
   
   // Create periodic sync
   const intervalId = setInterval(() => {
     // Skip this cycle if sync is already in progress
-    if (isSyncing) return;
+    if (getIsSyncing()) return;
     
     // Check if sync is needed (more than a certain time since last sync)
     const lastSyncStr = getLastSyncTime();
@@ -29,11 +29,11 @@ export const setupAutoSync = (): (() => void) => {
       const nextSyncTime = new Date(lastSync.getTime() + syncInterval);
       
       if (new Date() >= nextSyncTime) {
-        syncAllData().catch(console.error);
+        syncData().catch(console.error);
       }
     } else {
       // If no previous sync, sync now
-      syncAllData().catch(console.error);
+      syncData().catch(console.error);
     }
   }, Math.min(REMOTE_CONFIG.CHECK_INTERVAL, 3600000)); // Check at least every hour
   
