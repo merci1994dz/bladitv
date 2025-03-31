@@ -28,7 +28,14 @@ const AutoSyncProvider: React.FC<AutoSyncProviderProps> = ({ children }) => {
       {/* معالجة تهيئة المزامنة والاستماع للأحداث */}
       <SyncInitializer>
         {/* عرض إشعارات الخطأ */}
-        {syncError && <SyncErrorNotification syncError={syncError} />}
+        {syncError && <SyncErrorNotification 
+          syncError={syncError.message} 
+          errorDetails={{
+            type: 'sync',
+            message: syncError.message,
+            timestamp: new Date(syncError.time).getTime()
+          }} 
+        />}
         
         {/* تسجيل المصادر المتاحة في وضع التطوير */}
         <AvailableSourceLogger availableSource={availableSource} />
