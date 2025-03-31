@@ -1,9 +1,29 @@
+
 /**
- * وظائف تحديث البيانات الإجباري
- * Functions for forcing data refresh
+ * وظائف تحديث البيانات القسري
+ * Force refresh functions for data
  */
 
-import { clearSyncError } from './status/errorHandling';
+/**
+ * تحديث فوري للصفحة
+ * Immediate page refresh
+ */
+export const immediateRefresh = (): void => {
+  try {
+    // إضافة معلمة لمنع التخزين المؤقت عند التحديث
+    const timestamp = Date.now();
+    const url = new URL(window.location.href);
+    url.searchParams.set('_refresh', timestamp.toString());
+    
+    // إعادة تحميل الصفحة
+    window.location.href = url.toString();
+  } catch (error) {
+    console.error('خطأ في تحديث الصفحة:', error);
+    
+    // تحديث الصفحة بشكل بسيط في حالة الخطأ
+    window.location.reload();
+  }
+};
 
 /**
  * مسح ذاكرة التخزين المؤقت للصفحة
@@ -11,27 +31,25 @@ import { clearSyncError } from './status/errorHandling';
  */
 export const clearPageCache = async (): Promise<boolean> => {
   try {
-    // مسح ذاكرة التخزين المؤقت إذا كانت متوفرة في المتصفح
-    // Clear cache if available in browser
+    // تعيين علامات مسح التخزين المؤقت
+    localStorage.setItem('nocache_version', Date.now().toString());
+    localStorage.setItem('cache_cleared', 'true');
+    localStorage.setItem('cache_cleared_time', new Date().toISOString());
+    
+    // محاولة مسح ذاكرة التخزين المؤقت للمتصفح إذا كانت متاحة
     if ('caches' in window) {
-      // الحصول على قائمة اسماء التخزين المؤقت
-      // Get list of cache names
-      const cacheNames = await caches.keys();
-      
-      // مسح كل ذاكرة تخزين مؤقت
-      // Clear each cache
-      await Promise.all(
-        cacheNames.map(cacheName => caches.delete(cacheName))
-      );
-      
-      console.log('تم مسح ذاكرة التخزين المؤقت للصفحة بنجاح');
-      return true;
+      await caches.keys().then(cacheNames => {
+        return Promise.all(
+          cacheNames.map(cacheName => {
+            return caches.delete(cacheName);
+          })
+        );
+      });
     }
     
-    console.warn('واجهة برمجة التطبيقات للتخزين المؤقت غير متاحة في هذا المتصفح');
-    return false;
+    return true;
   } catch (error) {
-    console.error('خطأ في مسح ذاكرة التخزين المؤقت للصفحة:', error);
+    console.error('خطأ في مسح ذاكرة التخزين المؤقت:', error);
     return false;
   }
 };
@@ -42,21 +60,17 @@ export const clearPageCache = async (): Promise<boolean> => {
  */
 export const forceDataRefresh = async (): Promise<boolean> => {
   try {
-    // تعيين علامات التحديث الإجباري
-    // Set force refresh flags
-    localStorage.setItem('force_refresh', 'true');
+    // مسح علامات التخزين المؤقت للبيانات
+    localStorage.setItem('data_version', Date.now().toString());
     localStorage.setItem('force_data_refresh', 'true');
-    localStorage.setItem('nocache_version', Date.now().toString());
     
-    // مسح أي أخطاء مزامنة سابقة
-    // Clear any previous sync errors
-    clearSyncError();
+    // إطلاق حدث تحديث البيانات القسري
+    const event = new CustomEvent('force_data_refresh', {
+      detail: { timestamp: Date.now() }
+    });
+    window.dispatchEvent(event);
     
-    // مسح ذاكرة التخزين المؤقت
-    // Clear cache
-    const cacheCleared = await clearPageCache();
-    
-    return cacheCleared;
+    return true;
   } catch (error) {
     console.error('خطأ في فرض تحديث البيانات:', error);
     return false;
@@ -64,62 +78,36 @@ export const forceDataRefresh = async (): Promise<boolean> => {
 };
 
 /**
- * إعادة تشغيل تطبيق كامل
- * Immediate full app refresh
- */
-export const immediateRefresh = () => {
-  try {
-    // تعيين علامة التحديث الإجباري
-    // Set force refresh flag
-    localStorage.setItem('force_refresh', 'true');
-    
-    // إعادة تحميل الصفحة بدون تخزين مؤقت
-    // Reload page without cache
-    window.location.reload();
-  } catch (error) {
-    console.error('خطأ في إعادة تشغيل التطبيق:', error);
-  }
-};
-
-/**
- * إعادة تعيين بيانات التطبيق بالكامل
- * Reset all app data
+ * إعادة تعيين بيانات التطبيق
+ * Reset app data
  */
 export const resetAppData = async (): Promise<boolean> => {
   try {
-    // تعيين علامة إعادة تعيين البيانات
-    // Set data reset flag
-    localStorage.setItem('reset_app_data', 'true');
-    
-    // مسح جميع بيانات التطبيق من التخزين المحلي
-    // Clear all app data from local storage
-    const keysToKeep = ['theme', 'user_preferences', 'language'];
+    // مسح البيانات ذات الصلة من التخزين المحلي
+    const keysToPreserve = ['auth_token', 'user_settings', 'theme_preference'];
     
     // حفظ القيم التي نريد الاحتفاظ بها
-    // Save values we want to keep
-    const savedValues: Record<string, string | null> = {};
+    const preservedValues: Record<string, string> = {};
     
-    for (const key of keysToKeep) {
-      savedValues[key] = localStorage.getItem(key);
-    }
-    
-    // مسح التخزين المحلي
-    // Clear local storage
-    localStorage.clear();
-    
-    // استعادة القيم المحفوظة
-    // Restore saved values
-    for (const key of keysToKeep) {
-      if (savedValues[key] !== null) {
-        localStorage.setItem(key, savedValues[key]!);
+    for (const key of keysToPreserve) {
+      const value = localStorage.getItem(key);
+      if (value) {
+        preservedValues[key] = value;
       }
     }
     
-    // مسح ذاكرة التخزين المؤقت
-    // Clear cache
-    await clearPageCache();
+    // مسح التخزين المحلي
+    localStorage.clear();
     
-    console.log('تم إعادة تعيين بيانات التطبيق بنجاح');
+    // استعادة القيم المحفوظة
+    for (const [key, value] of Object.entries(preservedValues)) {
+      localStorage.setItem(key, value);
+    }
+    
+    // تعيين علامات إعادة التعيين
+    localStorage.setItem('app_reset', 'true');
+    localStorage.setItem('app_reset_time', new Date().toISOString());
+    
     return true;
   } catch (error) {
     console.error('خطأ في إعادة تعيين بيانات التطبيق:', error);

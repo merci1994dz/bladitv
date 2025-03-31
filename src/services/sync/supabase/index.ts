@@ -6,7 +6,7 @@
 
 // تصدير عمليات المزامنة الأساسية
 // Export core sync operations
-export { performSupabaseSync as syncWithSupabase } from './sync/syncCore';
+export { performSupabaseSync } from './sync/syncCore';
 export { initializeSupabaseTables } from './initialize';
 export { setupSupabaseRealtimeSync as setupRealtimeSync } from './realtime/realtimeSync';
 

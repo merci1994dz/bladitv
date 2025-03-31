@@ -1,7 +1,9 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { syncDataUnified, getSyncStatus } from '@/services/sync/core/unifiedSync';
+import { syncDataUnified } from '@/services/sync/core/unifiedSync';
+import { getSyncStatus as getSyncStateStatus } from '@/services/sync/status/syncState';
+import { getLastSyncTime } from '@/services/sync/status/timestamp';
 import { useToast } from '@/hooks/use-toast';
 
 /**
@@ -28,9 +30,9 @@ export const useSyncOptimized = (options: {
   
   // تحديث حالة المزامنة
   const updateSyncStatus = useCallback(() => {
-    const status = getSyncStatus();
-    if (status.lastSyncTime) {
-      setLastSyncTime(status.lastSyncTime);
+    const syncTime = getLastSyncTime();
+    if (syncTime) {
+      setLastSyncTime(syncTime);
     }
   }, []);
   
@@ -115,6 +117,10 @@ export const useSyncOptimized = (options: {
     isSyncing,
     lastSyncTime,
     syncNow: (force: boolean = true) => performSync(force),
-    syncStatus: getSyncStatus
+    syncStatus: () => ({
+      isSyncing,
+      lastSyncTime,
+      isActive: getSyncStateStatus()
+    })
   };
 };

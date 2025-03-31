@@ -32,3 +32,4 @@ export {
 export * from './syncState';
 export * from './errorHandling';
 export * from './timestamp';
+export * from './connectivity';

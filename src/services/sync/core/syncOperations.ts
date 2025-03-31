@@ -1,4 +1,3 @@
-
 /**
  * وظيفة المزامنة الرئيسية - محسنة مع آلية قفل آمنة ومعالجة الطوابير
  * Main synchronization function - enhanced with safe locking mechanism and queue handling
@@ -129,7 +128,7 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     
     // محاولة المزامنة مع مصدر Bladi Info
     // Try to sync with Bladi Info source
-    const syncPromise = executeSync(availableSource, forceRefresh || true, fullCacheBuster, skewParam);
+    const syncPromise = executeSync(availableSource, forceRefresh || true, fullCacheBuster);
     
     // تنفيذ المزامنة مع مهلة زمنية
     // Execute sync with timeout

@@ -1,46 +1,47 @@
 
 /**
  * إدارة أخطاء المزامنة
- * Sync error handling
+ * Sync error management
  */
 
-// مفتاح تخزين خطأ المزامنة
-// Sync error storage key
+// مفتاح التخزين للخطأ
+// Storage key for error
 const SYNC_ERROR_KEY = 'sync_error';
 
-// نوع بيانات خطأ المزامنة
-// Sync error data type
-export interface SyncError {
+// Types for error management
+interface SyncError {
   message: string;
-  timestamp: number;
-  details?: Record<string, any>;
+  time: string;
+  code?: string;
 }
 
 /**
  * تعيين خطأ المزامنة
  * Set sync error
  */
-export const setSyncError = (error: string | Error, details?: Record<string, any>): void => {
+export const setSyncError = (errorMessage: string, errorCode?: string): void => {
   try {
-    const errorMessage = error instanceof Error ? error.message : error;
-    
-    const syncError: SyncError = {
+    const error: SyncError = {
       message: errorMessage,
-      timestamp: Date.now(),
-      details
+      time: new Date().toISOString(),
+      code: errorCode
     };
     
-    localStorage.setItem(SYNC_ERROR_KEY, JSON.stringify(syncError));
-    
-    // إطلاق حدث خطأ المزامنة
-    // Dispatch sync error event
-    const errorEvent = new CustomEvent('sync_error', { 
-      detail: syncError 
-    });
-    
-    window.dispatchEvent(errorEvent);
-  } catch (storageError) {
-    console.error('خطأ في تخزين خطأ المزامنة:', storageError);
+    localStorage.setItem(SYNC_ERROR_KEY, JSON.stringify(error));
+  } catch (e) {
+    console.error('خطأ في تخزين خطأ المزامنة:', e);
+  }
+};
+
+/**
+ * مسح خطأ المزامنة
+ * Clear sync error
+ */
+export const clearSyncError = (): void => {
+  try {
+    localStorage.removeItem(SYNC_ERROR_KEY);
+  } catch (e) {
+    console.error('خطأ في مسح خطأ المزامنة:', e);
   }
 };
 
@@ -51,46 +52,21 @@ export const setSyncError = (error: string | Error, details?: Record<string, any
 export const getSyncError = (): SyncError | null => {
   try {
     const errorJson = localStorage.getItem(SYNC_ERROR_KEY);
-    
-    if (!errorJson) {
-      return null;
-    }
+    if (!errorJson) return null;
     
     return JSON.parse(errorJson) as SyncError;
-  } catch (error) {
-    console.error('خطأ في استرداد خطأ المزامنة:', error);
+  } catch (e) {
+    console.error('خطأ في قراءة خطأ المزامنة:', e);
     return null;
   }
 };
 
 /**
- * تسجيل خطأ المزامنة في السجل
+ * تسجيل خطأ المزامنة
  * Log sync error
  */
-export const logSyncError = (error: string | Error, context?: string): void => {
+export const logSyncError = (error: Error | string, context?: string): void => {
   const errorMessage = error instanceof Error ? error.message : error;
-  const contextPrefix = context ? `[${context}] ` : '';
-  
-  console.error(`${contextPrefix}خطأ في المزامنة:`, errorMessage);
-  
-  // تعيين الخطأ في التخزين
-  // Set error in storage
-  setSyncError(errorMessage, { context });
-};
-
-/**
- * مسح خطأ المزامنة
- * Clear sync error
- */
-export const clearSyncError = (): void => {
-  try {
-    localStorage.removeItem(SYNC_ERROR_KEY);
-    
-    // إطلاق حدث مسح خطأ المزامنة
-    // Dispatch clear sync error event
-    const clearEvent = new CustomEvent('sync_error_cleared');
-    window.dispatchEvent(clearEvent);
-  } catch (error) {
-    console.error('خطأ في مسح خطأ المزامنة:', error);
-  }
+  console.error(`Sync Error ${context ? `(${context})` : ''}:`, errorMessage);
+  setSyncError(errorMessage);
 };

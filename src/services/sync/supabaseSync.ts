@@ -4,7 +4,7 @@
  * Interface for syncing data with Supabase
  */
 
-import { syncWithSupabaseUnified } from './core/unifiedSync';
+import { syncDataUnified } from './core/unifiedSync';
 // Import functions directly from their source modules
 import { setupSupabaseRealtimeSync } from './supabase/realtime/realtimeSync';
 import { initializeSupabaseTables } from './supabase/initialize';
@@ -19,7 +19,7 @@ import { initializeSupabaseTables } from './supabase/initialize';
 export const syncWithSupabase = async (forceRefresh = false): Promise<boolean> => {
   try {
     console.log('بدء مزامنة البيانات مع Supabase، الوضع الإجباري =', forceRefresh);
-    return await syncWithSupabaseUnified(forceRefresh);
+    return await syncDataUnified({forceRefresh});
   } catch (error) {
     console.error('فشل في مزامنة البيانات مع Supabase:', error);
     return false;

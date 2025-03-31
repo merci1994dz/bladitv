@@ -1,9 +1,12 @@
 
-/**
- * نقطة الدخول الرئيسية لوظائف النشر
- * Main entry point for publishing functions
- */
+// Main export file for publish functionality
+import { publishChannelsToAllUsers } from './channelPublish';
+import { forceBroadcastToAllBrowsers } from './forceBroadcast';
+import { createUpdateMarker, checkForUpdates } from './updateMarkers';
 
-// Export publishing functions
-export { publishChannelsToAllUsers } from './channelPublish';
-export { forceBrowsersRefresh } from './forceBroadcast';
+export {
+  publishChannelsToAllUsers,
+  forceBroadcastToAllBrowsers,
+  createUpdateMarker,
+  checkForUpdates
+};

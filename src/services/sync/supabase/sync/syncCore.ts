@@ -7,13 +7,13 @@
 import { setIsSyncing } from '../../../dataStore/state';
 import { setSyncActive } from '../../status';
 import { setSyncError, clearSyncError } from '../../status/errorHandling';
-import { updateLastSyncTime } from '../../status/timestamp';
+import { setSyncTimestamp } from '../../status/timestamp';
 
 /**
  * المزامنة الأساسية مع Supabase
  * Core Supabase sync
  */
-export const syncDataWithSupabase = async (forceRefresh = false): Promise<boolean> => {
+export const performSupabaseSync = async (forceRefresh = false): Promise<boolean> => {
   try {
     // تعيين حالة المزامنة كنشطة
     setSyncActive(true);
@@ -25,7 +25,7 @@ export const syncDataWithSupabase = async (forceRefresh = false): Promise<boolea
     
     if (result) {
       // تعيين وقت آخر مزامنة
-      updateLastSyncTime();
+      setSyncTimestamp();
       
       // مسح أي أخطاء مزامنة سابقة
       clearSyncError();
