@@ -1,6 +1,5 @@
 
 import React, { useEffect } from 'react';
-import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './App.css';
 import { ThemeProvider } from 'next-themes';
@@ -35,12 +34,10 @@ function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <AutoSyncProvider>
-            <AppRoutes />
-            <Toaster />
-          </AutoSyncProvider>
-        </BrowserRouter>
+        <AutoSyncProvider>
+          <AppRoutes />
+          <Toaster />
+        </AutoSyncProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );
