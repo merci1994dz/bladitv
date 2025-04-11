@@ -4,7 +4,7 @@
  * Sync executor
  */
 
-import { syncWithRemoteSource } from '../../remote/sync';
+import { syncWithRemoteSource } from '../../remote/sync/syncWithRemote';
 
 /**
  * تنفيذ عملية المزامنة باستخدام المصدر المتاح
@@ -47,7 +47,7 @@ export const executeSync = async (
           console.error('خطأ في جلب المصدر المحلي:', localError);
         }
       } else {
-        // مصدر خارجي
+        // مصدر خارجي - نستخدم syncWithRemoteSource مع المعلمات المطلوبة فقط
         return await syncWithRemoteSource(source, forceRefresh);
       }
     }
