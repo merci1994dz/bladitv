@@ -4,7 +4,6 @@
  */
 
 // Export fetch utilities
-export { fetchWithTimeout } from './fetchStrategies';
 export { isRemoteUrlAccessible } from './accessibilityCheck';
 export { fetchRemoteData } from './fetchRemoteData';
 
@@ -13,6 +12,7 @@ export * from './browserDetection';
 export * from './skewProtection';
 export * from './proxyUtils';
 export * from './errorHandling';
+export * from './fetchStrategies';
 
 /**
  * Fetch with timeout utility
@@ -45,4 +45,3 @@ export const fetchWithTimeout = async (
     clearTimeout(id);
   }
 };
-
