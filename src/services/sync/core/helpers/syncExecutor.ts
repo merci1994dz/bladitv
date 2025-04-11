@@ -5,6 +5,7 @@
  */
 
 import { syncWithRemoteSource } from '../../remote/sync/syncWithRemote';
+import { checkConnectivityIssues } from '../../status/errorHandling';
 
 /**
  * تنفيذ عملية المزامنة باستخدام المصدر المتاح
@@ -48,7 +49,8 @@ export const executeSync = async (
         }
       } else {
         // مصدر خارجي - نستخدم syncWithRemoteSource مع المعلمات المطلوبة فقط
-        return await syncWithRemoteSource(source, forceRefresh);
+        // تمرير خيار منع التكرار لتجنب إعادة تحميل نفس البيانات
+        return await syncWithRemoteSource(source, forceRefresh, { preventDuplicates: true });
       }
     }
     
@@ -58,6 +60,8 @@ export const executeSync = async (
     return false;
   } catch (error) {
     console.error('خطأ في تنفيذ المزامنة:', error);
+    // التحقق من مشاكل الاتصال
+    checkConnectivityIssues(error);
     return false;
   }
 };

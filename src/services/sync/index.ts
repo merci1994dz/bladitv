@@ -9,7 +9,7 @@
 export { syncWithSupabase, initializeSupabaseTables } from './supabaseSync';
 export { syncWithBladiInfo, checkBladiInfoAvailability } from './remoteSync';
 export { forceDataRefresh, clearPageCache } from './forceRefresh';
-export { getLastSyncTime, updateLastSyncTime } from './config';
+export { getLastSyncTime, updateLastSyncTime } from './status/timestamp';
 export { publishChannelsToAllUsers } from './publish';
 export { syncWithRemoteSource } from './remote/sync/syncWithRemote';
 

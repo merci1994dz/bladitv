@@ -1,44 +1,34 @@
 
 /**
- * إدارة أخطاء المزامنة
- * Sync error management
+ * معالجة أخطاء المزامنة
+ * Sync error handling
  */
 
-// مفتاح التخزين للخطأ
-// Storage key for error
-const SYNC_ERROR_KEY = 'sync_error';
+import { toast } from '@/hooks/use-toast';
 
-// Types for error management
-export interface SyncError {
+// Define sync error types
+type SyncError = {
   message: string;
-  time: string;
   code?: string;
-  details?: {
-    source?: string;
-    type?: string;
-    reason?: string;
-    timestamp?: number;
-  };
-}
+  type?: 'network' | 'server' | 'client' | 'timeout' | 'unknown';
+  details?: any;
+};
+
+// حالة الخطأ الحالية
+let currentSyncError: SyncError | null = null;
 
 /**
  * تعيين خطأ المزامنة
  * Set sync error
  */
-export const setSyncError = (errorMessage: string, errorCode?: string): void => {
+export const setSyncError = (errorMessage: string): void => {
+  currentSyncError = { message: errorMessage };
+  
   try {
-    const error: SyncError = {
-      message: errorMessage,
-      time: new Date().toISOString(),
-      code: errorCode,
-      details: {
-        timestamp: Date.now()
-      }
-    };
-    
-    localStorage.setItem(SYNC_ERROR_KEY, JSON.stringify(error));
+    localStorage.setItem('last_sync_error', JSON.stringify(currentSyncError));
+    localStorage.setItem('last_sync_error_time', new Date().toISOString());
   } catch (e) {
-    console.error('خطأ في تخزين خطأ المزامنة:', e);
+    console.error('تعذر تخزين معلومات الخطأ محليًا:', e);
   }
 };
 
@@ -47,35 +37,89 @@ export const setSyncError = (errorMessage: string, errorCode?: string): void => 
  * Clear sync error
  */
 export const clearSyncError = (): void => {
+  currentSyncError = null;
+  
   try {
-    localStorage.removeItem(SYNC_ERROR_KEY);
+    localStorage.removeItem('last_sync_error');
   } catch (e) {
-    console.error('خطأ في مسح خطأ المزامنة:', e);
+    console.error('تعذر مسح معلومات الخطأ محليًا:', e);
   }
 };
 
 /**
- * الحصول على خطأ المزامنة
- * Get sync error
+ * الحصول على خطأ المزامنة الحالي
+ * Get current sync error
  */
 export const getSyncError = (): SyncError | null => {
-  try {
-    const errorJson = localStorage.getItem(SYNC_ERROR_KEY);
-    if (!errorJson) return null;
-    
-    return JSON.parse(errorJson) as SyncError;
-  } catch (e) {
-    console.error('خطأ في قراءة خطأ المزامنة:', e);
-    return null;
-  }
+  return currentSyncError;
 };
 
 /**
- * تسجيل خطأ المزامنة
- * Log sync error
+ * التحقق من مشاكل الاتصال
+ * Check for connectivity issues
  */
-export const logSyncError = (error: Error | string, context?: string): void => {
-  const errorMessage = error instanceof Error ? error.message : error;
-  console.error(`Sync Error ${context ? `(${context})` : ''}:`, errorMessage);
-  setSyncError(errorMessage);
+export const checkConnectivityIssues = (error: unknown): boolean => {
+  const errorMessage = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  
+  // المؤشرات على مشاكل الاتصال
+  const isNetworkError = (
+    errorMessage.includes('network') ||
+    errorMessage.includes('offline') ||
+    errorMessage.includes('connection') ||
+    errorMessage.includes('internet') ||
+    errorMessage.includes('fetch') ||
+    errorMessage.includes('timeout') ||
+    errorMessage.includes('cors')
+  );
+  
+  // إذا تم اكتشاف مشكلة في الاتصال
+  if (isNetworkError) {
+    console.warn('تم اكتشاف مشكلة في الاتصال:', errorMessage);
+    
+    // تعيين نوع الخطأ
+    currentSyncError = {
+      message: 'تعذر الاتصال بخادم المزامنة',
+      type: 'network',
+      details: errorMessage
+    };
+    
+    // عرض إشعار للمستخدم
+    if (typeof window !== 'undefined') {
+      try {
+        toast({
+          title: "مشكلة في الاتصال",
+          description: "يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى",
+          variant: "destructive"
+        });
+      } catch (e) {
+        // تجاهل أخطاء النافذة
+      }
+    }
+    
+    return true;
+  }
+  
+  return false;
+};
+
+/**
+ * عرض خطأ المزامنة للمستخدم
+ * Display sync error to user
+ */
+export const displaySyncError = (error: SyncError | string): void => {
+  const errorObj = typeof error === 'string' ? { message: error } : error;
+  
+  toast({
+    title: "خطأ في المزامنة",
+    description: errorObj.message,
+    variant: "destructive",
+    duration: 5000
+  });
+  
+  // تعيين الخطأ الحالي
+  if (typeof error === 'string') {
+    setSyncError(error);
+  } else {
+    currentSyncError = error;
+  }
 };

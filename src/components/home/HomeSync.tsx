@@ -22,7 +22,8 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
     try {
       const result = await syncDataUnified({
         forceRefresh: true,
-        showNotifications: false
+        showNotifications: false,
+        preventDuplicates: true // تفعيل خاصية منع التكرار
       });
       
       if (result) {
