@@ -6,6 +6,8 @@
 
 import { fetchWithAllStrategies } from './fetchStrategies';
 import { addCacheBusterToUrl, preventCacheForAllRequests, createCacheBuster } from './retryStrategies';
+import { getSkewProtectionParams } from './skewProtection';
+import { fetchRemoteData } from './fetchRemoteData';
 
 /**
  * جلب البيانات مع مهلة زمنية
@@ -56,7 +58,9 @@ export {
   fetchWithAllStrategies,
   addCacheBusterToUrl, 
   preventCacheForAllRequests,
-  createCacheBuster
+  createCacheBuster,
+  fetchRemoteData,
+  getSkewProtectionParams
 };
 
 /**

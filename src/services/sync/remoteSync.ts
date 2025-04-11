@@ -5,7 +5,7 @@
  */
 
 import { channels, countries, categories, setIsSyncing } from '../dataStore';
-import { fetchRemoteData } from './remote/fetch';
+import { fetchRemoteData, isRemoteUrlAccessible } from './remote/fetch';
 import { storeRemoteData } from './remote/storeData';
 import { updateLastSyncTime } from './status/timestamp';
 import { syncWithRemoteSource } from './remote/sync/syncWithRemote';
@@ -85,4 +85,3 @@ export const syncWithBladiInfo = async (
     setIsSyncing(false);
   }
 };
-
