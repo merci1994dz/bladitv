@@ -12,7 +12,8 @@ export const createCacheBuster = (): string => {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 15);
   const secondRandom = Math.random().toString(36).substring(2, 15);
-  return `nocache=${timestamp}&_=${random}&ts=${timestamp}&r=${random}&v=${timestamp}&d=${Date.now()}&rand=${secondRandom}&timestamp=${new Date().toISOString()}&version=${process.env.REACT_APP_VERSION || timestamp}`;
+  // تم إزالة الإشارة إلى process.env وتعويضها بقيمة timestamp
+  return `nocache=${timestamp}&_=${random}&ts=${timestamp}&r=${random}&v=${timestamp}&d=${Date.now()}&rand=${secondRandom}&timestamp=${new Date().toISOString()}&version=${timestamp}`;
 };
 
 /**

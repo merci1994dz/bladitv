@@ -1,66 +1,43 @@
 
 /**
- * وظائف حماية التزامن وتحديد بيئة التشغيل
- * Skew protection and environment detection functions
+ * حماية من انحراف الوقت في الخوادم
+ * Protection from time skew on servers
  */
-
-/**
- * الحصول على معلمات حماية التزامن
- * Get skew protection parameters
- */
-export const getSkewProtectionParams = (): Record<string, string> => {
-  try {
-    const timestamp = Date.now();
-    const randomValue = Math.random().toString(36).substring(2, 15);
-    
-    return {
-      'ts': timestamp.toString(),
-      'r': randomValue,
-      'v': timestamp.toString()
-    };
-  } catch (error) {
-    console.error('خطأ في الحصول على معلمات حماية التزامن:', error);
-    return {};
-  }
-};
 
 /**
  * التحقق مما إذا كان التطبيق يعمل على Vercel
- * Check if the app is running on Vercel
+ * Check if app is running on Vercel
  */
 export const isRunningOnVercel = (): boolean => {
+  // التحقق من وجود بعض القيم التي قد تكون متاحة فقط على Vercel
   try {
-    // التحقق من الرابط
-    // Check URL
-    const url = window.location.hostname;
-    
-    return url.includes('vercel.app') || 
-           url.includes('now.sh') || 
-           document.cookie.includes('__vercel');
-  } catch (error) {
-    console.error('خطأ في التحقق مما إذا كان التطبيق يعمل على Vercel:', error);
+    // نحاول الكشف عن بيئة Vercel من خلال بعض العلامات
+    const hostname = window.location.hostname;
+    return hostname.endsWith('.vercel.app') || 
+           hostname.includes('vercel') || 
+           document.querySelector('meta[name="generator"][content*="vercel"]') !== null;
+  } catch (e) {
     return false;
   }
 };
 
 /**
- * إضافة رؤوس حماية التزامن
- * Add skew protection headers
+ * الحصول على معلمات الحماية من انحراف الوقت
+ * Get time skew protection parameters
  */
-export const addSkewProtectionHeaders = (headers: Record<string, string>): Record<string, string> => {
+export const getSkewProtectionParams = (): string => {
   try {
-    const skewParams = getSkewProtectionParams();
+    // إضافة طابع زمني دقيق لتجنب مشاكل انحراف الوقت في الخوادم
+    const timestamp = Date.now();
+    const adjustedTime = timestamp; // يمكن تعديله وفقًا لانحراف وقت الخادم المعروف
     
-    // إضافة معلمات حماية التزامن إلى الرؤوس
-    // Add skew protection parameters to headers
-    return {
-      ...headers,
-      'X-Timestamp': skewParams.ts,
-      'X-Random': skewParams.r,
-      'X-Version': skewParams.v
-    };
-  } catch (error) {
-    console.error('خطأ في إضافة رؤوس حماية التزامن:', error);
-    return headers;
+    if (isRunningOnVercel()) {
+      // إضافة مزيد من المعلمات خاصة بـ Vercel
+      return `_vercel=${adjustedTime}&_ts=${timestamp}&_precise=${new Date().toISOString()}`;
+    }
+    
+    return `_ts=${timestamp}`;
+  } catch (e) {
+    return `_ts=${Date.now()}`;
   }
 };
