@@ -18,4 +18,5 @@ export { syncState, resetConsecutiveAttempts, MAX_CONSECUTIVE_SYNCS } from './sy
 
 // تصدير واجهة المزامنة الموحدة
 // Export unified sync interface
-export { syncDataUnified, getSyncStatus, syncWithSupabaseUnified } from './unifiedSync';
+export { syncDataUnified } from './unifiedSync';
+

@@ -20,6 +20,16 @@ interface SyncOptions {
   onComplete?: (success: boolean) => void;
 }
 
+// Sync status state
+let isSyncActive = false;
+
+/**
+ * Get current sync status
+ */
+export const getSyncStatus = (): boolean => {
+  return isSyncActive;
+};
+
 /**
  * مزامنة موحدة محسنة لجميع مصادر البيانات
  * Enhanced unified sync for all data sources
@@ -36,6 +46,7 @@ export const syncDataUnified = async (options: SyncOptions = {}): Promise<boolea
   // وضع التطبيق في حالة المزامنة
   setSyncActive(true);
   setIsSyncing(true);
+  isSyncActive = true;
   
   // إظهار إشعار البدء إذا تم طلبه
   if (showNotifications) {
@@ -58,7 +69,8 @@ export const syncDataUnified = async (options: SyncOptions = {}): Promise<boolea
       } 
       // استخدام مزامنة Bladi Info إذا كان المصدر هو bladi
       else if (source === 'bladi') {
-        syncSuccess = await syncWithBladiInfo(forceRefresh);
+        const result = await syncWithBladiInfo(forceRefresh);
+        syncSuccess = result.updated;
       }
       // استخدام المزامنة الموحدة للمصادر الأخرى
       else {
@@ -130,6 +142,7 @@ export const syncDataUnified = async (options: SyncOptions = {}): Promise<boolea
     // إلغاء تنشيط حالة المزامنة بغض النظر عن النتيجة
     setSyncActive(false);
     setIsSyncing(false);
+    isSyncActive = false;
   }
 };
 
@@ -153,9 +166,9 @@ async function attemptAllSyncMethods(forceRefresh: boolean, preventDuplicates: b
     console.log('فشلت المزامنة مع Supabase، محاولة المزامنة مع Bladi Info...');
     
     // 2. ثم محاولة المزامنة مع Bladi Info
-    const bladiResult = await syncWithBladiInfo(forceRefresh);
+    const bladiResult = await syncWithBladiInfo(forceRefresh, { preventDuplicates });
     
-    if (bladiResult) {
+    if (bladiResult.updated) {
       console.log('تمت المزامنة بنجاح مع Bladi Info');
       return true;
     }
@@ -167,3 +180,11 @@ async function attemptAllSyncMethods(forceRefresh: boolean, preventDuplicates: b
     return false;
   }
 }
+
+/**
+ * Wrapper for Supabase sync with our standard interface
+ */
+export const syncWithSupabaseUnified = async (forceRefresh: boolean = false): Promise<boolean> => {
+  return await syncWithSupabase(forceRefresh);
+};
+

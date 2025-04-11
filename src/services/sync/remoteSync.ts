@@ -7,9 +7,9 @@
 import { channels, countries, categories, setIsSyncing } from '../dataStore';
 import { fetchRemoteData } from './remote/fetch';
 import { storeRemoteData } from './remote/storeData';
-import { updateLastSyncTime } from './config';
+import { updateLastSyncTime } from './status/timestamp';
 import { syncWithRemoteSource } from './remote/sync/syncWithRemote';
-import { checkBladiInfoAvailability } from './remote/sync/bladiInfoSync';
+import { checkBladiInfoAvailability } from './remote/sync/sourceAvailability';
 
 // Re-export these functions to make them available to other modules
 export { checkBladiInfoAvailability };
@@ -85,3 +85,4 @@ export const syncWithBladiInfo = async (
     setIsSyncing(false);
   }
 };
+

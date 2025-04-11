@@ -4,7 +4,7 @@
  * Initial synchronization and loading
  */
 
-import { syncWithSupabaseUnified } from './unifiedSync';
+import { syncWithSupabase } from '../supabaseSync';
 import { syncState } from './syncState';
 
 /**
@@ -27,7 +27,7 @@ export const performInitialSync = async (forceRefresh = false): Promise<boolean>
     }
     
     // تنفيذ المزامنة
-    const result = await syncWithSupabaseUnified(forceRefresh);
+    const result = await syncWithSupabase(forceRefresh);
     
     // تحديث حالة المزامنة بناءً على النتيجة
     if (result) {
@@ -48,3 +48,4 @@ export const performInitialSync = async (forceRefresh = false): Promise<boolean>
     return false;
   }
 };
+

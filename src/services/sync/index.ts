@@ -9,7 +9,7 @@
 export { syncWithSupabase, initializeSupabaseTables } from './supabaseSync';
 export { syncWithBladiInfo, checkBladiInfoAvailability } from './remoteSync';
 export { forceDataRefresh, clearPageCache } from './forceRefresh';
-export { getLastSyncTime, updateLastSyncTime } from './status/timestamp';
+export { getLastSyncTime, setSyncTimestamp } from './status/timestamp';
 export { publishChannelsToAllUsers } from './publish';
 export { syncWithRemoteSource } from './remote/sync/syncWithRemote';
 
@@ -36,7 +36,7 @@ export const syncData = async (forceRefresh = false): Promise<boolean> => {
     const { syncWithBladiInfo } = await import('./remoteSync');
     const bladiResult = await syncWithBladiInfo(forceRefresh);
     
-    if (bladiResult) {
+    if (bladiResult.updated) {
       console.log('تمت المزامنة بنجاح مع Bladi Info');
       return true;
     }
@@ -51,3 +51,4 @@ export const syncData = async (forceRefresh = false): Promise<boolean> => {
 
 // For compatibility with existing code
 export const syncAllData = syncData;
+

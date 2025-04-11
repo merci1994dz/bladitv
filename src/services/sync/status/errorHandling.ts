@@ -55,6 +55,15 @@ export const getSyncError = (): SyncError | null => {
 };
 
 /**
+ * تسجيل خطأ المزامنة
+ * Log sync error
+ */
+export const logSyncError = (errorMessage: string, context?: string): void => {
+  console.error(`خطأ في المزامنة (${context || 'unknown'}):`, errorMessage);
+  setSyncError(errorMessage);
+};
+
+/**
  * التحقق من مشاكل الاتصال
  * Check for connectivity issues
  */
@@ -123,3 +132,4 @@ export const displaySyncError = (error: SyncError | string): void => {
     currentSyncError = error;
   }
 };
+
