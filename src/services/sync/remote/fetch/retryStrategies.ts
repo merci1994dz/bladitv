@@ -12,7 +12,7 @@ export const createCacheBuster = (): string => {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 15);
   const secondRandom = Math.random().toString(36).substring(2, 15);
-  return `nocache=${timestamp}&_=${random}&ts=${timestamp}&r=${random}&v=${timestamp}&d=${Date.now()}&rand=${secondRandom}&timestamp=${new Date().toISOString()}`;
+  return `nocache=${timestamp}&_=${random}&ts=${timestamp}&r=${random}&v=${timestamp}&d=${Date.now()}&rand=${secondRandom}&timestamp=${new Date().toISOString()}&version=${process.env.REACT_APP_VERSION || timestamp}`;
 };
 
 /**
@@ -40,7 +40,8 @@ export const addCacheBusterToUrl = (url: string): string => {
       !param.startsWith('v=') &&
       !param.startsWith('d=') &&
       !param.startsWith('rand=') &&
-      !param.startsWith('timestamp=')
+      !param.startsWith('timestamp=') &&
+      !param.startsWith('version=')
     ).join('&');
     
     baseUrl = queryParams.length > 0 ? `${path}?${queryParams}` : path;
@@ -93,7 +94,8 @@ export const createUniqueMarkers = (): Record<string, string> => {
     'refresh_marker': `${timestamp}_${random}`,
     'aggressive_cache_bust': 'true',
     'total_cache_clear': 'true',
-    'clear_page_cache': 'true'
+    'clear_page_cache': 'true',
+    'app_updated_time': timestamp
   };
 };
 
@@ -113,4 +115,49 @@ export const applyStorageMarkers = (): void => {
       console.warn('خطأ في تطبيق علامات التخزين:', e);
     }
   });
+};
+
+/**
+ * تطبيق قوي لمنع التخزين المؤقت في جميع الطلبات
+ * Aggressive cache prevention for all requests
+ */
+export const preventCacheForAllRequests = (): void => {
+  // تطبيق علامات التخزين المحلي
+  applyStorageMarkers();
+  
+  // محاولة إضافة رؤوس لمنع التخزين المؤقت لجميع الطلبات المستقبلية
+  try {
+    // إعادة تعريف طريقة fetch الافتراضية
+    const originalFetch = window.fetch;
+    window.fetch = function(input, init) {
+      // إنشاء نسخة من خيارات الطلب
+      const newInit = init || {};
+      
+      // إضافة رؤوس لمنع التخزين المؤقت
+      newInit.headers = {
+        ...newInit.headers,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-Timestamp': Date.now().toString(),
+        'X-Random': Math.random().toString(36).substring(2, 15)
+      };
+      
+      // تطبيق خيار لمنع التخزين المؤقت
+      newInit.cache = 'no-store';
+      
+      // إضافة معلمات لمنع التخزين المؤقت إلى URL إذا كان نصيًا
+      if (typeof input === 'string') {
+        input = addCacheBusterToUrl(input);
+      }
+      
+      // استدعاء طريقة fetch الأصلية
+      return originalFetch.call(window, input, newInit);
+    };
+    
+    console.log('تم تفعيل منع التخزين المؤقت لجميع الطلبات');
+  } catch (e) {
+    console.warn('فشل في تطبيق منع التخزين المؤقت لجميع الطلبات:', e);
+  }
 };

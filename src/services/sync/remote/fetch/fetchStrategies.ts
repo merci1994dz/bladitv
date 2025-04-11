@@ -11,9 +11,7 @@ import { adjustFetchOptionsForBrowser } from './browserDetection';
 import { processResponseError } from './errorHandling';
 import { addSkewProtectionHeaders } from './skewProtection';
 
-// Export the fetchWithTimeout from the index file
-import { fetchWithTimeout } from './index';
-export { fetchWithTimeout };
+// Do NOT import fetchWithTimeout from index to avoid circular dependency
 
 /**
  * محاولة جلب البيانات عبر JSONP
