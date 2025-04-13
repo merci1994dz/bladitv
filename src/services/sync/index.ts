@@ -51,4 +51,3 @@ export const syncData = async (forceRefresh = false): Promise<boolean> => {
 
 // For compatibility with existing code
 export const syncAllData = syncData;
-

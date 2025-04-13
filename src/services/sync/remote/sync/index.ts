@@ -11,4 +11,4 @@ export { BLADI_INFO_SOURCES } from './sources';
 export { getSkewProtectionParams } from '../fetch/skewProtection';
 
 // Re-export fetchRemoteData to ensure it's available for modules that need it
-export { fetchRemoteData } from '../fetch/fetchRemoteData';
+export { fetchRemoteData, isRemoteUrlAccessible } from '../fetch/fetchRemoteData';

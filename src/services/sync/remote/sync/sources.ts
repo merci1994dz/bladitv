@@ -7,22 +7,36 @@
 // مصادر Bladi Info
 // Bladi Info sources
 export const BLADI_INFO_SOURCES = [
-  // المصادر المحلية للتطوير
-  // Local sources for development
-  '/data/channels.json',
-  
-  // CDNs للإنتاج
-  // CDNs for production
-  'https://cdn.jsdelivr.net/gh/yourusername/data-repo@main/data/channels.json',
-  
-  // مصادر احتياطية
-  // Backup sources
-  'https://example.com/data/channels.json',
+  'https://tv.bladiinfo.net/data/channels.json',
+  'https://api.bladiinfo.net/tv/data/channels.json',
+  'https://bladitv.net/data/channels.json',
+  'https://beta.bladitv.net/data/channels.json',
+  '/data/channels.json'  // مصدر محلي كخيار أخير / Local source as a last resort
 ];
 
-// قائمة بروكسيات CORS للمساعدة في الوصول للمصادر
-// List of CORS proxies to help access sources
-export const CORS_PROXIES = [
-  'https://cors-anywhere.herokuapp.com/',
-  'https://api.allorigins.win/raw?url='
-];
+// وظيفة الحصول على مصادر لفئة معينة
+// Function to get sources for a specific category
+export const getSourcesForCategory = (category: string): string[] => {
+  switch (category) {
+    case 'sports':
+      return [
+        'https://tv.bladiinfo.net/data/sports-channels.json',
+        'https://api.bladiinfo.net/tv/data/sports-channels.json',
+        '/data/sports-channels.json'
+      ];
+    case 'news':
+      return [
+        'https://tv.bladiinfo.net/data/news-channels.json',
+        'https://api.bladiinfo.net/tv/data/news-channels.json',
+        '/data/news-channels.json'
+      ];
+    case 'entertainment':
+      return [
+        'https://tv.bladiinfo.net/data/entertainment-channels.json',
+        'https://api.bladiinfo.net/tv/data/entertainment-channels.json',
+        '/data/entertainment-channels.json'
+      ];
+    default:
+      return BLADI_INFO_SOURCES;
+  }
+};

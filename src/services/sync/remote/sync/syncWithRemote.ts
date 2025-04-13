@@ -1,86 +1,60 @@
 
 /**
- * المزامنة مع المصدر البعيد
- * Sync with remote source
+ * مزامنة مع مصادر البيانات الخارجية
+ * Sync with external data sources
  */
 
-import { fetchWithTimeout } from '../fetch';
+import { fetchRemoteData } from '../fetch/fetchRemoteData';
 import { storeRemoteData } from '../storeData';
-import { handleError } from '@/utils/errorHandling';
-
-interface SyncOptions {
-  preventDuplicates?: boolean;
-  timeout?: number;
-}
+import { updateLastSyncTime } from '../../status/timestamp';
+import { setIsSyncing } from '../../../dataStore';
 
 /**
- * مزامنة البيانات مع مصدر خارجي
- * Synchronize data with external source
+ * مزامنة مع مصدر بيانات خارجي
+ * Sync with external data source
  * 
- * @param remoteUrl عنوان URL للمصدر الخارجي / URL of the external source
- * @param forceRefresh ما إذا كان يجب تجاهل التخزين المؤقت وإجبار التحديث / Whether to ignore cache and force a refresh
- * @param options خيارات إضافية للمزامنة / Additional sync options
+ * @param source رابط مصدر البيانات / Data source URL
+ * @param forceRefresh تجاهل التخزين المؤقت وفرض التحديث / Ignore cache and force refresh
  * @returns وعد يحل إلى قيمة boolean تشير إلى نجاح المزامنة / Promise resolving to boolean indicating sync success
  */
 export const syncWithRemoteSource = async (
-  remoteUrl: string, 
-  forceRefresh: boolean = false,
-  options: SyncOptions = {}
+  source: string,
+  forceRefresh = false
 ): Promise<boolean> => {
   try {
-    console.log(`بدء المزامنة مع المصدر الخارجي: ${remoteUrl}`);
+    console.log(`مزامنة مع المصدر: ${source}`);
+    setIsSyncing(true);
     
-    // إضافة معلمات لمنع التخزين المؤقت
-    const urlObj = new URL(remoteUrl);
-    if (forceRefresh) {
-      urlObj.searchParams.append('_nocache', Date.now().toString());
-      urlObj.searchParams.append('_force', 'true');
-    }
+    // إضافة معلمات لمنع التخزين المؤقت إذا كان التحديث إجباريًا
+    // Add parameters to prevent caching if force refresh is enabled
+    const cacheBuster = forceRefresh ? 
+      `?nocache=${Date.now()}&_=${Math.random().toString(36).substring(2, 9)}` : '';
     
-    // تعيين زمن انتهاء المهلة
-    const timeout = options.timeout || 10000; // 10 ثوانٍ افتراضيًا
+    const targetUrl = source + cacheBuster;
     
-    // استخدام وظيفة الجلب مع مهلة زمنية
-    const response = await fetchWithTimeout(urlObj.toString(), {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Cache-Control': forceRefresh ? 'no-cache, no-store' : 'default'
-      }
-    }, timeout);
+    // جلب البيانات من المصدر
+    // Fetch data from source
+    const data = await fetchRemoteData(targetUrl);
     
-    if (!response.ok) {
-      console.error(`فشل في جلب البيانات من ${remoteUrl}: ${response.status} ${response.statusText}`);
+    if (!data || !data.channels || !Array.isArray(data.channels)) {
+      console.error('بيانات غير صالحة تم استلامها من المصدر');
       return false;
     }
     
-    // تحويل البيانات إلى JSON
-    const data = await response.json();
+    // تخزين البيانات
+    // Store data
+    await storeRemoteData(data, source);
     
-    if (!data) {
-      console.error(`لم يتم استلام بيانات صالحة من ${remoteUrl}`);
-      return false;
-    }
+    // تحديث وقت آخر مزامنة
+    // Update last sync time
+    updateLastSyncTime();
     
-    console.log(`تم استلام استجابة من ${remoteUrl}، جاري معالجة البيانات...`);
-    
-    // تحديث البيانات المحلية مع التحقق من التكرار إذا تم طلب ذلك
-    const preventDuplicates = options.preventDuplicates === true;
-    const result = await storeRemoteData(data, remoteUrl, { preventDuplicates });
-    
-    if (result) {
-      console.log(`تمت المزامنة بنجاح مع ${remoteUrl}`);
-    } else {
-      console.warn(`فشلت المزامنة مع ${remoteUrl}`);
-    }
-    
-    return result;
+    console.log(`تمت المزامنة بنجاح مع المصدر: ${source}`);
+    return true;
   } catch (error) {
-    console.error(`خطأ أثناء المزامنة مع ${remoteUrl}:`, error);
-    
-    // استخدام وظيفة معالجة الأخطاء العامة
-    handleError(error, `المزامنة مع المصدر الخارجي: ${remoteUrl}`);
-    
+    console.error(`خطأ في المزامنة مع المصدر ${source}:`, error);
     return false;
+  } finally {
+    setIsSyncing(false);
   }
 };

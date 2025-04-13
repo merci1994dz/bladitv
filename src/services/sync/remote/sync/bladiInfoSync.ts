@@ -1,71 +1,78 @@
 
 /**
- * Functionality for syncing with Bladi Info sources
+ * مزامنة مع مصادر Bladi Info
+ * Sync with Bladi Info sources
  */
 
+import { fetchRemoteData } from '../fetch/fetchRemoteData';
+import { storeRemoteData } from '../storeData';
 import { BLADI_INFO_SOURCES } from './sources';
-import { syncWithRemoteSource } from './syncWithRemote';
-import { checkBladiInfoAvailability } from './sourceAvailability';
-import { syncWithSourceGroup, syncWithLocalFallback } from './multiSourceSync';
-import { fetchRemoteData, isRemoteUrlAccessible } from '../fetch';
-
-// Export for external use
-export { checkBladiInfoAvailability };
-export { syncWithRemoteSource };
+import { updateLastSyncTime } from '../../status/timestamp';
+import { channels } from '../../../dataStore';
 
 /**
- * تنفيذ المزامنة مع Bladi Info - مع محاولات متعددة
- * Implement synchronization with Bladi Info - with multiple attempts
+ * مزامنة مع مصدر Bladi Info محدد
+ * Sync with a specific Bladi Info source
  */
-export const syncWithBladiInfo = async (forceRefresh = false): Promise<boolean> => {
-  // تحقق من توفر مصدر أولاً
-  // Check for an available source first
-  const availableSource = await checkBladiInfoAvailability();
-  
-  if (availableSource) {
-    console.log(`استخدام المصدر المتاح: ${availableSource}`);
+export const syncWithBladiInfo = async (
+  forceRefresh = false,
+  options?: { preventDuplicates?: boolean }
+): Promise<{ updated: boolean, channelsCount: number }> => {
+  try {
+    // البحث عن مصدر متاح
+    // Find an available source
+    let availableSource = '';
     
-    try {
-      const success = await syncWithRemoteSource(availableSource, forceRefresh);
-      
-      if (success) {
-        console.log(`تمت المزامنة بنجاح مع ${availableSource}`);
-        return true;
-      } else {
-        console.warn(`فشلت المزامنة مع المصدر المتاح، جاري تجربة مصادر أخرى...`);
+    for (const source of BLADI_INFO_SOURCES) {
+      try {
+        // إضافة معلمات لمنع التخزين المؤقت إذا كان التحديث إجباريًا
+        // Add parameters to prevent caching if force refresh is enabled
+        const cacheBuster = forceRefresh ? 
+          `?nocache=${Date.now()}&_=${Math.random().toString(36).substring(2, 9)}` : '';
+        
+        const sourceUrl = source + cacheBuster;
+        const data = await fetchRemoteData(sourceUrl);
+        
+        // التحقق من صحة البيانات
+        // Verify data validity
+        if (data && data.channels && Array.isArray(data.channels)) {
+          availableSource = source;
+          
+          // حساب عدد القنوات قبل التحديث
+          // Count channels before update
+          const channelsCountBefore = channels.length;
+          
+          // حفظ البيانات
+          // Store data
+          const usePreventDuplicates = options?.preventDuplicates !== false;
+          await storeRemoteData(data, source, { preventDuplicates: usePreventDuplicates });
+          
+          // حساب عدد القنوات الجديدة
+          // Count new channels
+          const channelsCountAfter = channels.length;
+          const channelsDiff = channelsCountAfter - channelsCountBefore;
+          
+          // تحديث وقت آخر مزامنة
+          // Update last sync time
+          updateLastSyncTime();
+          
+          return {
+            updated: channelsDiff > 0,
+            channelsCount: channelsDiff
+          };
+        }
+      } catch (error) {
+        console.warn(`فشل الاتصال بالمصدر ${source}:`, error);
+        // متابعة المحاولة مع المصدر التالي
+        // Continue trying with the next source
       }
-    } catch (error) {
-      console.error(`فشلت المزامنة مع المصدر المتاح ${availableSource}:`, error);
     }
-  } else {
-    console.log('لم يتم العثور على مصدر متاح بعد، جاري فحص جميع المصادر...');
+    
+    // لم يتم العثور على أي مصدر متاح
+    // No available source found
+    return { updated: false, channelsCount: 0 };
+  } catch (error) {
+    console.error('خطأ في مزامنة Bladi Info:', error);
+    return { updated: false, channelsCount: 0 };
   }
-  
-  // إذا لم يكن هناك مصدر متاح أو فشل المصدر المتاح، جرب جميع المصادر
-  // If there's no available source or it failed, try all sources
-  console.log('محاولة الاتصال بجميع مصادر Bladi Info...');
-  
-  // تقسيم المصادر إلى مجموعات للتنفيذ المتوازي
-  // Split sources into groups for parallel execution
-  const batchSize = 3;
-  const sourceGroups = [];
-  
-  for (let i = 0; i < BLADI_INFO_SOURCES.length; i += batchSize) {
-    sourceGroups.push(BLADI_INFO_SOURCES.slice(i, i + batchSize));
-  }
-  
-  // فحص كل مجموعة من المصادر
-  // Check each group of sources
-  for (const sourceGroup of sourceGroups) {
-    const success = await syncWithSourceGroup(sourceGroup, forceRefresh);
-    if (success) return true;
-  }
-  
-  // محاولة استخدام المصدر المحلي كخيار أخير
-  // Try using local source as a last resort
-  const localSuccess = await syncWithLocalFallback(forceRefresh);
-  if (localSuccess) return true;
-  
-  console.error('جميع روابط Bladi Info غير متاحة للوصول');
-  return false;
 };

@@ -1,55 +1,51 @@
 
 /**
- * فحص توفر مصادر Bladi Info
+ * التحقق من توفر مصادر Bladi Info
  * Check availability of Bladi Info sources
  */
 
-import { isRemoteUrlAccessible } from '../fetch';
 import { BLADI_INFO_SOURCES } from './sources';
+import { isRemoteUrlAccessible } from '../fetch/fetchRemoteData';
 
 /**
- * فحص توفر أي من مصادر Bladi Info
- * Check if any Bladi Info source is available
+ * التحقق من توفر مصادر Bladi Info
+ * Check availability of Bladi Info sources
  * 
- * @returns عنوان URL للمصدر المتاح، أو null إذا لم يكن هناك مصدر متاح
+ * @returns {Promise<string | null>} المصدر المتاح أو null إذا لم يتم العثور على أي مصدر متاح
  */
 export const checkBladiInfoAvailability = async (): Promise<string | null> => {
   console.log('التحقق من توفر مصادر Bladi Info...');
   
-  // أولاً، محاولة الوصول إلى المصادر المحلية (للتطوير)
-  // First, try to access local sources (for development)
+  // فحص أولاً المصدر المحلي كخيار أسرع
+  // Check local source first as it's faster
+  const localSource = '/data/channels.json';
+  
+  try {
+    const isLocalAccessible = await isRemoteUrlAccessible(localSource);
+    if (isLocalAccessible) {
+      console.log('المصدر المحلي متاح:', localSource);
+      return localSource;
+    }
+  } catch (error) {
+    console.warn('فشل التحقق من توفر المصدر المحلي:', error);
+  }
+  
+  // لم يكن المصدر المحلي متاحًا، جارٍ التحقق من المصادر الخارجية
+  // Local source wasn't available, checking external sources
   for (const source of BLADI_INFO_SOURCES) {
-    if (source.startsWith('/')) {
-      try {
-        const response = await fetch(source);
-        
-        if (response.ok) {
-          console.log(`المصدر المحلي متاح: ${source}`);
-          return source;
-        }
-      } catch (error) {
-        console.warn(`تعذر الوصول إلى المصدر المحلي ${source}:`, error);
+    if (source === localSource) continue; // تم التحقق بالفعل من المصدر المحلي / Already checked local source
+    
+    try {
+      const isAccessible = await isRemoteUrlAccessible(source);
+      if (isAccessible) {
+        console.log('المصدر المتاح:', source);
+        return source;
       }
+    } catch (error) {
+      console.warn(`فشل التحقق من توفر المصدر ${source}:`, error);
     }
   }
   
-  // ثم، محاولة الوصول إلى المصادر الخارجية
-  // Then, try to access external sources
-  for (const source of BLADI_INFO_SOURCES) {
-    if (!source.startsWith('/')) {
-      try {
-        const isAccessible = await isRemoteUrlAccessible(source);
-        
-        if (isAccessible) {
-          console.log(`المصدر الخارجي متاح: ${source}`);
-          return source;
-        }
-      } catch (error) {
-        console.warn(`تعذر الوصول إلى المصدر الخارجي ${source}:`, error);
-      }
-    }
-  }
-  
-  console.log('لم يتم العثور على أي مصدر متاح');
+  console.warn('لم يتم العثور على أي مصدر متاح');
   return null;
 };

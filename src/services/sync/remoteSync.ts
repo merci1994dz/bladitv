@@ -5,7 +5,7 @@
  */
 
 import { channels, countries, categories, setIsSyncing } from '../dataStore';
-import { fetchRemoteData, isRemoteUrlAccessible } from './remote/fetch';
+import { fetchRemoteData, isRemoteUrlAccessible } from './remote/fetch/fetchRemoteData';
 import { storeRemoteData } from './remote/storeData';
 import { updateLastSyncTime } from './status/timestamp';
 import { syncWithRemoteSource } from './remote/sync/syncWithRemote';
