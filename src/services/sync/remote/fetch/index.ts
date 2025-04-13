@@ -7,7 +7,7 @@
 import { fetchWithAllStrategies } from './fetchStrategies';
 import { addCacheBusterToUrl, preventCacheForAllRequests, createCacheBuster } from './retryStrategies';
 import { getSkewProtectionParams } from './skewProtection';
-import { fetchRemoteData } from './fetchRemoteData';
+import { fetchRemoteData, isRemoteUrlAccessible } from './fetchRemoteData';
 
 /**
  * جلب البيانات مع مهلة زمنية
@@ -60,43 +60,6 @@ export {
   preventCacheForAllRequests,
   createCacheBuster,
   fetchRemoteData,
+  isRemoteUrlAccessible,
   getSkewProtectionParams
-};
-
-/**
- * التحقق مما إذا كان عنوان URL الخارجي قابلاً للوصول
- * Check if remote URL is accessible
- */
-export const isRemoteUrlAccessible = async (url: string): Promise<boolean> => {
-  console.log(`التحقق من إمكانية الوصول إلى ${url}...`);
-  
-  // استخدام الإشارة للتمكن من إلغاء الطلب
-  // Use signal to be able to cancel the request
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds timeout
-  
-  try {
-    // محاولة الاتصال بالعنوان
-    // Try connecting to the URL
-    const response = await fetch(url, {
-      method: 'HEAD',
-      cache: 'no-store',
-      signal: controller.signal,
-      mode: 'no-cors'
-    });
-    
-    // إلغاء المهلة
-    // Cancel timeout
-    clearTimeout(timeoutId);
-    
-    return response.status >= 200 && response.status < 400;
-  } catch (error) {
-    console.warn(`تعذر الوصول إلى ${url}:`, error);
-    
-    // إلغاء المهلة
-    // Cancel timeout
-    clearTimeout(timeoutId);
-    
-    return false;
-  }
 };

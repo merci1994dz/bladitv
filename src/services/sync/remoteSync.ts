@@ -10,11 +10,12 @@ import { storeRemoteData } from './remote/storeData';
 import { updateLastSyncTime } from './status/timestamp';
 import { syncWithRemoteSource } from './remote/sync/syncWithRemote';
 import { checkBladiInfoAvailability } from './remote/sync/sourceAvailability';
+import { getSkewProtectionParams } from './remote/fetch/skewProtection';
 
 // Re-export these functions to make them available to other modules
 export { checkBladiInfoAvailability };
 export { syncWithRemoteSource };
-export { getSkewProtectionParams } from './remote/fetch/skewProtection';
+export { getSkewProtectionParams };
 
 /**
  * المزامنة مع مواقع Bladi Info

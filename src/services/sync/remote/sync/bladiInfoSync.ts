@@ -7,6 +7,7 @@ import { BLADI_INFO_SOURCES } from './sources';
 import { syncWithRemoteSource } from './syncWithRemote';
 import { checkBladiInfoAvailability } from './sourceAvailability';
 import { syncWithSourceGroup, syncWithLocalFallback } from './multiSourceSync';
+import { fetchRemoteData, isRemoteUrlAccessible } from '../fetch';
 
 // Export for external use
 export { checkBladiInfoAvailability };

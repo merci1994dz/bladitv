@@ -1,81 +1,55 @@
 
 /**
- * Functionality for synchronizing with multiple sources
+ * وظائف مساعدة للمزامنة مع مصادر متعددة
+ * Helper functions for syncing with multiple sources
  */
 
-import { STORAGE_KEYS } from '../../../config';
 import { syncWithRemoteSource } from './syncWithRemote';
 
 /**
- * محاولة المزامنة مع مجموعة من المصادر بالتتابع
- * Attempt to sync with a group of sources sequentially
- * 
- * @param sources مصفوفة من روابط المصادر
- * @param forceRefresh تجاهل ذاكرة التخزين المؤقت
+ * مزامنة مع مجموعة من المصادر
+ * Sync with a group of sources
  */
 export const syncWithSourceGroup = async (
   sources: string[],
-  forceRefresh: boolean = false
+  forceRefresh: boolean
 ): Promise<boolean> => {
-  for (const url of sources) {
-    try {
-      // تحقق من إمكانية الوصول للمصدر
-      // Check source accessibility
-      const isLocalSource = url.startsWith('/');
-      let isAccessible = isLocalSource;
-      
-      if (!isLocalSource) {
-        const { isRemoteUrlAccessible } = await import('../fetch');
-        isAccessible = await isRemoteUrlAccessible(url);
-      }
-      
-      if (isAccessible) {
-        console.log(`الرابط ${url} متاح للوصول ✓`);
-        // محاولة المزامنة مع هذا المصدر
-        // Attempt to sync with this source
-        const success = await syncWithRemoteSource(url, forceRefresh);
-        if (success) {
-          console.log(`تمت المزامنة بنجاح مع ${url}`);
-          
-          // تخزين الرابط الناجح للاستخدام في المستقبل
-          // Store successful source for future use
-          try {
-            localStorage.setItem(STORAGE_KEYS.LAST_SUCCESSFUL_SOURCE, url);
-          } catch (e) {
-            // تجاهل أخطاء التخزين
-            // Ignore storage errors
-          }
-          
-          return true;
-        }
-      } else {
-        console.warn(`الرابط ${url} غير متاح للوصول ✗`);
-      }
-    } catch (syncError) {
-      console.error(`فشلت المزامنة مع ${url}:`, syncError);
-    }
-  }
+  // إنشاء مصفوفة من وعود المزامنة للتنفيذ المتوازي
+  // Create an array of sync promises for parallel execution
+  const syncPromises = sources.map(source => {
+    return syncWithRemoteSource(source, forceRefresh)
+      .catch(() => false);
+  });
   
-  return false;
+  // انتظار جميع الوعود وفحص النتائج
+  // Wait for all promises and check results
+  const results = await Promise.all(syncPromises);
+  
+  // إرجاع true إذا نجحت أي عملية مزامنة واحدة على الأقل
+  // Return true if at least one sync operation succeeded
+  return results.some(result => result === true);
 };
 
 /**
- * استخدام المصدر المحلي كخيار أخير
- * Use local source as a last resort
+ * مزامنة مع المصدر المحلي كخيار أخير
+ * Sync with local source as a last resort
  */
-export const syncWithLocalFallback = async (forceRefresh: boolean = false): Promise<boolean> => {
-  const localSource = '/data/fallback-channels.json';
-  console.log(`محاولة استخدام المصدر المحلي: ${localSource}`);
-  
+export const syncWithLocalFallback = async (forceRefresh: boolean): Promise<boolean> => {
   try {
+    console.log('محاولة استخدام المصدر المحلي...');
+    const localSource = '/data/channels.json';
+    
     const success = await syncWithRemoteSource(localSource, forceRefresh);
+    
     if (success) {
-      console.log(`تمت المزامنة بنجاح مع المصدر المحلي`);
+      console.log('تمت المزامنة بنجاح مع المصدر المحلي');
       return true;
+    } else {
+      console.warn('فشلت المزامنة مع المصدر المحلي');
+      return false;
     }
-  } catch (e) {
-    console.error('فشلت المزامنة مع المصدر المحلي:', e);
+  } catch (error) {
+    console.error('خطأ في المزامنة مع المصدر المحلي:', error);
+    return false;
   }
-  
-  return false;
 };
