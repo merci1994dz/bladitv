@@ -31,3 +31,20 @@ export const getIsSyncing = (): boolean => {
 // تصدير متغير isSyncing للتوافق الخلفي
 // Export isSyncing variable for backward compatibility
 export { isSyncing };
+
+// إضافة دوال لتعيين القنوات والدول والفئات
+// Add functions to set channels, countries, and categories
+export const setChannels = (newChannels: Channel[]) => {
+  channels.length = 0;
+  channels.push(...newChannels);
+};
+
+export const setCountries = (newCountries: Country[]) => {
+  countries.length = 0;
+  countries.push(...newCountries);
+};
+
+export const setCategories = (newCategories: Category[]) => {
+  categories.length = 0;
+  categories.push(...newCategories);
+};

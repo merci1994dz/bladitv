@@ -49,8 +49,7 @@ export const executeSync = async (
         }
       } else {
         // مصدر خارجي - نستخدم syncWithRemoteSource مع المعلمات المطلوبة فقط
-        // تمرير خيار منع التكرار لتجنب إعادة تحميل نفس البيانات
-        return await syncWithRemoteSource(source, forceRefresh, { preventDuplicates: true });
+        return await syncWithRemoteSource(source, forceRefresh);
       }
     }
     

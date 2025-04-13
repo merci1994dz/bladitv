@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Wifi, WifiOff, AlertCircle, RefreshCw } from 'lucide-react';
-import { checkBladiInfoAvailability } from '@/services/sync/remote/sync/bladiInfoSync';
+import { checkBladiInfoAvailability } from '@/services/sync/remote/sync/sourceAvailability';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
