@@ -1,9 +1,4 @@
 
-/**
- * التحقق من توفر مصادر Bladi Info
- * Check availability of Bladi Info sources
- */
-
 import { BLADI_INFO_SOURCES } from './sources';
 import { isRemoteUrlAccessible } from '../fetch/fetchRemoteData';
 
