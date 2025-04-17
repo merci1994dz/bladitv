@@ -5,7 +5,7 @@ import { syncAllData } from './core/syncOperations';
 import { publishChannelsToAllUsers } from './publish';
 import { useToast } from '@/hooks/use-toast';
 import { getLastSyncTime } from './status/timestamp';
-import { checkConnectivityIssues } from './status/connectivity';
+import { checkConnectivityIssues } from './status/connectivity/index';
 
 /**
  * هذا الملف هو واجهة مبسطة للمزامنة يمكن استخدامها في واجهة المستخدم

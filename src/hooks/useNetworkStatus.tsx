@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { checkConnectivityIssues } from '@/services/sync/status/connectivity';
+import { checkConnectivityIssues } from '@/services/sync/status/connectivity/index';
 
 export const useNetworkStatus = () => {
   const { toast } = useToast();

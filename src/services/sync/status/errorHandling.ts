@@ -6,7 +6,8 @@
 
 // Import directly to avoid circular dependency
 import { toast } from '@/components/ui/use-toast';
-import { checkConnectivityIssues } from './connectivity';
+// Remove the import since we're defining the function in this file
+// import { checkConnectivityIssues } from './connectivity';
 
 // Define sync error types
 type SyncError = {
