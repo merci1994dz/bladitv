@@ -42,13 +42,15 @@ const Home: React.FC = () => {
     queryFn: getChannels,
     // تحسين: إضافة إدارة الأخطاء ومحاولات إعادة الاتصال
     retry: 3,
-    onError: (error) => {
-      console.error('خطأ في تحميل القنوات:', error);
-      toast({
-        title: "تعذر تحميل القنوات",
-        description: "حدث خطأ أثناء تحميل القنوات. سيتم استخدام البيانات المخزنة محليًا.",
-        variant: "destructive"
-      });
+    meta: {
+      onError: (error: any) => {
+        console.error('خطأ في تحميل القنوات:', error);
+        toast({
+          title: "تعذر تحميل القنوات",
+          description: "حدث خطأ أثناء تحميل القنوات. سيتم استخدام البيانات المخزنة محليًا.",
+          variant: "destructive"
+        });
+      }
     }
   });
 
