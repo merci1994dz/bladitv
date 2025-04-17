@@ -17,18 +17,23 @@ export const useNetworkStatus = () => {
     setIsOffline(!isOnline);
     
     if (isOnline) {
-      // عند استعادة الاتصال، تحقق من مشاكل الاتصال المحتملة
-      const status = await checkConnectivityIssues();
-      setNetworkStatus(status);
-      
-      if (status.hasInternet) {
-        toast({
-          title: "تم استعادة الاتصال",
-          description: status.hasServerAccess 
-            ? "جاري تحديث البيانات من المصادر المتاحة..." 
-            : "تم استعادة الاتصال المحلي فقط. سيتم الاعتماد على البيانات المخزنة.",
-          duration: 4000,
-        });
+      try {
+        // عند استعادة الاتصال، تحقق من مشاكل الاتصال المحتملة
+        const status = await checkConnectivityIssues();
+        setNetworkStatus(status);
+        
+        if (status.hasInternet) {
+          toast({
+            title: "تم استعادة الاتصال",
+            description: status.hasServerAccess 
+              ? "جاري تحديث البيانات من المصادر المتاحة..." 
+              : "تم استعادة الاتصال المحلي فقط. سيتم الاعتماد على البيانات المخزنة.",
+            duration: 4000,
+          });
+        }
+      } catch (error) {
+        console.error("خطأ في التحقق من حالة الاتصال:", error);
+        setNetworkStatus({ hasInternet: isOnline, hasServerAccess: false });
       }
     } else {
       toast({
@@ -37,6 +42,7 @@ export const useNetworkStatus = () => {
         variant: "destructive",
         duration: 5000,
       });
+      setNetworkStatus({ hasInternet: false, hasServerAccess: false });
     }
     
     return isOnline;

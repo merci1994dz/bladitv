@@ -95,11 +95,16 @@ export const checkConnectivityIssues = (error: unknown): boolean => {
     // عرض إشعار للمستخدم
     if (typeof window !== 'undefined') {
       try {
-        toast({
-          title: "مشكلة في الاتصال",
-          description: "يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى",
-          variant: "destructive"
-        });
+        // Use imported toast directly instead of calling it incorrectly
+        // This avoids a direct reference that might cause circular imports
+        const { toast } = require('@/hooks/use-toast');
+        if (toast) {
+          toast({
+            title: "مشكلة في الاتصال",
+            description: "يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى",
+            variant: "destructive"
+          });
+        }
       } catch (e) {
         // تجاهل أخطاء النافذة
       }

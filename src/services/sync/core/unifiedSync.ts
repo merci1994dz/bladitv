@@ -1,82 +1,140 @@
 
 /**
- * وظيفة المزامنة الموحدة التي تجمع بين جميع طرق المزامنة
- * Unified sync function that combines all sync methods
+ * الخدمة الموحدة للمزامنة
+ * Unified sync service
  */
 
-import { syncAllData } from './syncOperations';
 import { syncWithBladiInfo } from '../remoteSync';
-import { updateLastSyncTime } from '../status/timestamp';
-import { setIsSyncing } from '../../dataStore';
+import { syncWithSupabase } from '../supabaseSync';
+import { syncWithRemoteSource } from '../remote/sync/syncWithRemote';
+import { checkBladiInfoAvailability } from '../remote/sync/sourceAvailability';
+import { setSyncTimestamp } from '../status/timestamp';
+import { toast } from '@/hooks/use-toast';
 
+// خيارات المزامنة
 interface SyncOptions {
   forceRefresh?: boolean;
-  preventDuplicates?: boolean;
   showNotifications?: boolean;
+  preventDuplicates?: boolean;
   onComplete?: (success: boolean) => void;
 }
 
 /**
- * مزامنة البيانات باستخدام نهج موحد
- * Sync data using a unified approach
+ * مزامنة البيانات بشكل موحد باستخدام جميع المصادر المتاحة
+ * Synchronize data using all available sources
  */
 export const syncDataUnified = async (options: SyncOptions = {}): Promise<boolean> => {
-  const { 
-    forceRefresh = false, 
-    preventDuplicates = true,
+  const {
+    forceRefresh = false,
     showNotifications = true,
+    preventDuplicates = true,
     onComplete
   } = options;
   
   try {
-    console.log('بدء عملية المزامنة الموحدة...');
-    setIsSyncing(true);
+    if (showNotifications) {
+      toast({
+        title: "جاري المزامنة",
+        description: "جاري تحديث البيانات من المصادر المتاحة...",
+        duration: 3000
+      });
+    }
     
-    // محاولة المزامنة مع Bladi Info أولاً
-    console.log('محاولة المزامنة مع Bladi Info...');
-    const bladiResult = await syncWithBladiInfo(forceRefresh, { preventDuplicates });
-    
-    if (bladiResult.updated) {
-      console.log(`تمت المزامنة بنجاح مع Bladi Info. تم إضافة ${bladiResult.channelsCount} قناة.`);
-      updateLastSyncTime();
+    // 1. أولاً، محاولة المزامنة مع Supabase
+    try {
+      const supabaseResult = await syncWithSupabase(forceRefresh);
       
-      if (onComplete) {
-        onComplete(true);
+      if (supabaseResult) {
+        setSyncTimestamp();
+        
+        if (showNotifications) {
+          toast({
+            title: "تمت المزامنة بنجاح",
+            description: "تم تحديث البيانات من Supabase",
+            duration: 3000
+          });
+        }
+        
+        if (onComplete) onComplete(true);
+        return true;
       }
-      
-      return true;
+    } catch (error) {
+      console.warn('فشلت المزامنة مع Supabase، متابعة مع المصادر الأخرى:', error);
     }
     
-    // إذا فشلت المزامنة مع Bladi Info، حاول استخدام المزامنة الأساسية
-    console.log('فشلت المزامنة مع Bladi Info، محاولة استخدام المزامنة الأساسية...');
-    const coreResult = await syncAllData(forceRefresh);
-    
-    if (coreResult) {
-      console.log('تمت المزامنة بنجاح باستخدام المزامنة الأساسية.');
+    // 2. محاولة المزامنة مع Bladi Info
+    try {
+      const bladiResult = await syncWithBladiInfo(forceRefresh, { preventDuplicates });
       
-      if (onComplete) {
-        onComplete(true);
+      if (bladiResult.updated) {
+        setSyncTimestamp();
+        
+        if (showNotifications) {
+          toast({
+            title: "تمت المزامنة بنجاح",
+            description: `تم تحديث البيانات وإضافة ${bladiResult.channelsCount} قناة جديدة`,
+            duration: 3000
+          });
+        }
+        
+        if (onComplete) onComplete(true);
+        return true;
       }
+    } catch (error) {
+      console.warn('فشلت المزامنة مع Bladi Info، محاولة استخدام المصادر المباشرة:', error);
+    }
+    
+    // 3. محاولة المزامنة المباشرة مع المصادر
+    try {
+      const availableSource = await checkBladiInfoAvailability();
       
-      return true;
+      if (availableSource) {
+        const syncResult = await syncWithRemoteSource(availableSource, forceRefresh);
+        
+        if (syncResult) {
+          setSyncTimestamp();
+          
+          if (showNotifications) {
+            toast({
+              title: "تمت المزامنة بنجاح",
+              description: `تم تحديث البيانات من ${availableSource}`,
+              duration: 3000
+            });
+          }
+          
+          if (onComplete) onComplete(true);
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error('فشلت جميع محاولات المزامنة:', error);
     }
     
-    console.log('فشلت جميع محاولات المزامنة.');
-    
-    if (onComplete) {
-      onComplete(false);
+    // إذا وصلنا إلى هنا، فإن جميع المحاولات قد فشلت
+    if (showNotifications) {
+      toast({
+        title: "فشلت المزامنة",
+        description: "تعذر الاتصال بمصادر البيانات. تأكد من اتصالك بالإنترنت.",
+        variant: "destructive",
+        duration: 5000
+      });
     }
     
+    if (onComplete) onComplete(false);
     return false;
   } catch (error) {
-    console.error('خطأ في عملية المزامنة الموحدة:', error);
+    console.error('خطأ غير متوقع في المزامنة الموحدة:', error);
     
-    if (onComplete) {
-      onComplete(false);
+    if (showNotifications) {
+      toast({
+        title: "خطأ في المزامنة",
+        description: "حدث خطأ غير متوقع أثناء المزامنة.",
+        variant: "destructive",
+        duration: 5000
+      });
     }
     
+    if (onComplete) onComplete(false);
     return false;
-  } finally {
-    setIsSyncing(false);
   }
 };
