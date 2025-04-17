@@ -4,7 +4,9 @@
  * Sync error handling
  */
 
-import { toast } from '@/hooks/use-toast';
+// Import directly to avoid circular dependency
+import { toast } from '@/components/ui/use-toast';
+import { checkConnectivityIssues } from './connectivity';
 
 // Define sync error types
 type SyncError = {
@@ -12,6 +14,7 @@ type SyncError = {
   code?: string;
   type?: 'network' | 'server' | 'client' | 'timeout' | 'unknown';
   details?: any;
+  time?: string;
 };
 
 // حالة الخطأ الحالية
@@ -22,7 +25,10 @@ let currentSyncError: SyncError | null = null;
  * Set sync error
  */
 export const setSyncError = (errorMessage: string): void => {
-  currentSyncError = { message: errorMessage };
+  currentSyncError = { 
+    message: errorMessage,
+    time: new Date().toISOString()
+  };
   
   try {
     localStorage.setItem('last_sync_error', JSON.stringify(currentSyncError));
@@ -89,24 +95,21 @@ export const checkConnectivityIssues = (error: unknown): boolean => {
     currentSyncError = {
       message: 'تعذر الاتصال بخادم المزامنة',
       type: 'network',
-      details: errorMessage
+      details: errorMessage,
+      time: new Date().toISOString()
     };
     
     // عرض إشعار للمستخدم
     if (typeof window !== 'undefined') {
       try {
-        // Use imported toast directly instead of calling it incorrectly
-        // This avoids a direct reference that might cause circular imports
-        const { toast } = require('@/hooks/use-toast');
-        if (toast) {
-          toast({
-            title: "مشكلة في الاتصال",
-            description: "يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى",
-            variant: "destructive"
-          });
-        }
+        toast({
+          title: "مشكلة في الاتصال",
+          description: "يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى",
+          variant: "destructive"
+        });
       } catch (e) {
         // تجاهل أخطاء النافذة
+        console.warn('تعذر عرض إشعار خطأ الاتصال:', e);
       }
     }
     
@@ -134,7 +137,9 @@ export const displaySyncError = (error: SyncError | string): void => {
   if (typeof error === 'string') {
     setSyncError(error);
   } else {
-    currentSyncError = error;
+    currentSyncError = {
+      ...error,
+      time: error.time || new Date().toISOString()
+    };
   }
 };
-

@@ -9,7 +9,7 @@ import { syncWithSupabase } from '../supabaseSync';
 import { syncWithRemoteSource } from '../remote/sync/syncWithRemote';
 import { checkBladiInfoAvailability } from '../remote/sync/sourceAvailability';
 import { setSyncTimestamp } from '../status/timestamp';
-import { toast } from '@/hooks/use-toast';
+import { toast } from '@/components/ui/use-toast';
 
 // خيارات المزامنة
 interface SyncOptions {

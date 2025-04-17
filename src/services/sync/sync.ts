@@ -5,13 +5,25 @@ import { syncAllData } from './core/syncOperations';
 import { publishChannelsToAllUsers } from './publish';
 import { useToast } from '@/hooks/use-toast';
 import { getLastSyncTime } from './status/timestamp';
+import { checkConnectivityIssues } from './status/connectivity';
 
-// هذا الملف هو واجهة مبسطة للمزامنة يمكن استخدامها في واجهة المستخدم
+/**
+ * هذا الملف هو واجهة مبسطة للمزامنة يمكن استخدامها في واجهة المستخدم
+ * This file is a simplified interface for synchronization that can be used in the UI
+ */
 
 // مزامنة القنوات مع مصادر أخرى
+// Sync channels with other sources
 export const syncChannels = async (forceSync = false): Promise<boolean> => {
   try {
     console.log('بدء مزامنة القنوات...');
+    
+    // التحقق من وجود اتصال بالإنترنت قبل المحاولة
+    const networkStatus = await checkConnectivityIssues();
+    if (!networkStatus.hasInternet) {
+      console.warn('تعذرت المزامنة: لا يوجد اتصال بالإنترنت');
+      return false;
+    }
     
     // محاولة المزامنة مع مواقع Bladi Info
     const bladiResult = await syncWithBladiInfo(forceSync);
@@ -33,6 +45,7 @@ export const syncChannels = async (forceSync = false): Promise<boolean> => {
 };
 
 // تحديث القنوات بشكل إجباري مع إعادة تحميل البيانات
+// Force update channels with data reload
 export const forceUpdateChannels = async (): Promise<boolean> => {
   try {
     console.log('بدء التحديث الإجباري للقنوات...');
@@ -48,4 +61,21 @@ export const forceUpdateChannels = async (): Promise<boolean> => {
     console.error('خطأ في التحديث الإجباري للقنوات:', error);
     return false;
   }
+};
+
+/**
+ * الحصول على حالة المزامنة الحالية
+ * Get current sync status
+ */
+export const getSyncStatus = (): { 
+  lastSync: string | null,
+  isOnline: boolean
+} => {
+  const lastSync = getLastSyncTime();
+  const isOnline = navigator.onLine;
+  
+  return {
+    lastSync,
+    isOnline
+  };
 };

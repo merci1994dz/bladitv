@@ -5,32 +5,17 @@ import { getChannels, getCategories, getCountries, getRecentlyWatchedChannels } 
 import { playChannel, toggleFavoriteChannel } from '@/services/channelService';
 import { Channel } from '@/types';
 import LoadingIndicator from '@/components/LoadingIndicator';
-import HomeHeader from '@/components/header/HomeHeader';
 import RecentlyWatchedChannels from '@/components/recently-watched/RecentlyWatchedChannels';
-import HomeTitleSection from '@/components/home/HomeTitleSection';
 import CategoryTabs from '@/components/home/CategoryTabs';
 import HomeSync from '@/components/home/HomeSync';
 import { useToast } from '@/hooks/use-toast';
 import { Menu, Search, Bell } from 'lucide-react';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 const Home: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const { toast } = useToast();
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-
-  // تحسين: تتبع حالة الاتصال بالإنترنت
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
+  const { isOffline, networkStatus } = useNetworkStatus();
 
   const { 
     data: channels,
@@ -40,7 +25,7 @@ const Home: React.FC = () => {
   } = useQuery({
     queryKey: ['channels'],
     queryFn: getChannels,
-    // تحسين: إضافة إدارة الأخطاء ومحاولات إعادة الاتصال
+    // تحسين: إضافة إدارة الأخطاء
     retry: 3,
     meta: {
       onError: (error: any) => {
@@ -155,8 +140,8 @@ const Home: React.FC = () => {
         </div>
         <div className="tv-header-actions">
           {/* تحسين: إضافة مؤشر حالة الاتصال */}
-          <div className={`h-2 w-2 rounded-full mr-2 ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} 
-               title={isOnline ? 'متصل بالإنترنت' : 'غير متصل بالإنترنت'} />
+          <div className={`h-2 w-2 rounded-full mr-2 ${networkStatus.hasInternet ? 'bg-green-500' : 'bg-red-500'}`} 
+               title={networkStatus.hasInternet ? 'متصل بالإنترنت' : 'غير متصل بالإنترنت'} />
           <HomeSync refetchChannels={refetchChannels} />
           <button className="tv-icon-button">
             <Bell size={20} />
