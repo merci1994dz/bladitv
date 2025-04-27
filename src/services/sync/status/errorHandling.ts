@@ -6,8 +6,8 @@
 
 // Import directly to avoid circular dependency
 import { toast } from '@/components/ui/use-toast';
-// Remove the import since we're defining the function in this file
-// import { checkConnectivityIssues } from './connectivity';
+// Import from the index file to avoid circular dependencies
+import { checkConnectivityIssues } from './connectivity/index';
 
 // Define sync error types
 type SyncError = {
@@ -71,10 +71,10 @@ export const logSyncError = (errorMessage: string, context?: string): void => {
 };
 
 /**
- * التحقق من مشاكل الاتصال
- * Check for connectivity issues
+ * التحقق من مشاكل الاتصال المتعلقة بالأخطاء
+ * Check for connection issues based on errors
  */
-export const checkConnectivityIssues = (error: unknown): boolean => {
+export const checkConnectionFromError = (error: unknown): boolean => {
   const errorMessage = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
   
   // المؤشرات على مشاكل الاتصال

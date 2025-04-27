@@ -5,7 +5,8 @@
  */
 
 import { syncWithRemoteSource } from '../../remote/sync/syncWithRemote';
-import { checkConnectivityIssues } from '../../status/errorHandling';
+import { checkConnectionFromError } from '../../status/errorHandling';
+import { checkConnectivityIssues } from '../../status/connectivity/index';
 
 /**
  * تنفيذ عملية المزامنة باستخدام المصدر المتاح
@@ -66,7 +67,7 @@ export const executeSync = async (
   } catch (error) {
     console.error('خطأ في تنفيذ المزامنة:', error);
     // التحقق من مشاكل الاتصال
-    checkConnectivityIssues(error);
+    checkConnectionFromError(error);
     return false;
   }
 };

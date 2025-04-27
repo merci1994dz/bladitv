@@ -1,6 +1,5 @@
-
 import { setSyncActive } from '../status';
-import { setSyncError, clearSyncError, checkConnectivityIssues } from '../status/errorHandling';
+import { setSyncError, clearSyncError, checkConnectionFromError } from '../status/errorHandling';
 import { setSyncTimestamp } from '../status/timestamp';
 import { setIsSyncing } from '../../dataStore';
 import { isSyncLocked, setSyncLock, releaseSyncLock, addToSyncQueue } from '../lock';
@@ -10,6 +9,8 @@ import { syncState, resetConsecutiveAttempts, MAX_CONSECUTIVE_SYNCS } from './sy
 import { executeSync } from './helpers/syncExecutor';
 import { isCooldownComplete, calculateAdaptiveWaitTime, createTimeoutPromise } from './helpers/timeoutHelper';
 import { checkBladiInfoAvailability } from '../remote/sync/sourceAvailability';
+import { checkConnectivityIssues } from '../status/connectivity/index';
+
 export { performInitialSync } from './initialSync';
 
 export const performSync = async (
@@ -132,7 +133,6 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
       console.warn('لم يتم العثور على أي مصدر متاح، سيتم محاولة جميع المصادر الخارجية / No available source found, will try all external sources');
     }
     
-    // تمرير مهلة زمنية وCacheBuster إلى وظيفة executeSync
     const syncPromise = executeSync(availableSource, forceRefresh || true, fullCacheBuster, timeoutPromise);
     const result = await Promise.race([syncPromise, timeoutPromise]);
     
