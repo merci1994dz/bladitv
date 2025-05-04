@@ -6,7 +6,7 @@
 
 import { syncWithRemoteSource } from '../../remote/sync/syncWithRemote';
 import { checkConnectionFromError } from '../../status/errorHandling';
-import { checkConnectivityIssues } from '../../status/connectivity/index';
+import { checkConnectivityIssues } from '../../status/connectivity';
 
 /**
  * تنفيذ عملية المزامنة باستخدام المصدر المتاح

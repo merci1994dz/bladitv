@@ -1,3 +1,4 @@
+
 import { setSyncActive } from '../status';
 import { setSyncError, clearSyncError, checkConnectionFromError } from '../status/errorHandling';
 import { setSyncTimestamp } from '../status/timestamp';
@@ -9,7 +10,7 @@ import { syncState, resetConsecutiveAttempts, MAX_CONSECUTIVE_SYNCS } from './sy
 import { executeSync } from './helpers/syncExecutor';
 import { isCooldownComplete, calculateAdaptiveWaitTime, createTimeoutPromise } from './helpers/timeoutHelper';
 import { checkBladiInfoAvailability } from '../remote/sync/sourceAvailability';
-import { checkConnectivityIssues } from '../status/connectivity/index';
+import { checkConnectivityIssues } from '../status/connectivity';
 
 export { performInitialSync } from './initialSync';
 

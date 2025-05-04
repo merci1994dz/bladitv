@@ -24,13 +24,14 @@ export {
   getLastSyncTime
 } from './timestamp';
 
-// Export connectivity checking functions
+// Export connectivity checking functions - use the direct path
 export {
-  checkConnectivityIssues
-} from './connectivity/index';
+  checkConnectivityIssues,
+  checkServerConnection,
+  testEndpointAvailability
+} from './connectivity';
 
 // Re-export all for backward compatibility
 export * from './syncState';
 export * from './errorHandling';
 export * from './timestamp';
-export * from './connectivity/index';
