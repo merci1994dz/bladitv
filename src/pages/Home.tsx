@@ -20,7 +20,8 @@ const Home: React.FC = () => {
     isOnline, 
     connectionType, 
     checkStatus,
-    isChecking
+    isChecking,
+    networkStatus
   } = useConnectivityContext();
   const isOffline = !isOnline;
 

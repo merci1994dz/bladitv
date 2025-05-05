@@ -14,6 +14,10 @@ interface ConnectivityContextType {
   checkStatus: () => Promise<any>;
   statusMessage: string;
   lastCheckTime: number;
+  networkStatus?: {
+    hasInternet: boolean;
+    hasServerAccess: boolean;
+  };
 }
 
 // Create context with default values
@@ -25,7 +29,8 @@ const ConnectivityContext = createContext<ConnectivityContextType>({
   connectionType: 'full',
   checkStatus: async () => ({}),
   statusMessage: '',
-  lastCheckTime: 0
+  lastCheckTime: 0,
+  networkStatus: { hasInternet: true, hasServerAccess: true }
 });
 
 interface ConnectivityProviderProps {
@@ -51,6 +56,15 @@ export const ConnectivityProvider: React.FC<ConnectivityProviderProps> = ({
     }
   });
 
+  // Add networkStatus to the context value
+  const contextValue = {
+    ...connectivity,
+    networkStatus: {
+      hasInternet: connectivity.isOnline,
+      hasServerAccess: connectivity.hasServerAccess
+    }
+  };
+
   // Handle reconnection attempts
   const handleReconnect = async () => {
     toast({
@@ -63,7 +77,7 @@ export const ConnectivityProvider: React.FC<ConnectivityProviderProps> = ({
   };
 
   return (
-    <ConnectivityContext.Provider value={connectivity}>
+    <ConnectivityContext.Provider value={contextValue}>
       {showOfflineNotification && connectivity.isOffline && (
         <OfflineMode 
           isOffline={connectivity.isOffline}

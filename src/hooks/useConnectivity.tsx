@@ -30,6 +30,10 @@ export const useConnectivity = (options: UseConnectivityOptions = {}) => {
   const [lastCheckTime, setLastCheckTime] = useState(0);
   const [connectionType, setConnectionType] = useState<ConnectionType>('none');
   const [statusMessage, setStatusMessage] = useState('جاري التحقق من الاتصال...');
+  const [networkStatus, setNetworkStatus] = useState<ConnectivityStatus>({
+    hasInternet: navigator.onLine,
+    hasServerAccess: false
+  });
 
   // تحسين: وظيفة مزامنة للتحقق من حالة الاتصال
   const checkStatus = useCallback(async (): Promise<ConnectivityStatus> => {
@@ -41,6 +45,7 @@ export const useConnectivity = (options: UseConnectivityOptions = {}) => {
       setIsOnline(status.hasInternet);
       setHasServerAccess(status.hasServerAccess);
       setLastCheckTime(Date.now());
+      setNetworkStatus(status);
       
       // تحديد نوع الاتصال
       if (!status.hasInternet) {
@@ -82,10 +87,13 @@ export const useConnectivity = (options: UseConnectivityOptions = {}) => {
       setConnectionType('none');
       setStatusMessage('حدث خطأ في فحص الاتصال');
       
-      return {
+      const status = {
         hasInternet: navigator.onLine,
         hasServerAccess: false
       };
+      
+      setNetworkStatus(status);
+      return status;
     } finally {
       setIsChecking(false);
     }
@@ -137,6 +145,7 @@ export const useConnectivity = (options: UseConnectivityOptions = {}) => {
     lastCheckTime,
     connectionType,
     statusMessage,
+    networkStatus,
     checkStatus
   };
 };
