@@ -14,6 +14,10 @@ import { checkConnectivityIssues } from '../status/connectivity';
 
 export { performInitialSync } from './initialSync';
 
+/**
+ * تنفيذ عملية المزامنة مع معالجة محسنة للأخطاء
+ * Perform sync operation with improved error handling
+ */
 export const performSync = async (
   options: {
     source?: string;
@@ -28,6 +32,15 @@ export const performSync = async (
     showNotifications = true,
     onComplete 
   } = options;
+
+  // التحقق من حالة الاتصال أولاً
+  const { hasInternet, hasServerAccess } = await checkConnectivityIssues();
+  
+  if (!hasInternet) {
+    console.log('لا يوجد اتصال بالإنترنت، تخطي المزامنة');
+    if (onComplete) onComplete(false);
+    return false;
+  }
 
   try {
     setSyncActive(true);
@@ -48,6 +61,9 @@ export const performSync = async (
     setSyncError(errorMessage);
     console.error('Error in core sync operation:', error);
     
+    // تحقق من مشكلات الاتصال
+    await checkConnectionFromError(error);
+    
     if (onComplete) {
       onComplete(false);
     }
@@ -58,14 +74,33 @@ export const performSync = async (
   }
 };
 
+/**
+ * مزامنة جميع البيانات مع إدارة محسنة للأخطاء
+ * Sync all data with improved error management
+ */
 export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
+  // منع المزامنة المتزامنة
   if (syncState.syncInProgress) {
     console.warn('هناك مزامنة قيد التنفيذ بالفعل، تجنب المحاولة المتزامنة');
     return false;
   }
   
+  // التحقق من حالة الاتصال قبل البدء
+  const { hasInternet, hasServerAccess } = await checkConnectivityIssues();
+  
+  if (!hasInternet) {
+    console.log('لا يوجد اتصال بالإنترنت، تخطي المزامنة');
+    return false;
+  }
+  
+  if (!hasServerAccess) {
+    console.warn('تعذر الوصول إلى الخادم، تخطي المزامنة');
+    return false;
+  }
+  
   resetConsecutiveAttempts();
   const now = Date.now();
+  
   if (!isCooldownComplete(syncState.lastSyncAttemptTime, syncState.cooldownPeriodMs)) {
     syncState.consecutiveSyncAttempts++;
     if (syncState.consecutiveSyncAttempts > MAX_CONSECUTIVE_SYNCS) {
@@ -86,11 +121,13 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
   syncState.lastSyncAttemptTime = now;
   syncState.totalSyncAttempts++;
   
+  // التحقق من قفل المزامنة
   if (isSyncLocked()) {
     console.log('المزامنة قيد التنفيذ بالفعل، إضافة الطلب إلى الطابور / Sync already in progress, adding request to queue');
     return addToSyncQueue(() => syncAllData(forceRefresh || true));
   }
   
+  // وضع علامات المزامنة
   syncState.syncInProgress = true;
   setSyncLock('sync-all-data');
   setIsSyncing(true);
@@ -108,6 +145,7 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
     console.log('التحقق من وجود مصدر متاح للمزامنة... / Checking for available sync source...');
     let availableSource = await checkBladiInfoAvailability();
     
+    // تحسين البحث عن مصدر خارجي
     if (availableSource && availableSource.startsWith('/')) {
       console.log('المصدر المتاح هو مصدر محلي، محاولة العثور على مصدر خارجي بدلاً من ذلك');
       for (const source of BLADI_INFO_SOURCES) {
@@ -134,9 +172,11 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
       console.warn('لم يتم العثور على أي مصدر متاح، سيتم محاولة جميع المصادر الخارجية / No available source found, will try all external sources');
     }
     
+    // تنفيذ المزامنة مع مهلة محسنة
     const syncPromise = executeSync(availableSource, forceRefresh || true, fullCacheBuster, timeoutPromise);
     const result = await Promise.race([syncPromise, timeoutPromise]);
     
+    // معالجة نتيجة المزامنة
     if (result) {
       syncState.consecutiveSyncAttempts = 0;
       syncState.failedAttempts = 0;
@@ -174,8 +214,13 @@ export const syncAllData = async (forceRefresh = false): Promise<boolean> => {
   } catch (error) {
     console.error('خطأ غير متوقع أثناء المزامنة: / Unexpected error during sync:', error);
     syncState.failedAttempts++;
+    
+    // التحقق من مشاكل الاتصال
+    await checkConnectionFromError(error);
+    
     return false;
   } finally {
+    // تحرير موارد المزامنة بغض النظر عن النتيجة
     releaseSyncLock('sync-all-data');
     setIsSyncing(false);
     setSyncActive(false);

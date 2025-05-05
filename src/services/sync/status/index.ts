@@ -24,14 +24,13 @@ export {
   getLastSyncTime
 } from './timestamp';
 
-// Export connectivity checking functions - use the direct path
+// Export connectivity checking functions directly from their source
 export {
   checkConnectivityIssues,
   checkServerConnection,
-  testEndpointAvailability
+  testEndpointAvailability,
+  isConnected
 } from './connectivity';
 
-// Re-export all for backward compatibility
-export * from './syncState';
-export * from './errorHandling';
-export * from './timestamp';
+// Re-export all - removed to prevent circular dependencies
+// Do not re-export all modules as this can cause circular dependency issues

@@ -4,10 +4,9 @@
  * Sync error handling
  */
 
-// Import directly to avoid circular dependency
-import { toast } from '@/components/ui/use-toast';
-// Import from the index file to avoid circular dependencies
+// Import directly from the connectivity index file to avoid circular dependency
 import { checkConnectivityIssues } from './connectivity';
+import { toast } from '@/hooks/use-toast';
 
 // Define sync error types
 type SyncError = {
@@ -74,7 +73,7 @@ export const logSyncError = (errorMessage: string, context?: string): void => {
  * التحقق من مشاكل الاتصال المتعلقة بالأخطاء
  * Check for connection issues based on errors
  */
-export const checkConnectionFromError = (error: unknown): boolean => {
+export const checkConnectionFromError = async (error: unknown): Promise<boolean> => {
   const errorMessage = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
   
   // المؤشرات على مشاكل الاتصال
@@ -88,33 +87,41 @@ export const checkConnectionFromError = (error: unknown): boolean => {
     errorMessage.includes('cors')
   );
   
-  // إذا تم اكتشاف مشكلة في الاتصال
+  // إذا تم اكتشاف مشكلة في الاتصال، تحقق فعلياً من حالة الاتصال
   if (isNetworkError) {
     console.warn('تم اكتشاف مشكلة في الاتصال:', errorMessage);
     
-    // تعيين نوع الخطأ
-    currentSyncError = {
-      message: 'تعذر الاتصال بخادم المزامنة',
-      type: 'network',
-      details: errorMessage,
-      time: new Date().toISOString()
-    };
+    // التحقق من الاتصال فعلياً
+    const connectivityStatus = await checkConnectivityIssues();
     
-    // عرض إشعار للمستخدم
-    if (typeof window !== 'undefined') {
-      try {
-        toast({
-          title: "مشكلة في الاتصال",
-          description: "يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى",
-          variant: "destructive"
-        });
-      } catch (e) {
-        // تجاهل أخطاء النافذة
-        console.warn('تعذر عرض إشعار خطأ الاتصال:', e);
+    // تحديث حالة الخطأ بناءً على نتيجة فحص الاتصال
+    if (!connectivityStatus.hasInternet || !connectivityStatus.hasServerAccess) {
+      // تعيين نوع الخطأ
+      currentSyncError = {
+        message: !connectivityStatus.hasInternet 
+          ? 'أنت غير متصل بالإنترنت' 
+          : 'تعذر الاتصال بخادم المزامنة',
+        type: 'network',
+        details: errorMessage,
+        time: new Date().toISOString()
+      };
+      
+      // عرض إشعار للمستخدم
+      if (typeof window !== 'undefined') {
+        try {
+          toast({
+            title: "مشكلة في الاتصال",
+            description: currentSyncError.message,
+            variant: "destructive"
+          });
+        } catch (e) {
+          // تجاهل أخطاء النافذة
+          console.warn('تعذر عرض إشعار خطأ الاتصال:', e);
+        }
       }
+      
+      return true;
     }
-    
-    return true;
   }
   
   return false;

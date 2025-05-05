@@ -4,16 +4,20 @@
  * Main export index for connectivity checking functions
  */
 
-// Export the connectivity checker function directly
-export { checkConnectivityIssues } from './connectivity-checker';
-
-/**
- * وظيفة فحص مشاكل الاتصال المتقدمة
- * Advanced connectivity issues check function
- * 
- * Re-exported for backward compatibility
- */
-export { 
+// Export the connectivity checker functions directly
+export {
+  checkConnectivityIssues,
   checkServerConnection,
-  testEndpointAvailability
+  testEndpointAvailability,
+  isConnected
 } from './connectivity-checker';
+
+// Add better documentation for the exports
+/**
+ * وظائف التحقق من الاتصال المتاحة:
+ * 
+ * checkConnectivityIssues: للتحقق من حالة كل من الإنترنت والخادم
+ * checkServerConnection: للتحقق من إمكانية الوصول إلى الخادم فقط
+ * testEndpointAvailability: لاختبار نقطة نهاية محددة
+ * isConnected: للتحقق من توفر الاتصال بشكل كامل (الإنترنت والخادم)
+ */

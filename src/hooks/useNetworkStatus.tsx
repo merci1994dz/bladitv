@@ -10,9 +10,14 @@ export const useNetworkStatus = () => {
     hasInternet: boolean;
     hasServerAccess: boolean;
   }>({ hasInternet: navigator.onLine, hasServerAccess: false });
+  const [isChecking, setIsChecking] = useState(false);
 
-  // التعامل مع تغييرات حالة الشبكة
+  // التعامل مع تغييرات حالة الشبكة بطريقة أكثر فعالية
   const handleNetworkChange = useCallback(async () => {
+    // منع تنفيذ عمليات فحص متزامنة
+    if (isChecking) return navigator.onLine;
+    
+    setIsChecking(true);
     const isOnline = navigator.onLine;
     setIsOffline(!isOnline);
     
@@ -45,22 +50,39 @@ export const useNetworkStatus = () => {
       setNetworkStatus({ hasInternet: false, hasServerAccess: false });
     }
     
+    setIsChecking(false);
     return isOnline;
-  }, [toast]);
+  }, [toast, isChecking]);
   
-  // إضافة استمعات لتغييرات حالة الشبكة
+  // إضافة استمعات لتغييرات حالة الشبكة وتحسين استجابة التطبيق
   useEffect(() => {
-    window.addEventListener('online', handleNetworkChange);
-    window.addEventListener('offline', handleNetworkChange);
+    const onlineHandler = () => handleNetworkChange();
+    const offlineHandler = () => handleNetworkChange();
     
-    // التحقق من حالة الشبكة عند التحميل
-    handleNetworkChange();
+    window.addEventListener('online', onlineHandler);
+    window.addEventListener('offline', offlineHandler);
+    
+    // التحقق من حالة الشبكة عند التحميل، مع تأخير بسيط لضمان استقرار التطبيق
+    const initialCheckTimeout = setTimeout(() => {
+      handleNetworkChange();
+    }, 1000);
     
     return () => {
-      window.removeEventListener('online', handleNetworkChange);
-      window.removeEventListener('offline', handleNetworkChange);
+      window.removeEventListener('online', onlineHandler);
+      window.removeEventListener('offline', offlineHandler);
+      clearTimeout(initialCheckTimeout);
     };
   }, [handleNetworkChange]);
   
-  return { isOffline, networkStatus, handleNetworkChange };
+  // إضافة وظيفة للتحقق الفوري من حالة الاتصال عند الطلب
+  const checkConnection = useCallback(async () => {
+    return await handleNetworkChange();
+  }, [handleNetworkChange]);
+  
+  return { 
+    isOffline, 
+    networkStatus, 
+    checkConnection,
+    isCheckingConnection: isChecking
+  };
 };

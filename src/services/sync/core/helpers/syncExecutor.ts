@@ -25,6 +25,19 @@ export const executeSync = async (
   timeoutPromise?: Promise<boolean>
 ): Promise<boolean> => {
   try {
+    // التحقق من الاتصال قبل بدء المزامنة
+    const { hasInternet, hasServerAccess } = await checkConnectivityIssues();
+    
+    if (!hasInternet) {
+      console.warn('لا يوجد اتصال بالإنترنت، تخطي المزامنة');
+      return false;
+    }
+    
+    if (!hasServerAccess) {
+      console.warn('لا يمكن الوصول إلى الخادم، تخطي المزامنة');
+      return false;
+    }
+    
     if (!source) {
       console.warn('لم يتم تحديد مصدر للمزامنة');
       return false;
@@ -67,7 +80,7 @@ export const executeSync = async (
   } catch (error) {
     console.error('خطأ في تنفيذ المزامنة:', error);
     // التحقق من مشاكل الاتصال
-    checkConnectionFromError(error);
+    await checkConnectionFromError(error);
     return false;
   }
 };

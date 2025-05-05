@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Wifi, WifiOff, AlertCircle, RefreshCw } from 'lucide-react';
 import { checkBladiInfoAvailability } from '@/services/sync/remote/sync/sourceAvailability';
 import { Button } from '@/components/ui/button';
@@ -25,13 +25,14 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
   const [isVercel, setIsVercel] = useState(false);
   const [lastCheckTime, setLastCheckTime] = useState(0);
-
+  
   useEffect(() => {
     // التحقق من بيئة النشر
     setIsVercel(isRunningOnVercel());
   }, []);
 
-  const checkConnectivity = async () => {
+  // تحسين وظيفة فحص الاتصال باستخدام useCallback
+  const checkConnectivity = useCallback(async () => {
     // منع فحص متكرر سريع
     const now = Date.now();
     const minCheckInterval = 3000; // منع الفحص أكثر من مرة كل 3 ثوانٍ
@@ -50,8 +51,13 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
       setServerAccess(connectivityStatus.hasServerAccess);
       
       if (connectivityStatus.hasInternet && connectivityStatus.hasServerAccess) {
-        // محاولة الاتصال بالمصدر
-        const source = await checkBladiInfoAvailability();
+        // محاولة الاتصال بالمصدر مع مهلة محددة
+        const sourceCheckPromise = checkBladiInfoAvailability();
+        const timeoutPromise = new Promise<string | null>((resolve) => {
+          setTimeout(() => resolve(null), 5000);
+        });
+        
+        const source = await Promise.race([sourceCheckPromise, timeoutPromise]);
         
         if (source) {
           setActiveSource(source);
@@ -62,7 +68,6 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
             toast({
               title: "تم استعادة الاتصال بالمصادر",
               description: "تم استعادة الاتصال بمصادر البيانات بنجاح.",
-              variant: "default",
               duration: 3000
             });
           }
@@ -80,10 +85,10 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
     } finally {
       setIsChecking(false);
     }
-  };
+  }, [isChecking, lastCheckTime, consecutiveFailures, toast]);
 
   // زيادة عداد الفشل مع إظهار إشعارات مناسبة
-  const incrementFailureCount = (reason: string) => {
+  const incrementFailureCount = useCallback((reason: string) => {
     setConsecutiveFailures(prev => {
       const newCount = prev + 1;
       
@@ -91,23 +96,23 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
       if (newCount === 3) {
         toast({
           title: "تعذر الاتصال بالمصادر",
-          description: "تم تسجيل عدة محاولات فاشلة للاتصال بالخادم. سيتم استخدام البيانات المخزنة.",
-          variant: "default",
-          duration: 6000
+          description: "سيتم استخدام البيانات المخزنة محليًا.",
+          duration: 5000
         });
       } else if (newCount === 5) {
         toast({
           title: "مشكلة مستمرة في الاتصال",
           description: `${reason}. تحقق من اتصالك بالإنترنت.`,
           variant: "destructive",
-          duration: 8000
+          duration: 6000
         });
       }
       
       return newCount;
     });
-  };
+  }, [toast]);
 
+  // تحسين التعامل مع تغييرات حالة الشبكة
   useEffect(() => {
     const handleOnlineChange = () => {
       const isNowOnline = navigator.onLine;
@@ -123,7 +128,7 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
         setServerAccess(false);
         toast({
           title: "انقطع الاتصال",
-          description: "أنت غير متصل بالإنترنت. سيتم استخدام البيانات المخزنة محليًا.",
+          description: "سيتم استخدام البيانات المخزنة محليًا.",
           variant: "destructive",
           duration: 5000
         });
@@ -138,13 +143,14 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
       checkConnectivity();
     }, 2000);
     
-    // فحص دوري
-    // تقليل الفترة على Vercel لتحسين التجربة
+    // فحص دوري باستراتيجية متكيفة
+    const checkInterval = isVercel ? 45000 : 60000; // كل 45 ثانية على Vercel، كل دقيقة على المنصات الأخرى
+    
     const intervalId = setInterval(() => {
-      if (navigator.onLine) {
+      if (navigator.onLine && !isChecking) {
         checkConnectivity();
       }
-    }, isVercel ? 45000 : 60000); // كل 45 ثانية على Vercel، كل دقيقة على المنصات الأخرى
+    }, checkInterval);
     
     return () => {
       window.removeEventListener('online', handleOnlineChange);
@@ -152,12 +158,15 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
       clearTimeout(initialCheckTimeout);
       clearInterval(intervalId);
     };
-  }, [consecutiveFailures, isVercel, toast]);
+  }, [checkConnectivity, isChecking, isVercel, toast]);
 
-  const handleRefreshClick = () => {
-    checkConnectivity();
-    if (onRefresh) onRefresh();
-  };
+  // تحسين معالج التحديث اليدوي
+  const handleRefreshClick = useCallback(() => {
+    if (!isChecking) {
+      checkConnectivity();
+      if (onRefresh) onRefresh();
+    }
+  }, [checkConnectivity, onRefresh, isChecking]);
 
   // تحديد حالة الاتصال للعرض
   let statusIcon = <AlertCircle className="h-4 w-4 text-amber-500" />;
@@ -173,19 +182,14 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
   } else if (activeSource) {
     statusIcon = <Wifi className="h-4 w-4 text-green-500" />;
     
-    // تحديد نوع المصدر للعرض
-    const isLocalSource = activeSource.startsWith('/');
-    const isJsdelivr = activeSource.includes('jsdelivr');
-    const isBladiTv = activeSource.includes('bladitv');
-    const isVercelSource = activeSource.includes('vercel.app');
-    
-    if (isLocalSource) {
+    // تحديد نوع المصدر للعرض بطريقة أفضل
+    if (activeSource.startsWith('/')) {
       statusText = "متصل (مصدر محلي)";
-    } else if (isJsdelivr) {
+    } else if (activeSource.includes('jsdelivr')) {
       statusText = "متصل (CDN)";
-    } else if (isBladiTv) {
+    } else if (activeSource.includes('bladitv')) {
       statusText = "متصل (BladiTV)";
-    } else if (isVercelSource) {
+    } else if (activeSource.includes('vercel.app')) {
       statusText = "متصل (Vercel)";
     } else {
       statusText = "متصل (مصدر خارجي)";
@@ -202,6 +206,7 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
     statusColor = "text-amber-500";
   }
 
+  // تحسين واجهة المستخدم
   return (
     <TooltipProvider>
       <Tooltip>
