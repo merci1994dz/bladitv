@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getChannels, getCategories, getCountries, getRecentlyWatchedChannels } from '@/services/api';
@@ -10,12 +9,15 @@ import CategoryTabs from '@/components/home/CategoryTabs';
 import HomeSync from '@/components/home/HomeSync';
 import { useToast } from '@/hooks/use-toast';
 import { Menu, Search, Bell } from 'lucide-react';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useConnectivity } from '@/hooks/useConnectivity';
+import { OfflineMode, NetworkStatusBar } from '@/components/connectivity';
 
 const Home: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const { toast } = useToast();
-  const { isOffline, networkStatus } = useNetworkStatus();
+  const { isOffline, networkStatus, connectionType, checkStatus } = useConnectivity({
+    showNotifications: true
+  });
 
   const { 
     data: channels,
@@ -103,8 +105,23 @@ const Home: React.FC = () => {
     return channel.category === selectedCategory;
   }) || [];
 
+  // Handle retry connection
+  const handleRetryConnection = async () => {
+    toast({
+      title: "جاري التحقق من الاتصال",
+      description: "جاري محاولة إعادة الاتصال والتحقق من المصادر...",
+      duration: 3000,
+    });
+    
+    await checkStatus();
+    
+    if (!isOffline) {
+      refetchChannels();
+    }
+  };
+
   // تحسين: تحسين شاشة التحميل
-  if (isLoadingChannels || isLoadingCategories) {
+  if (isLoadingChannels) {
     return (
       <div className="min-h-screen bg-black flex justify-center items-center">
         <LoadingIndicator size="large" text="جاري تحميل القنوات..." />
@@ -136,12 +153,11 @@ const Home: React.FC = () => {
           <button className="tv-icon-button mr-2">
             <Menu size={24} />
           </button>
-          <h1 className="tv-header-title">Genral TV</h1>
+          <h1 className="tv-header-title">Bladi TV</h1>
         </div>
         <div className="tv-header-actions">
-          {/* تحسين: إضافة مؤشر حالة الاتصال */}
-          <div className={`h-2 w-2 rounded-full mr-2 ${networkStatus.hasInternet ? 'bg-green-500' : 'bg-red-500'}`} 
-               title={networkStatus.hasInternet ? 'متصل بالإنترنت' : 'غير متصل بالإنترنت'} />
+          {/* مؤشر حالة الاتصال المحسن */}
+          <NetworkStatusBar compact={true} onRefresh={handleRetryConnection} />
           <HomeSync refetchChannels={refetchChannels} />
           <button className="tv-icon-button">
             <Bell size={20} />
@@ -151,6 +167,37 @@ const Home: React.FC = () => {
           </button>
         </div>
       </div>
+      
+      {/* عرض إشعار عدم الاتصال إذا لزم الأمر */}
+      {isOffline && (
+        <div className="px-4 pt-2">
+          <OfflineMode 
+            isOffline={isOffline} 
+            onReconnect={handleRetryConnection}
+            hasLocalData={channels && channels.length > 0}
+          />
+        </div>
+      )}
+      
+      {/* عرض إشعار الاتصال المحدود إذا لزم الأمر */}
+      {!isOffline && connectionType === 'limited' && channels && (
+        <div className="bg-amber-500/10 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-md p-2 mx-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-amber-700 dark:text-amber-300">
+              متصل بالإنترنت لكن تعذر الوصول إلى مصادر البيانات. يتم عرض البيانات المخزنة محليًا.
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRetryConnection}
+              className="bg-background/80 text-xs h-7"
+            >
+              <RefreshCw className="h-3 w-3 mr-1" />
+              إعادة المحاولة
+            </Button>
+          </div>
+        </div>
+      )}
       
       {/* علامات التبويب والقنوات */}
       <CategoryTabs 

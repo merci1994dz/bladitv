@@ -1,10 +1,11 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useDeviceType } from '@/hooks/use-tv';
 import SyncStatus from '../SyncStatus';
-import ConnectivityIndicator from '../sync/ConnectivityIndicator';
+import { ConnectivityIndicator } from '../connectivity';
 import { syncWithBladiInfo } from '@/services/sync';
 import { useToast } from '@/hooks/use-toast';
 import { getLastSyncTime } from '@/services/sync/status/timestamp';
@@ -62,9 +63,11 @@ const HomeHeader: React.FC<HomeHeaderProps> = ({ isSimple = false }) => {
             </h1>
           </Link>
           
-          <ConnectivityIndicator 
+          <ConnectivityIndicator
             onRefresh={handleConnectivityRefresh}
-            className="hidden md:flex" 
+            className="hidden md:flex"
+            showLabel={true}
+            size="md"
           />
         </div>
         
@@ -88,9 +91,11 @@ const HomeHeader: React.FC<HomeHeaderProps> = ({ isSimple = false }) => {
         )}
         
         {/* مؤشر الاتصال للشاشات الصغيرة */}
-        <ConnectivityIndicator 
+        <ConnectivityIndicator
           onRefresh={handleConnectivityRefresh}
-          className="md:hidden" 
+          className="md:hidden"
+          showLabel={false}
+          size="sm"
         />
       </div>
     </header>
