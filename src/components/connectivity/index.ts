@@ -1,6 +1,15 @@
 
-export { default as NetworkStatusBar } from './NetworkStatusBar';
-export { default as OfflineMode } from './OfflineMode';
-export { default as ConnectivityIndicator } from './ConnectivityIndicator';
-export { default as DiagnosticTool } from './DiagnosticTool';
-export { ConnectivityProvider, useConnectivityContext } from './ConnectivityProvider';
+import ConnectivityProvider, { useConnectivityContext } from './ConnectivityProvider';
+import ConnectivityIndicator from './ConnectivityIndicator';
+import NetworkStatusBar from './NetworkStatusBar';
+import OfflineMode from './OfflineMode';
+import DiagnosticTool from './DiagnosticTool';
+
+export {
+  ConnectivityProvider,
+  useConnectivityContext,
+  ConnectivityIndicator,
+  NetworkStatusBar,
+  OfflineMode,
+  DiagnosticTool
+};
