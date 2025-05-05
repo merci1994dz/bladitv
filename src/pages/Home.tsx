@@ -8,16 +8,21 @@ import RecentlyWatchedChannels from '@/components/recently-watched/RecentlyWatch
 import CategoryTabs from '@/components/home/CategoryTabs';
 import HomeSync from '@/components/home/HomeSync';
 import { useToast } from '@/hooks/use-toast';
-import { Menu, Search, Bell } from 'lucide-react';
-import { useConnectivity } from '@/hooks/useConnectivity';
+import { Menu, Search, Bell, RefreshCw } from 'lucide-react';
+import { useConnectivityContext } from '@/components/connectivity/ConnectivityProvider';
 import { OfflineMode, NetworkStatusBar } from '@/components/connectivity';
+import { Button } from '@/components/ui/button';
 
 const Home: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const { toast } = useToast();
-  const { isOffline, networkStatus, connectionType, checkStatus } = useConnectivity({
-    showNotifications: true
-  });
+  const { 
+    isOnline, 
+    connectionType, 
+    checkStatus,
+    isChecking
+  } = useConnectivityContext();
+  const isOffline = !isOnline;
 
   const { 
     data: channels,

@@ -4,167 +4,141 @@ import { useToast } from '@/hooks/use-toast';
 import { checkConnectivityIssues } from '@/services/sync/status/connectivity';
 
 export interface ConnectivityStatus {
-  isOnline: boolean;
+  hasInternet: boolean;
   hasServerAccess: boolean;
-  isChecking: boolean;
-  lastCheckTime: number;
-  connectionType: 'full' | 'limited' | 'none';
-  statusMessage: string;
 }
 
-export const useConnectivity = (options?: {
+export type ConnectionType = 'full' | 'limited' | 'none';
+
+interface UseConnectivityOptions {
   showNotifications?: boolean;
   checkInterval?: number;
   onStatusChange?: (status: ConnectivityStatus) => void;
-}) => {
-  const { 
-    showNotifications = true, 
+}
+
+export const useConnectivity = (options: UseConnectivityOptions = {}) => {
+  const {
+    showNotifications = false,
     checkInterval = 60000,
-    onStatusChange 
-  } = options || {};
-  
+    onStatusChange
+  } = options;
+
   const { toast } = useToast();
-  const [status, setStatus] = useState<ConnectivityStatus>({
-    isOnline: navigator.onLine,
-    hasServerAccess: false,
-    isChecking: false,
-    lastCheckTime: 0,
-    connectionType: 'none',
-    statusMessage: 'جاري التحقق من الاتصال...'
-  });
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [hasServerAccess, setHasServerAccess] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
+  const [lastCheckTime, setLastCheckTime] = useState(0);
+  const [connectionType, setConnectionType] = useState<ConnectionType>('none');
+  const [statusMessage, setStatusMessage] = useState('جاري التحقق من الاتصال...');
 
-  const updateStatus = useCallback((newStatus: Partial<ConnectivityStatus>) => {
-    setStatus(prev => {
-      const updated = { ...prev, ...newStatus };
-      
-      // Determine connection type based on status
-      if (!updated.isOnline) {
-        updated.connectionType = 'none';
-        updated.statusMessage = 'غير متصل بالإنترنت';
-      } else if (!updated.hasServerAccess) {
-        updated.connectionType = 'limited';
-        updated.statusMessage = 'اتصال محدود - لا يمكن الوصول إلى المصادر';
-      } else {
-        updated.connectionType = 'full';
-        updated.statusMessage = 'متصل بالكامل';
-      }
-      
-      // Trigger callback if provided
-      if (onStatusChange && 
-          (prev.isOnline !== updated.isOnline || 
-           prev.hasServerAccess !== updated.hasServerAccess ||
-           prev.connectionType !== updated.connectionType)) {
-        onStatusChange(updated);
-      }
-      
-      return updated;
-    });
-  }, [onStatusChange]);
-
-  // Check connectivity status
-  const checkStatus = useCallback(async () => {
-    // Prevent frequent checks (3 second minimum between checks)
-    const now = Date.now();
-    if (status.isChecking || (now - status.lastCheckTime < 3000)) {
-      return status;
-    }
-
-    updateStatus({ isChecking: true });
-
+  // تحسين: وظيفة مزامنة للتحقق من حالة الاتصال
+  const checkStatus = useCallback(async (): Promise<ConnectivityStatus> => {
+    setIsChecking(true);
+    
     try {
-      const connectivityResult = await checkConnectivityIssues();
+      const status = await checkConnectivityIssues();
       
-      const newStatus = {
-        isOnline: connectivityResult.hasInternet,
-        hasServerAccess: connectivityResult.hasServerAccess,
-        isChecking: false,
-        lastCheckTime: now
-      };
+      setIsOnline(status.hasInternet);
+      setHasServerAccess(status.hasServerAccess);
+      setLastCheckTime(Date.now());
       
-      updateStatus(newStatus);
-      return { ...status, ...newStatus };
-    } catch (error) {
-      console.error('خطأ في فحص الاتصال:', error);
-      updateStatus({ 
-        isChecking: false, 
-        hasServerAccess: false,
-        lastCheckTime: now 
-      });
-      return { ...status, hasServerAccess: false, isChecking: false, lastCheckTime: now };
-    }
-  }, [status, updateStatus]);
-
-  // Show appropriate notifications when status changes
-  useEffect(() => {
-    if (!showNotifications) return;
-
-    // Notify when going offline
-    const previousConnection = localStorage.getItem('prev_connection_type');
-    const currentConnection = status.connectionType;
-    
-    if (previousConnection && previousConnection !== currentConnection) {
-      if (currentConnection === 'none') {
-        toast({
-          title: "انقطع الاتصال",
-          description: "أنت الآن في وضع عدم الاتصال. سيتم استخدام البيانات المخزنة محليًا.",
-          variant: "destructive",
-          duration: 5000,
-        });
-      } else if (currentConnection === 'limited' && previousConnection === 'none') {
-        toast({
-          title: "تم استعادة الاتصال",
-          description: "تم استعادة الاتصال المحلي فقط. سيتم الاعتماد على البيانات المخزنة.",
-          duration: 4000,
-        });
-      } else if (currentConnection === 'full' && (previousConnection === 'none' || previousConnection === 'limited')) {
-        toast({
-          title: "تم استعادة الاتصال",
-          description: "تم استعادة الاتصال بالكامل. جاري تحديث البيانات من المصادر المتاحة...",
-          duration: 4000,
-        });
-      }
-    }
-    
-    localStorage.setItem('prev_connection_type', currentConnection);
-  }, [status.connectionType, showNotifications, toast]);
-
-  // Set up event listeners and periodic checks
-  useEffect(() => {
-    const handleOnlineChange = () => {
-      updateStatus({ isOnline: navigator.onLine });
-      
-      if (navigator.onLine) {
-        // Check server access after a short delay to ensure stable connection
-        setTimeout(() => checkStatus(), 1500);
+      // تحديد نوع الاتصال
+      if (!status.hasInternet) {
+        setConnectionType('none');
+        setStatusMessage('غير متصل بالإنترنت');
+      } else if (!status.hasServerAccess) {
+        setConnectionType('limited');
+        setStatusMessage('متصل بالإنترنت فقط');
       } else {
-        updateStatus({ hasServerAccess: false });
+        setConnectionType('full');
+        setStatusMessage('متصل بالكامل');
       }
-    };
+      
+      // إرسال الإشعارات إذا كان مطلوبًا
+      if (showNotifications) {
+        if (!status.hasInternet) {
+          toast({
+            title: "غير متصل بالإنترنت",
+            description: "أنت في وضع عدم الاتصال. سيتم استخدام البيانات المخزنة محليًا.",
+            variant: "destructive"
+          });
+        } else if (!status.hasServerAccess) {
+          toast({
+            title: "اتصال محدود",
+            description: "متصل بالإنترنت لكن تعذر الوصول إلى مصادر البيانات. يتم عرض البيانات المخزنة محليًا.",
+            variant: "default"
+          });
+        }
+      }
+      
+      // استدعاء دالة رد الاتصال إذا وجدت
+      if (onStatusChange) {
+        onStatusChange(status);
+      }
+      
+      return status;
+    } catch (error) {
+      console.error('خطأ في فحص حالة الاتصال:', error);
+      setConnectionType('none');
+      setStatusMessage('حدث خطأ في فحص الاتصال');
+      
+      return {
+        hasInternet: navigator.onLine,
+        hasServerAccess: false
+      };
+    } finally {
+      setIsChecking(false);
+    }
+  }, [toast, showNotifications, onStatusChange]);
 
-    // Add event listeners
-    window.addEventListener('online', handleOnlineChange);
-    window.addEventListener('offline', handleOnlineChange);
+  // تحسين: فحص الاتصال عند تغيير حالة الشبكة
+  const handleNetworkChange = useCallback(() => {
+    const isCurrentlyOnline = navigator.onLine;
+    setIsOnline(isCurrentlyOnline);
     
-    // Initial check
+    if (isCurrentlyOnline !== isOnline) {
+      checkStatus();
+    }
+  }, [isOnline, checkStatus]);
+
+  // تحسين: إعداد مستمعي أحداث الشبكة
+  useEffect(() => {
+    window.addEventListener('online', handleNetworkChange);
+    window.addEventListener('offline', handleNetworkChange);
+    
+    // فحص أولي عند تحميل المكون
     checkStatus();
     
-    // Set up periodic check
-    const intervalId = setInterval(() => {
-      if (navigator.onLine) {
-        checkStatus();
-      }
-    }, checkInterval);
+    // إنشاء فترة للفحص الدوري
+    let intervalId: number;
+    if (checkInterval > 0) {
+      intervalId = window.setInterval(() => {
+        // فحص الاتصال فقط إذا كان المتصفح متصلًا
+        if (navigator.onLine) {
+          checkStatus();
+        }
+      }, checkInterval);
+    }
     
     return () => {
-      window.removeEventListener('online', handleOnlineChange);
-      window.removeEventListener('offline', handleOnlineChange);
-      clearInterval(intervalId);
+      window.removeEventListener('online', handleNetworkChange);
+      window.removeEventListener('offline', handleNetworkChange);
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
-  }, [checkStatus, checkInterval, updateStatus]);
+  }, [handleNetworkChange, checkStatus, checkInterval]);
 
   return {
-    ...status,
-    checkStatus,
-    isOffline: !status.isOnline
+    isOnline,
+    isOffline: !isOnline,
+    hasServerAccess,
+    isChecking,
+    lastCheckTime,
+    connectionType,
+    statusMessage,
+    checkStatus
   };
 };
+
+export default useConnectivity;

@@ -7,21 +7,25 @@ import { useToast } from '@/hooks/use-toast';
 // Define the context type
 interface ConnectivityContextType {
   isOnline: boolean;
+  isOffline: boolean;
   hasServerAccess: boolean;
   isChecking: boolean;
   connectionType: 'full' | 'limited' | 'none';
   checkStatus: () => Promise<any>;
   statusMessage: string;
+  lastCheckTime: number;
 }
 
 // Create context with default values
 const ConnectivityContext = createContext<ConnectivityContextType>({
   isOnline: true,
+  isOffline: false,
   hasServerAccess: true,
   isChecking: false,
   connectionType: 'full',
   checkStatus: async () => ({}),
-  statusMessage: ''
+  statusMessage: '',
+  lastCheckTime: 0
 });
 
 interface ConnectivityProviderProps {
@@ -60,9 +64,9 @@ export const ConnectivityProvider: React.FC<ConnectivityProviderProps> = ({
 
   return (
     <ConnectivityContext.Provider value={connectivity}>
-      {showOfflineNotification && (
+      {showOfflineNotification && connectivity.isOffline && (
         <OfflineMode 
-          isOffline={!connectivity.isOnline}
+          isOffline={connectivity.isOffline}
           onReconnect={handleReconnect}
           isReconnecting={connectivity.isChecking}
           minimal={true}
