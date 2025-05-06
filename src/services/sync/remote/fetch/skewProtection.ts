@@ -1,31 +1,30 @@
 
 /**
- * حماية من انحراف الوقت في الخوادم
- * Protection from time skew on servers
+ * وظائف حماية الانحراف الزمني
+ * Time skew protection functions
  */
 
 /**
- * التحقق مما إذا كان التطبيق يعمل على بيئة إنتاج
- * Check if app is running in a production environment
+ * الحصول على معلمات حماية الانحراف
+ * Get skew protection parameters
+ * 
+ * @returns معلمات الانحراف الزمني
  */
-export const isRunningOnVercel = (): boolean => {
-  // We're simplifying this function to return false as Vercel detection 
-  // was removed from the application
-  return false;
+export const getSkewProtectionParams = (): string => {
+  const timestamp = Date.now();
+  const randomId = Math.random().toString(36).substring(2, 15);
+  
+  return `skew=${timestamp}&id=${randomId}`;
 };
 
 /**
- * الحصول على معلمات الحماية من انحراف الوقت
- * Get time skew protection parameters
+ * التحقق مما إذا كان التطبيق يعمل على Vercel
+ * Check if the app is running on Vercel
+ * 
+ * @returns دائمًا يرجع false حيث لم يعد هناك حاجة للتمييز
  */
-export const getSkewProtectionParams = (): string => {
-  try {
-    // إضافة طابع زمني دقيق لتجنب مشاكل انحراف الوقت في الخوادم
-    const timestamp = Date.now();
-    const adjustedTime = timestamp; // يمكن تعديله وفقًا لانحراف وقت الخادم المعروف
-    
-    return `_ts=${timestamp}`;
-  } catch (e) {
-    return `_ts=${Date.now()}`;
-  }
+export const isRunningOnVercel = (): boolean => {
+  // نحن لم نعد نستخدم المنطق الخاص بـ Vercel، لذلك سنعيد دائمًا false
+  // We no longer use Vercel-specific logic, so always return false
+  return false;
 };
