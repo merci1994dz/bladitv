@@ -4,7 +4,6 @@ import { useToast } from '@/hooks/use-toast';
 import { syncDataUnified } from '@/services/sync/core/unifiedSync';
 import { forceDataRefresh } from '@/services/sync/forceRefresh';
 import { checkConnectivityIssues } from '@/services/sync/status/connectivity';
-import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';
 
 export interface SyncMutationsProps {
   showNotification?: boolean;

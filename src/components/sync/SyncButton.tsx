@@ -6,42 +6,37 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 interface SyncButtonProps {
   onClick: () => void;
-  isLoading: boolean;
-  tooltipText: string;
-  variant?: 'default' | 'ghost' | 'amber';
+  isLoading?: boolean;
+  tooltipText?: string;
+  variant?: 'default' | 'amber';
   disabled?: boolean;
 }
 
 const SyncButton: React.FC<SyncButtonProps> = ({ 
   onClick, 
-  isLoading, 
-  tooltipText,
-  variant = 'ghost',
+  isLoading = false,
+  tooltipText = "تحديث البيانات",
+  variant = 'default',
   disabled = false
 }) => {
-  // Define button class based on variant
-  const buttonClass = variant === 'amber' 
-    ? "h-6 w-6 rounded-full bg-amber-50 hover:bg-amber-100" 
-    : "h-6 w-6 rounded-full";
+  const buttonClass = variant === 'amber' ? 
+    "border border-amber-500 bg-amber-50 hover:bg-amber-100 text-amber-700 p-1 rounded" : 
+    "text-primary hover:text-primary/80 p-1";
   
-  // Define icon class based on variant
-  const iconClass = variant === 'amber'
-    ? `h-3 w-3 text-amber-600 ${isLoading ? 'animate-spin' : ''}`
-    : `h-3 w-3 ${isLoading ? 'animate-spin' : ''}`;
-
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
-            variant="ghost"
+            variant="ghost" 
             size="icon"
             className={buttonClass}
             onClick={onClick}
             disabled={isLoading || disabled}
           >
-            <RefreshCw className={iconClass} />
-            <span className="sr-only">تحديث</span>
+            <RefreshCw 
+              className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} 
+            />
           </Button>
         </TooltipTrigger>
         <TooltipContent>

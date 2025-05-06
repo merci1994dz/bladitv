@@ -14,18 +14,18 @@ const SyncStatusIcon: React.FC<SyncStatusIconProps> = ({
   noSync = false
 }) => {
   if (noSync) {
-    return <CloudOff className="w-3 h-3" />;
+    return <CloudOff className="w-4 h-4 text-red-500" />;
   }
   
   if (isRecent) {
-    return <RefreshCw className="w-3 h-3 text-green-500" />;
+    return <RefreshCw className="w-4 h-4 text-green-500" />;
   } 
   
   if (isVeryOld) {
-    return <AlertTriangle className="w-3 h-3 text-amber-500" />;
+    return <AlertTriangle className="w-4 h-4 text-amber-500" />;
   }
   
-  return <Clock className="w-3 h-3" />;
+  return <Clock className="w-4 h-4 text-gray-500" />;
 };
 
 export default SyncStatusIcon;

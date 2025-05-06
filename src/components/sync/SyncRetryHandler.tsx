@@ -1,6 +1,5 @@
 
 import React, { useEffect } from 'react';
-import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';
 import { useToast } from '@/hooks/use-toast';
 
 interface SyncRetryHandlerProps {
@@ -25,7 +24,7 @@ const SyncRetryHandler: React.FC<SyncRetryHandlerProps> = ({
   
   useEffect(() => {
     // تحديد التأخير الأولي لبدء المزامنة
-    const initialDelay = 3000; // استخدام تأخير ثابت بعد إزالة Vercel
+    const initialDelay = 3000; // استخدام تأخير ثابت 
     console.log(`سيتم بدء المزامنة الأولية بعد ${initialDelay}ms`);
     
     const initialSyncTimeout = setTimeout(async () => {
@@ -50,7 +49,7 @@ const SyncRetryHandler: React.FC<SyncRetryHandlerProps> = ({
         console.warn(`فشلت جميع محاولات الاتصال (${maxRetryAttempts.current})، سيتم استخدام البيانات المحلية`);
         
         toast({
-          title: "تعذر الاتصال بـ Supabase",
+          title: "تعذر الاتصال بالمصادر",
           description: "سيتم استخدام البيانات المخزنة محليًا. الرجاء التحقق من اتصالك بالإنترنت.",
           variant: "destructive",
           duration: 7000,

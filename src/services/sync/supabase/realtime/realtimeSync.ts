@@ -7,7 +7,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { handleError } from '@/utils/errorHandling';
 import { toast } from '@/hooks/use-toast';
-import { isRunningOnVercel } from '../../remote/fetch/skewProtection';
 
 /**
  * إعداد المزامنة في الوقت الحقيقي مع Supabase
@@ -23,7 +22,7 @@ export const setupSupabaseRealtimeSync = (): () => void => {
     const channelOptions = {
       config: {
         broadcast: { 
-          ack: false // تعطيل إقرار البث بعد إزالة Vercel
+          ack: false // تعطيل إقرار البث 
         }
       }
     };
