@@ -1,12 +1,11 @@
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Wifi, WifiOff, AlertCircle, RefreshCw } from 'lucide-react';
 import { checkBladiInfoAvailability } from '@/services/sync/remote/sync/sourceAvailability';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { checkConnectivityIssues } from '@/services/sync/status/connectivity';
-import { isRunningOnVercel } from '@/services/sync/remote/fetch/skewProtection';
 
 interface ConnectivityIndicatorProps {
   onRefresh?: () => void;
@@ -23,13 +22,7 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
   const [isChecking, setIsChecking] = useState(false);
   const [serverAccess, setServerAccess] = useState<boolean | null>(null);
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
-  const [isVercel, setIsVercel] = useState(false);
   const [lastCheckTime, setLastCheckTime] = useState(0);
-  
-  useEffect(() => {
-    // التحقق من بيئة النشر
-    setIsVercel(isRunningOnVercel());
-  }, []);
 
   // تحسين وظيفة فحص الاتصال باستخدام useCallback
   const checkConnectivity = useCallback(async () => {
@@ -144,7 +137,7 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
     }, 2000);
     
     // فحص دوري باستراتيجية متكيفة
-    const checkInterval = isVercel ? 45000 : 60000; // كل 45 ثانية على Vercel، كل دقيقة على المنصات الأخرى
+    const checkInterval = 60000; // كل دقيقة
     
     const intervalId = setInterval(() => {
       if (navigator.onLine && !isChecking) {
@@ -158,7 +151,7 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
       clearTimeout(initialCheckTimeout);
       clearInterval(intervalId);
     };
-  }, [checkConnectivity, isChecking, isVercel, toast]);
+  }, [checkConnectivity, isChecking, toast]);
 
   // تحسين معالج التحديث اليدوي
   const handleRefreshClick = useCallback(() => {
@@ -189,8 +182,6 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
       statusText = "متصل (CDN)";
     } else if (activeSource.includes('bladitv')) {
       statusText = "متصل (BladiTV)";
-    } else if (activeSource.includes('vercel.app')) {
-      statusText = "متصل (Vercel)";
     } else {
       statusText = "متصل (مصدر خارجي)";
     }
@@ -240,11 +231,6 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
                 "تعذر الوصول إلى خوادم البيانات. يتم استخدام البيانات المخزنة." : 
                 "جاري محاولة الاتصال بالمصادر..."
               }
-            </p>
-          )}
-          {isVercel && (
-            <p className="text-xs text-green-500 mt-1">
-              يعمل التطبيق على Vercel
             </p>
           )}
           <Button
