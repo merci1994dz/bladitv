@@ -1,15 +1,12 @@
 
 import React from 'react';
-import { WifiOff, RefreshCw, Database } from 'lucide-react';
+import { WifiOff, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 interface OfflineModeProps {
   isOffline: boolean;
-  onReconnect?: () => void;
+  onReconnect?: () => Promise<void>;
   isReconnecting?: boolean;
-  className?: string;
   minimal?: boolean;
   hasLocalData?: boolean;
 }
@@ -18,57 +15,67 @@ const OfflineMode: React.FC<OfflineModeProps> = ({
   isOffline,
   onReconnect,
   isReconnecting = false,
-  className,
   minimal = false,
-  hasLocalData = true
+  hasLocalData = false
 }) => {
-  if (!isOffline) return null;
+  if (!isOffline) {
+    return null;
+  }
 
-  // Minimal version (just a banner)
+  // النسخة المصغرة لاستخدامها في الأماكن المحدودة المساحة
   if (minimal) {
     return (
-      <div className={cn("bg-amber-500 dark:bg-amber-900 text-white dark:text-amber-50 text-center py-1 px-2 text-sm sticky top-0 z-50 flex items-center justify-center gap-2", className)}>
-        <WifiOff className="h-3 w-3" />
-        <span>أنت الآن في وضع عدم الاتصال. سيتم استخدام البيانات المخزنة محليًا.</span>
+      <div className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-2 mb-2 text-center">
+        <div className="flex items-center justify-center gap-2">
+          <WifiOff size={16} className="text-gray-500" />
+          <span className="text-sm text-gray-600 dark:text-gray-300">أنت الآن في وضع عدم الاتصال</span>
+          {onReconnect && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onReconnect}
+              disabled={isReconnecting}
+              className="h-7 px-2"
+            >
+              <RefreshCw className={`h-3 w-3 ${isReconnecting ? 'animate-spin' : ''}`} />
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
 
-  // Full version with more details
+  // النسخة الكاملة مع رسائل أكثر تفصيلاً
   return (
-    <Alert variant="destructive" className={cn("animate-in fade-in-50 duration-300 mb-4", className)}>
-      <div className="flex items-start gap-2">
-        <WifiOff className="h-5 w-5 mt-0.5" />
-        <div className="flex-1">
-          <AlertTitle className="mb-2">أنت غير متصل بالإنترنت</AlertTitle>
-          <AlertDescription className="text-sm space-y-3">
-            <p>تعذر الاتصال بالإنترنت. {hasLocalData 
-              ? "سيتم استخدام البيانات المخزنة محليًا." 
-              : "قد لا تتمكن من الوصول إلى بعض المحتوى."}</p>
-            
-            {hasLocalData && (
-              <div className="flex items-center gap-1.5 text-xs mt-1 bg-destructive/10 p-1.5 rounded">
-                <Database className="h-3.5 w-3.5" />
-                <span>البيانات المحلية متاحة</span>
-              </div>
-            )}
-            
-            {onReconnect && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={onReconnect}
-                disabled={isReconnecting}
-                className="mt-2 bg-background hover:bg-background/90"
-              >
-                <RefreshCw className={cn("h-3.5 w-3.5 mr-1", isReconnecting ? "animate-spin" : "")} />
-                {isReconnecting ? "جاري المحاولة..." : "إعادة الاتصال"}
-              </Button>
-            )}
-          </AlertDescription>
+    <div className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md p-3 mb-4">
+      <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="bg-gray-200 dark:bg-gray-700 rounded-full p-2">
+            <WifiOff size={20} className="text-gray-500 dark:text-gray-400" />
+          </div>
+          <div>
+            <h3 className="font-medium text-gray-800 dark:text-gray-200">أنت الآن في وضع عدم الاتصال</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {hasLocalData 
+                ? 'يتم عرض البيانات المخزنة محليًا. بعض الميزات قد لا تعمل.' 
+                : 'لا يمكن الوصول إلى بياناتك حتى تستعيد الاتصال.'}
+            </p>
+          </div>
         </div>
+        {onReconnect && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onReconnect}
+            disabled={isReconnecting}
+            className="whitespace-nowrap"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isReconnecting ? 'animate-spin' : ''}`} />
+            إعادة الاتصال
+          </Button>
+        )}
       </div>
-    </Alert>
+    </div>
   );
 };
 

@@ -1,204 +1,94 @@
 
-import React, { useState } from 'react';
-import { 
-  Wifi, 
-  WifiOff,
-  SignalHigh,
-  SignalLow,
-  Server, 
-  ServerOff,
-  AlertCircle,
-  RefreshCw 
-} from 'lucide-react';
+import React from 'react';
+import { Wifi, WifiOff, Signal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { 
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger 
-} from '@/components/ui/tooltip';
-import { Badge } from '@/components/ui/badge';
+import { useConnectivityContext } from './ConnectivityProvider';
 import { cn } from '@/lib/utils';
-import { checkConnectivityIssues } from '@/services/sync/status/connectivity';
 
 interface NetworkStatusBarProps {
-  className?: string;
-  onRefresh?: () => void;
   compact?: boolean;
+  onRefresh?: () => Promise<void>;
 }
 
-const NetworkStatusBar: React.FC<NetworkStatusBarProps> = ({
-  className,
-  onRefresh,
-  compact = false
+const NetworkStatusBar: React.FC<NetworkStatusBarProps> = ({ 
+  compact = false,
+  onRefresh 
 }) => {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [serverAccess, setServerAccess] = useState<boolean | null>(null);
-  const [isChecking, setIsChecking] = useState(false);
-  const [lastCheckTime, setLastCheckTime] = useState(0);
+  const { isOnline, hasServerAccess, connectionType, isChecking } = useConnectivityContext();
+  
+  // اختيار الألوان والرسائل بناءً على نوع الاتصال
+  const statusColor = 
+    !isOnline ? 'bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400' :
+    connectionType === 'limited' ? 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400' :
+    'bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400';
 
-  // Check connectivity status
-  const checkStatus = async () => {
-    // Prevent frequent checks
-    const now = Date.now();
-    if (isChecking || (now - lastCheckTime < 3000)) {
-      return;
-    }
+  const statusIcon = 
+    !isOnline ? <WifiOff size={compact ? 14 : 16} /> :
+    connectionType === 'limited' ? <Signal size={compact ? 14 : 16} /> :
+    <Wifi size={compact ? 14 : 16} />;
 
-    setIsChecking(true);
-    setLastCheckTime(now);
+  const statusMessage = 
+    !isOnline ? 'غير متصل' : 
+    connectionType === 'limited' ? 'اتصال محدود' : 
+    'متصل';
 
-    try {
-      const status = await checkConnectivityIssues();
-      setIsOnline(status.hasInternet);
-      setServerAccess(status.hasServerAccess);
-    } catch (error) {
-      console.error('خطأ في فحص الاتصال:', error);
-      setServerAccess(false);
-    } finally {
-      setIsChecking(false);
-    }
-  };
-
-  // Initial check on mount
-  React.useEffect(() => {
-    const handleOnlineChange = () => {
-      setIsOnline(navigator.onLine);
-      
-      // Check server access when coming back online
-      if (navigator.onLine) {
-        setTimeout(checkStatus, 1000);
-      } else {
-        setServerAccess(false);
-      }
-    };
-
-    // Set up event listeners
-    window.addEventListener('online', handleOnlineChange);
-    window.addEventListener('offline', handleOnlineChange);
-    
-    // Initial check
-    checkStatus();
-    
-    return () => {
-      window.removeEventListener('online', handleOnlineChange);
-      window.removeEventListener('offline', handleOnlineChange);
-    };
-  }, []);
-
-  // Handle refresh button click
-  const handleRefresh = () => {
-    checkStatus();
-    if (onRefresh) {
-      onRefresh();
-    }
-  };
-
-  // Get the appropriate status icon
-  const getStatusIcon = () => {
-    if (isChecking) {
-      return <RefreshCw className="h-4 w-4 animate-spin text-primary" />;
-    }
-    
-    if (!isOnline) {
-      return <WifiOff className="h-4 w-4 text-destructive animate-pulse" />;
-    }
-    
-    if (serverAccess === false) {
-      return <ServerOff className="h-4 w-4 text-amber-500" />;
-    }
-
-    if (serverAccess === true) {
-      return <SignalHigh className="h-4 w-4 text-green-500" />;
-    }
-    
-    return <SignalLow className="h-4 w-4 text-amber-500" />;
-  };
-
-  // Get status text
-  const getStatusText = () => {
-    if (isChecking) {
-      return "جاري فحص الاتصال...";
-    }
-    
-    if (!isOnline) {
-      return "غير متصل بالإنترنت";
-    }
-    
-    if (serverAccess === false) {
-      return "متصل بالإنترنت فقط";
-    }
-    
-    if (serverAccess === true) {
-      return "متصل بالكامل";
-    }
-    
-    return "جاري التحقق...";
-  };
-
-  // Get status color
-  const getStatusColor = () => {
-    if (!isOnline) return "text-destructive";
-    if (serverAccess === false) return "text-amber-500";
-    if (serverAccess === true) return "text-green-500";
-    return "text-muted-foreground";
-  };
-
-  // Handle refresh animation
-  const refreshIconClass = isChecking ? "animate-spin" : "";
-
-  // Compact and expanded versions of the component
+  // في وضع الاختصار، نعرض مؤشرًا مصغرًا
   if (compact) {
     return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className={cn("flex items-center gap-1", className)}>
-              {getStatusIcon()}
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-6 w-6"
-                onClick={handleRefresh}
-                disabled={isChecking}
-              >
-                <RefreshCw className={cn("h-3 w-3", refreshIconClass)} />
-              </Button>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{getStatusText()}</p>
-            {serverAccess === false && (
-              <p className="text-xs text-amber-500">البيانات قد تكون غير محدثة</p>
-            )}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <div
+        className={cn(
+          "flex items-center gap-1 px-2 py-0.5 rounded text-xs border",
+          statusColor
+        )}
+      >
+        {statusIcon}
+        <span>{statusMessage}</span>
+        {onRefresh && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={onRefresh} 
+            disabled={isChecking}
+            className="h-5 w-5 p-0 ml-1"
+          >
+            <Signal className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
     );
   }
 
+  // في الوضع العادي، نعرض شريط حالة كامل
   return (
-    <div className={cn("flex items-center justify-between rounded-md border bg-card px-3 py-1.5 text-card-foreground shadow-sm", className)}>
+    <div
+      className={cn(
+        "flex items-center justify-between gap-2 px-3 py-2 rounded border",
+        statusColor
+      )}
+    >
       <div className="flex items-center gap-2">
-        {getStatusIcon()}
-        <span className={cn("text-sm font-medium", getStatusColor())}>{getStatusText()}</span>
-        
-        {serverAccess === false && isOnline && (
-          <Badge variant="outline" className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs">
-            البيانات المحلية
-          </Badge>
-        )}
+        {statusIcon}
+        <div>
+          <div className="font-medium">{statusMessage}</div>
+          <div className="text-xs opacity-80">
+            {!isOnline ? 'تحقق من اتصال الإنترنت' : 
+             connectionType === 'limited' ? 'متصل بالإنترنت لكن تعذر الوصول إلى المصادر' : 
+             'متصل بالإنترنت وبالمصادر'}
+          </div>
+        </div>
       </div>
       
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        className="h-7 w-7 p-0" 
-        onClick={handleRefresh}
-        disabled={isChecking}
-      >
-        <RefreshCw className={cn("h-3.5 w-3.5", refreshIconClass)} />
-      </Button>
+      {onRefresh && (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={onRefresh} 
+          disabled={isChecking}
+        >
+          <Signal className={`h-4 w-4 mr-1 ${isChecking ? "animate-spin" : ""}`} />
+          تحقق
+        </Button>
+      )}
     </div>
   );
 };

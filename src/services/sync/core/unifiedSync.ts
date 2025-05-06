@@ -1,140 +1,104 @@
 
-/**
- * الخدمة الموحدة للمزامنة
- * Unified sync service
- */
-
-import { syncWithBladiInfo } from '../remoteSync';
-import { syncWithSupabase } from '../supabaseSync';
-import { syncWithRemoteSource } from '../remote/sync/syncWithRemote';
+import { syncChannels } from '../sync';
 import { checkBladiInfoAvailability } from '../remote/sync/sourceAvailability';
+import { syncWithRemoteSource } from '../remote/sync/syncWithRemote';
+import { checkConnectivityIssues } from '../status/connectivity';
 import { setSyncTimestamp } from '../status/timestamp';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 
-// خيارات المزامنة
-interface SyncOptions {
+/**
+ * واجهة موحدة للمزامنة تقوم باختيار الطريقة المناسبة تلقائيًا
+ * A unified sync interface that automatically chooses the appropriate sync method
+ */
+export const syncDataUnified = async (options: {
   forceRefresh?: boolean;
   showNotifications?: boolean;
   preventDuplicates?: boolean;
-  onComplete?: (success: boolean) => void;
-}
-
-/**
- * مزامنة البيانات بشكل موحد باستخدام جميع المصادر المتاحة
- * Synchronize data using all available sources
- */
-export const syncDataUnified = async (options: SyncOptions = {}): Promise<boolean> => {
-  const {
-    forceRefresh = false,
+}): Promise<boolean> => {
+  const { 
+    forceRefresh = false, 
     showNotifications = true,
-    preventDuplicates = true,
-    onComplete
+    preventDuplicates = true
   } = options;
   
   try {
-    if (showNotifications) {
-      toast({
-        title: "جاري المزامنة",
-        description: "جاري تحديث البيانات من المصادر المتاحة...",
-        duration: 3000
-      });
+    // التحقق من وجود اتصال بالإنترنت أولاً
+    // First check if there is an internet connection
+    const { hasInternet, hasServerAccess } = await checkConnectivityIssues();
+    
+    if (!hasInternet) {
+      if (showNotifications) {
+        toast({
+          title: "لا يوجد اتصال بالإنترنت",
+          description: "تعذرت المزامنة. يرجى التحقق من اتصالك بالإنترنت.",
+          variant: "destructive"
+        });
+      }
+      return false;
     }
     
-    // 1. أولاً، محاولة المزامنة مع Supabase
-    try {
-      const supabaseResult = await syncWithSupabase(forceRefresh);
+    // البحث عن مصدر متاح
+    // Find an available source
+    const availableSource = await checkBladiInfoAvailability();
+    
+    if (availableSource) {
+      // المزامنة مع المصدر المتاح
+      // Sync with available source
+      const syncResult = await syncWithRemoteSource(availableSource, forceRefresh);
       
-      if (supabaseResult) {
+      if (syncResult) {
+        // تحديث وقت آخر مزامنة
+        // Update last sync time
         setSyncTimestamp();
         
         if (showNotifications) {
           toast({
             title: "تمت المزامنة بنجاح",
-            description: "تم تحديث البيانات من Supabase",
-            duration: 3000
+            description: "تم تحديث البيانات من المصدر المتاح"
           });
         }
         
-        if (onComplete) onComplete(true);
         return true;
       }
-    } catch (error) {
-      console.warn('فشلت المزامنة مع Supabase، متابعة مع المصادر الأخرى:', error);
     }
     
-    // 2. محاولة المزامنة مع Bladi Info
-    try {
-      const bladiResult = await syncWithBladiInfo(forceRefresh, { preventDuplicates });
-      
-      if (bladiResult.updated) {
-        setSyncTimestamp();
-        
-        if (showNotifications) {
-          toast({
-            title: "تمت المزامنة بنجاح",
-            description: `تم تحديث البيانات وإضافة ${bladiResult.channelsCount} قناة جديدة`,
-            duration: 3000
-          });
-        }
-        
-        if (onComplete) onComplete(true);
-        return true;
+    // إذا فشلت المزامنة مع المصدر الأساسي، استخدم واجهة المزامنة العادية
+    // If sync failed with primary source, use regular sync interface
+    const regularSyncResult = await syncChannels(forceRefresh);
+    
+    if (regularSyncResult) {
+      if (showNotifications) {
+        toast({
+          title: "تمت المزامنة بنجاح",
+          description: "تم تحديث البيانات باستخدام واجهة المزامنة العادية"
+        });
       }
-    } catch (error) {
-      console.warn('فشلت المزامنة مع Bladi Info، محاولة استخدام المصادر المباشرة:', error);
-    }
-    
-    // 3. محاولة المزامنة المباشرة مع المصادر
-    try {
-      const availableSource = await checkBladiInfoAvailability();
       
-      if (availableSource) {
-        const syncResult = await syncWithRemoteSource(availableSource, forceRefresh);
-        
-        if (syncResult) {
-          setSyncTimestamp();
-          
-          if (showNotifications) {
-            toast({
-              title: "تمت المزامنة بنجاح",
-              description: `تم تحديث البيانات من ${availableSource}`,
-              duration: 3000
-            });
-          }
-          
-          if (onComplete) onComplete(true);
-          return true;
-        }
-      }
-    } catch (error) {
-      console.error('فشلت جميع محاولات المزامنة:', error);
+      return true;
     }
     
-    // إذا وصلنا إلى هنا، فإن جميع المحاولات قد فشلت
+    // إذا فشلت جميع محاولات المزامنة
+    // If all sync attempts failed
     if (showNotifications) {
       toast({
-        title: "فشلت المزامنة",
-        description: "تعذر الاتصال بمصادر البيانات. تأكد من اتصالك بالإنترنت.",
-        variant: "destructive",
-        duration: 5000
+        title: "تعذرت المزامنة",
+        description: "فشلت جميع محاولات المزامنة. يرجى المحاولة مرة أخرى لاحقًا.",
+        variant: "destructive"
       });
     }
     
-    if (onComplete) onComplete(false);
     return false;
   } catch (error) {
-    console.error('خطأ غير متوقع في المزامنة الموحدة:', error);
+    console.error("خطأ في المزامنة الموحدة:", error);
     
     if (showNotifications) {
       toast({
         title: "خطأ في المزامنة",
-        description: "حدث خطأ غير متوقع أثناء المزامنة.",
-        variant: "destructive",
-        duration: 5000
+        description: "حدث خطأ غير متوقع أثناء المزامنة",
+        variant: "destructive"
       });
     }
     
-    if (onComplete) onComplete(false);
     return false;
   }
 };
