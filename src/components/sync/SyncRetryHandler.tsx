@@ -24,7 +24,8 @@ const SyncRetryHandler: React.FC<SyncRetryHandlerProps> = ({
   const { toast } = useToast();
   
   useEffect(() => {
-    const initialDelay = isRunningOnVercel() ? 5000 : 3000;
+    // تحديد التأخير الأولي لبدء المزامنة
+    const initialDelay = 3000; // استخدام تأخير ثابت بعد إزالة Vercel
     console.log(`سيتم بدء المزامنة الأولية بعد ${initialDelay}ms`);
     
     const initialSyncTimeout = setTimeout(async () => {
@@ -36,24 +37,6 @@ const SyncRetryHandler: React.FC<SyncRetryHandlerProps> = ({
         onRetry();
       }
     }, initialDelay);
-    
-    // تخزين معلومات عن Vercel إذا كان التطبيق يعمل عليه
-    if (isRunningOnVercel()) {
-      try {
-        localStorage.setItem('vercel_deployment', 'true');
-        localStorage.setItem('vercel_sync_enabled', 'true');
-        localStorage.setItem('vercel_app_started', new Date().toISOString());
-        
-        // محاولة الحصول على معرف البناء من URL إذا كان متاحًا
-        const urlParams = new URLSearchParams(window.location.search);
-        const buildId = urlParams.get('buildId') || urlParams.get('__vercel_deployment_id');
-        if (buildId) {
-          localStorage.setItem('vercel_build_id', buildId);
-        }
-      } catch (e) {
-        console.warn('تعذر تخزين معلومات Vercel:', e);
-      }
-    }
     
     return () => {
       clearTimeout(initialSyncTimeout);

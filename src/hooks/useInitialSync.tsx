@@ -18,7 +18,7 @@ export const useInitialSync = () => {
   const syncAttemptsRef = useRef(0);
   const realtimeUnsubscribeRef = useRef<(() => void) | null>(null);
   const isMountedRef = useRef(true);
-  const maxRetryAttemptsRef = useRef(isRunningOnVercel() ? 5 : 3);
+  const maxRetryAttemptsRef = useRef(3); // استخدام قيمة ثابتة بعد إزالة Vercel
   const lastSyncTimeRef = useRef<number>(0);
   const [isInitialized, setIsInitialized] = useState(false);
   
@@ -110,7 +110,8 @@ export const useInitialSync = () => {
   
   // وظيفة لإعداد المزامنة الدورية - تعديل نوع الإرجاع إلى NodeJS.Timeout
   const setupPeriodicSync = (): NodeJS.Timeout => {
-    const baseSyncInterval = isRunningOnVercel() ? 6 * 60 * 1000 : 5 * 60 * 1000;
+    // استخدام قيم ثابتة بعد إزالة Vercel
+    const baseSyncInterval = 5 * 60 * 1000; // 5 دقائق
     const randomOffset = Math.random() * 60 * 1000;
     const syncInterval = baseSyncInterval + randomOffset;
     

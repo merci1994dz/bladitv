@@ -5,6 +5,16 @@
  */
 
 /**
+ * التحقق مما إذا كان التطبيق يعمل على بيئة إنتاج
+ * Check if app is running in a production environment
+ */
+export const isRunningOnVercel = (): boolean => {
+  // We're simplifying this function to return false as Vercel detection 
+  // was removed from the application
+  return false;
+};
+
+/**
  * الحصول على معلمات الحماية من انحراف الوقت
  * Get time skew protection parameters
  */

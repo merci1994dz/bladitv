@@ -19,21 +19,11 @@ export const setupSupabaseRealtimeSync = (): () => void => {
   console.log('إعداد المزامنة في الوقت الحقيقي مع Supabase / Setting up real-time sync with Supabase');
   
   try {
-    // على Vercel، تسجيل هذه المعلومة
-    if (isRunningOnVercel()) {
-      try {
-        localStorage.setItem('vercel_realtime_enabled', 'true');
-        localStorage.setItem('vercel_realtime_setup', new Date().toISOString());
-      } catch (e) {
-        // تجاهل أخطاء التخزين
-      }
-    }
-    
-    // تخصيص تكوين القناة استنادًا إلى البيئة - ضمان وجود خاصية config دائمًا لتلبية متطلبات RealtimeChannelOptions
+    // تخصيص تكوين القناة - ضمان وجود خاصية config دائمًا لتلبية متطلبات RealtimeChannelOptions
     const channelOptions = {
       config: {
         broadcast: { 
-          ack: isRunningOnVercel() ? true : false
+          ack: false // تعطيل إقرار البث بعد إزالة Vercel
         }
       }
     };
@@ -50,17 +40,6 @@ export const setupSupabaseRealtimeSync = (): () => void => {
           description: "تم تحديث بيانات القنوات",
           duration: 3000
         });
-        
-        // تسجيل حدث المزامنة إذا كان على Vercel
-        if (isRunningOnVercel()) {
-          try {
-            localStorage.setItem('vercel_realtime_update', new Date().toISOString());
-            localStorage.setItem('vercel_realtime_count', 
-              (parseInt(localStorage.getItem('vercel_realtime_count') || '0') + 1).toString());
-          } catch (e) {
-            // تجاهل أخطاء التخزين
-          }
-        }
       })
       .subscribe((status) => {
         console.log('حالة اشتراك قناة القنوات:', status);
@@ -85,16 +64,6 @@ export const setupSupabaseRealtimeSync = (): () => void => {
       console.log("إلغاء اشتراكات المزامنة في الوقت الحقيقي");
       channelsSubscription.unsubscribe();
       settingsSubscription.unsubscribe();
-      
-      // تحديث حالة الاشتراك في الوقت الحقيقي على Vercel
-      if (isRunningOnVercel()) {
-        try {
-          localStorage.setItem('vercel_realtime_enabled', 'false');
-          localStorage.setItem('vercel_realtime_unsubscribed', new Date().toISOString());
-        } catch (e) {
-          // تجاهل أخطاء التخزين
-        }
-      }
     };
   } catch (error) {
     handleError(error, 'إعداد المزامنة في الوقت الحقيقي / Setting up real-time sync');

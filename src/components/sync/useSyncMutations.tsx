@@ -1,4 +1,3 @@
-
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { syncWithSupabase } from '@/services/sync/supabaseSync';
 import { forceDataRefresh } from '@/services/sync/index';
@@ -15,7 +14,8 @@ interface SyncCallbacks {
 export const useSyncMutations = (refetchLastSync: () => void, callbacks?: SyncCallbacks) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const isVercel = isRunningOnVercel();
+  // Since isRunningOnVercel always returns false now, we don't need to use it
+  const isVercel = false;
   
   // تشغيل المزامنة مع Supabase مع تحسين معالجة الأخطاء
   const { mutate: runSync, isPending: isSyncing } = useMutation({
@@ -25,7 +25,7 @@ export const useSyncMutations = (refetchLastSync: () => void, callbacks?: SyncCa
       
       // استخدام آلية إعادة المحاولة المحسّنة
       let attemptCount = 0;
-      const maxAttempts = isVercel ? 4 : 2; // زيادة عدد المحاولات على Vercel
+      const maxAttempts = 2; // استخدام قيمة ثابتة بعد إزالة Vercel
       
       while (attemptCount < maxAttempts) {
         try {
@@ -69,18 +69,6 @@ export const useSyncMutations = (refetchLastSync: () => void, callbacks?: SyncCa
         description: "تم تحديث البيانات بنجاح من Supabase",
       });
       
-      // على Vercel، قم بتحديث بيانات النشر
-      if (isVercel) {
-        try {
-          localStorage.setItem('last_vercel_sync', new Date().toISOString());
-          localStorage.setItem('vercel_sync_count', 
-            String(Number(localStorage.getItem('vercel_sync_count') || '0') + 1)
-          );
-        } catch (e) {
-          console.warn('تعذر تحديث معلومات المزامنة على Vercel:', e);
-        }
-      }
-      
       // تشغيل وظيفة انتهاء المزامنة
       callbacks?.onSyncEnd?.();
     },
@@ -104,8 +92,8 @@ export const useSyncMutations = (refetchLastSync: () => void, callbacks?: SyncCa
           description: "جاري إعادة محاولة المزامنة بعد فشل الاتصال...",
         });
         
-        // زيادة التأخير على Vercel
-        const retryDelay = isVercel ? 7000 : 5000;
+        // استخدم تأخير ثابت بعد إزالة Vercel
+        const retryDelay = 5000;
         
         setTimeout(() => {
           console.log('إعادة محاولة المزامنة بعد فشل الشبكة...');
@@ -134,15 +122,6 @@ export const useSyncMutations = (refetchLastSync: () => void, callbacks?: SyncCa
         // جلب البيانات مباشرة بعد مسح ذاكرة التخزين المؤقت
         if (cacheCleared) {
           await syncWithSupabase(true);
-        }
-
-        // على Vercel، قم بتسجيل التحديث القسري
-        if (isVercel) {
-          try {
-            localStorage.setItem('last_vercel_force_sync', new Date().toISOString());
-          } catch (e) {
-            // تجاهل الأخطاء
-          }
         }
         
         return cacheCleared;
@@ -187,6 +166,6 @@ export const useSyncMutations = (refetchLastSync: () => void, callbacks?: SyncCa
     runForceSync,
     isForceSyncing,
     checkAvailableSource: checkBladiInfoAvailability,
-    isVercelDeployment: isVercel
+    isVercelDeployment: false // تغيير قيمة isVercelDeployment إلى false بعد إزالة Vercel
   };
 };
