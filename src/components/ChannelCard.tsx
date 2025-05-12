@@ -35,20 +35,24 @@ const ChannelCard: React.FC<ChannelCardProps> = ({
     return channel;
   }, [channel]);
 
+  // تحسين معالج النقر على القناة
+  const handleChannelClick = () => {
+    onPlay(channel);
+  };
+
   const handleFavoriteToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     onToggleFavorite(channel.id);
   };
 
   return (
-    <div className="tv-channel-card">
+    <div className="tv-channel-card" onClick={handleChannelClick}>
       <img 
         src={channel.logo} 
         alt={channel.name} 
         className="tv-channel-logo"
-        onClick={() => onPlay(channel)}
         onError={(e) => {
-          (e.target as HTMLImageElement).src = 'public/lovable-uploads/7767e4e3-bb19-4d88-905f-ca592b2eca1e.png';
+          (e.target as HTMLImageElement).src = '/placeholder.svg';
         }}
       />
       <div className="tv-channel-name">{channel.name}</div>

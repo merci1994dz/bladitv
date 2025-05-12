@@ -23,6 +23,7 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
   const [serverAccess, setServerAccess] = useState<boolean | null>(null);
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
   const [lastCheckTime, setLastCheckTime] = useState(0);
+  const [prevConnectionStatus, setPrevConnectionStatus] = useState<boolean>(navigator.onLine);
 
   // تحسين وظيفة فحص الاتصال باستخدام useCallback
   const checkConnectivity = useCallback(async () => {
@@ -40,6 +41,10 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
     try {
       // فحص حالة الاتصال العامة
       const connectivityStatus = await checkConnectivityIssues();
+      
+      // حفظ الحالة السابقة قبل التحديث
+      const wasOffline = !isOnline || !serverAccess;
+      
       setIsOnline(connectivityStatus.hasInternet);
       setServerAccess(connectivityStatus.hasServerAccess);
       
@@ -56,14 +61,7 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
           setActiveSource(source);
           setConsecutiveFailures(0); // إعادة تعيين عداد الفشل عند النجاح
           
-          // إذا كان المستخدم يواجه مشاكل في الاتصال سابقًا وتم حلها الآن
-          if (consecutiveFailures > 2) {
-            toast({
-              title: "تم استعادة الاتصال بالمصادر",
-              description: "تم استعادة الاتصال بمصادر البيانات بنجاح.",
-              duration: 3000
-            });
-          }
+          // تم إلغاء إشعار استعادة الاتصال هنا
         } else {
           incrementFailureCount("لم يتم العثور على مصادر متاحة");
         }
@@ -78,7 +76,7 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
     } finally {
       setIsChecking(false);
     }
-  }, [isChecking, lastCheckTime, consecutiveFailures, toast]);
+  }, [isChecking, lastCheckTime, consecutiveFailures, toast, isOnline, serverAccess]);
 
   // زيادة عداد الفشل مع إظهار إشعارات مناسبة
   const incrementFailureCount = useCallback((reason: string) => {
@@ -109,6 +107,7 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
   useEffect(() => {
     const handleOnlineChange = () => {
       const isNowOnline = navigator.onLine;
+      setPrevConnectionStatus(isOnline);
       setIsOnline(isNowOnline);
       
       if (isNowOnline) {
@@ -151,7 +150,7 @@ const ConnectivityIndicator: React.FC<ConnectivityIndicatorProps> = ({
       clearTimeout(initialCheckTimeout);
       clearInterval(intervalId);
     };
-  }, [checkConnectivity, isChecking, toast]);
+  }, [checkConnectivity, isChecking, toast, isOnline]);
 
   // تحسين معالج التحديث اليدوي
   const handleRefreshClick = useCallback(() => {

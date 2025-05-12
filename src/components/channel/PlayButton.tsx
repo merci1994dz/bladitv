@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Play, Loader2, Tv } from 'lucide-react';
+import { Play, Loader2 } from 'lucide-react';
 import { Channel } from '@/types';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -25,25 +25,31 @@ const PlayButton: React.FC<PlayButtonProps> = ({ channel, onPlay }) => {
     setIsLoading(true);
     
     try {
+      // مباشرة استدعاء وظيفة التشغيل
       onPlay(channel);
       
+      // تم تقليل الإشعارات ولكن نعرض إشعارًا بسيطًا لمدة قصيرة
       toast({
         title: `جاري تشغيل ${channel.name}`,
         description: isTV ? "استخدم أزرار التحكم بجهاز التلفزيون للتحكم" : "يتم تحميل البث...",
-        duration: 3000,
+        duration: 2000,
       });
+      
+      // تأخير قصير قبل تغيير حالة التحميل
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 500);
     } catch (error) {
       console.error('Error playing channel:', error);
+      
       toast({
         title: "فشل في تشغيل القناة",
         description: "حدث خطأ أثناء محاولة تشغيل القناة، يرجى المحاولة مرة أخرى",
         variant: "destructive",
         duration: 3000,
       });
-    } finally {
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 500);
+      
+      setIsLoading(false);
     }
   };
 
