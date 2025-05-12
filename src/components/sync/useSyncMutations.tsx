@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { syncDataUnified } from '@/services/sync/core/unifiedSync';
 import { forceDataRefresh } from '@/services/sync/forceRefresh';
@@ -9,14 +9,23 @@ import { checkBladiInfoAvailability } from '@/services/sync/remote/sync/sourceAv
 export interface SyncMutationsProps {
   showNotification?: boolean;
   autoCheck?: boolean;
+  retryOnFailure?: boolean;
+  maxRetries?: number;
 }
 
 export const useSyncMutations = (options: SyncMutationsProps = {}) => {
-  const { showNotification = true, autoCheck = false } = options;
+  const { 
+    showNotification = true, 
+    autoCheck = false, 
+    retryOnFailure = true,
+    maxRetries = 3
+  } = options;
+  
   const [isSyncing, setIsSyncing] = useState(false);
   const [isForceSyncing, setIsForceSyncing] = useState(false);
   const [lastSyncResult, setLastSyncResult] = useState<boolean | null>(null);
   const [availableSource, setAvailableSource] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const { toast } = useToast();
 
   // Check available sources on mount if autoCheck is enabled
@@ -24,12 +33,17 @@ export const useSyncMutations = (options: SyncMutationsProps = {}) => {
     if (autoCheck) {
       checkAvailableSources();
     }
+    
+    // إعادة تعيين عداد المحاولات عند تغيير الوضع
+    return () => {
+      setRetryCount(0);
+    };
   }, [autoCheck]);
 
   /**
    * التحقق من المصادر المتاحة
    */
-  const checkAvailableSources = async () => {
+  const checkAvailableSources = useCallback(async () => {
     try {
       const source = await checkBladiInfoAvailability();
       setAvailableSource(source);
@@ -39,15 +53,16 @@ export const useSyncMutations = (options: SyncMutationsProps = {}) => {
       setAvailableSource(null);
       return null;
     }
-  };
+  }, []);
 
   /**
-   * تنفيذ المزامنة العادية
+   * تنفيذ المزامنة العادية مع دعم إعادة المحاولة
    */
-  const runSync = async () => {
+  const runSync = useCallback(async () => {
     if (isSyncing || isForceSyncing) return false;
     
     setIsSyncing(true);
+    setRetryCount(0); // إعادة تعيين عداد المحاولات
     
     try {
       // التحقق من المصادر المتاحة أولاً
@@ -110,19 +125,39 @@ export const useSyncMutations = (options: SyncMutationsProps = {}) => {
       }
       
       setLastSyncResult(false);
+      
+      // إعادة المحاولة إذا كانت مفعلة وعدد المحاولات أقل من الحد الأقصى
+      if (retryOnFailure && retryCount < maxRetries) {
+        setRetryCount(prev => prev + 1);
+        const retryDelay = Math.pow(2, retryCount) * 1000; // استخدام تأخير تصاعدي
+        
+        if (showNotification) {
+          toast({
+            title: "إعادة المحاولة",
+            description: `جاري إعادة المحاولة في ${retryDelay / 1000} ثانية...`,
+            duration: 3000,
+          });
+        }
+        
+        setTimeout(() => {
+          runSync();
+        }, retryDelay);
+      }
+      
       return false;
     } finally {
       setIsSyncing(false);
     }
-  };
+  }, [isSyncing, isForceSyncing, showNotification, toast, checkAvailableSources, retryCount, maxRetries, retryOnFailure]);
 
   /**
    * تنفيذ مزامنة قوية مع منع التخزين المؤقت
    */
-  const runForceSync = async () => {
+  const runForceSync = useCallback(async () => {
     if (isSyncing || isForceSyncing) return false;
     
     setIsForceSyncing(true);
+    setRetryCount(0); // إعادة تعيين عداد المحاولات
     
     try {
       // التحقق من حالة الاتصال أولاً
@@ -207,13 +242,15 @@ export const useSyncMutations = (options: SyncMutationsProps = {}) => {
     } finally {
       setIsForceSyncing(false);
     }
-  };
+  }, [isSyncing, isForceSyncing, showNotification, toast, checkAvailableSources]);
 
   return {
     isSyncing,
     isForceSyncing,
     lastSyncResult,
     availableSource,
+    retryCount,
+    maxRetries,
     checkAvailableSources,
     runSync,
     runForceSync

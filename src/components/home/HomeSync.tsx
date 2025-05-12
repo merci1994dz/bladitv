@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Cloud, CloudOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { syncDataUnified } from '@/services/sync/core/unifiedSync';
@@ -8,6 +8,8 @@ import { getLastSyncTime } from '@/services/sync/status/timestamp';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { checkBladiInfoAvailability } from '@/services/sync/remote/sync/sourceAvailability';
+import SyncStatusIcon from '@/components/sync/SyncStatusIcon';
+import { Badge } from '@/components/ui/badge';
 
 interface HomeSyncProps {
   refetchChannels: () => Promise<any>;
@@ -47,6 +49,10 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
     };
     
     checkAvailableSources();
+    // إضافة فحص دوري للمصادر المتاحة
+    const interval = setInterval(checkAvailableSources, 5 * 60 * 1000); // كل 5 دقائق
+    
+    return () => clearInterval(interval);
   }, []);
 
   // مزامنة القنوات باستخدام طريقة محسنة
@@ -131,14 +137,24 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
   };
 
   const lastSyncText = getLastSyncText();
-
+  const isVeryOld = lastSync ? (Date.now() - lastSync.getTime() > 6 * 60 * 60 * 1000) : false;
+  const isRecent = lastSync ? (Date.now() - lastSync.getTime() < 5 * 60 * 1000) : false;
+  
   return (
     <div className="flex items-center gap-2">
       {lastSyncText && (
-        <span className="text-xs text-gray-400">
-          {lastSyncText}
-        </span>
+        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+          <SyncStatusIcon 
+            isRecent={isRecent} 
+            isVeryOld={isVeryOld} 
+            noSync={!availableSource} 
+            isActive={isSyncing}
+            size="sm"
+          />
+          <span>{lastSyncText}</span>
+        </div>
       )}
+      
       <Button
         variant="outline"
         size="sm"
@@ -149,15 +165,19 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
         <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin text-primary' : 'text-primary'}`} />
         <span className="font-medium">{isSyncing ? "جاري التحديث..." : "تحديث"}</span>
       </Button>
+      
       {availableSource && (
-        <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800">
-          مصدر متاح
-        </span>
+        <Badge variant="outline" className="bg-green-100 text-green-800 text-xs border-green-200">
+          <Cloud className="h-3 w-3 mr-1" />
+          متصل
+        </Badge>
       )}
+      
       {!availableSource && (
-        <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-800">
-          وضع محلي
-        </span>
+        <Badge variant="outline" className="bg-amber-100 text-amber-800 text-xs border-amber-200">
+          <CloudOff className="h-3 w-3 mr-1" />
+          محلي
+        </Badge>
       )}
     </div>
   );

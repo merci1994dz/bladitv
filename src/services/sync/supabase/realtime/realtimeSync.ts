@@ -25,7 +25,12 @@ export const setupSupabaseRealtimeSync = (): () => void => {
         broadcast: { 
           ack: true, // تمكين الإقرار للتحقق من وصول الرسائل
           self: false // لا ترسل الأحداث للمشترك نفسه
-        }
+        },
+        presence: {
+          key: `user-${Date.now()}` // معرف فريد لكل مستخدم
+        },
+        retryIntervalMs: 5000, // إعادة المحاولة كل 5 ثوان
+        retryLimit: 10 // الحد الأقصى لمحاولات إعادة المحاولة
       }
     };
     
@@ -49,6 +54,7 @@ export const setupSupabaseRealtimeSync = (): () => void => {
             });
           } catch (error) {
             console.error('فشل في تحديث البيانات المحلية بعد تغيير في الوقت الحقيقي:', error);
+            handleError(error, 'Real-time sync update');
           }
         }
       )

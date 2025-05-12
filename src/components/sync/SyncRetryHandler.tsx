@@ -24,7 +24,7 @@ const SyncRetryHandler: React.FC<SyncRetryHandlerProps> = ({
   
   useEffect(() => {
     // تحديد التأخير الأولي لبدء المزامنة
-    const initialDelay = 3000; // استخدام تأخير ثابت 
+    const initialDelay = 2500; // تأخير أقل للتحسين
     console.log(`سيتم بدء المزامنة الأولية بعد ${initialDelay}ms`);
     
     const initialSyncTimeout = setTimeout(async () => {
@@ -41,14 +41,20 @@ const SyncRetryHandler: React.FC<SyncRetryHandlerProps> = ({
         }
       } catch (error) {
         console.error('خطأ في المزامنة الأولية:', error);
-        onRetry();
+        // تعزيز آلية إعادة المحاولة
+        if (syncAttempts.current < maxRetryAttempts.current) {
+          console.log(`محاولة إعادة المزامنة (${syncAttempts.current + 1}/${maxRetryAttempts.current})`);
+          onRetry();
+        } else {
+          console.warn('تم تجاوز الحد الأقصى لمحاولات المزامنة، التحول للوضع المحلي');
+        }
       }
     }, initialDelay);
     
     return () => {
       clearTimeout(initialSyncTimeout);
     };
-  }, [onInitialSync, onRetry, isMounted]);
+  }, [onInitialSync, onRetry, isMounted, syncAttempts, maxRetryAttempts]);
   
   // إذا فشلت جميع المحاولات
   useEffect(() => {
