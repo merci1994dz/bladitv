@@ -15,12 +15,22 @@ export function Toaster() {
   // Filter out certain update notifications that are unnecessary
   const filteredToasts = toasts.filter(toast => {
     // Hide automated sync notifications
-    if (toast.id?.includes('sync-auto') || 
-        toast.title?.includes('جاري المزامنة') ||
-        toast.title?.includes('تم تحديث') ||
-        toast.description?.includes('مصادر متاحة')) {
+    if (toast.id && typeof toast.id === 'string' && toast.id.includes('sync-auto')) {
       return false;
     }
+    
+    // Check title if it's a string
+    if (toast.title && typeof toast.title === 'string' && 
+        (toast.title.includes('جاري المزامنة') || toast.title.includes('تم تحديث'))) {
+      return false;
+    }
+    
+    // Check description if it's a string
+    if (toast.description && typeof toast.description === 'string' && 
+        toast.description.includes('مصادر متاحة')) {
+      return false;
+    }
+    
     return true;
   });
 

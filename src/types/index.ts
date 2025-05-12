@@ -7,7 +7,9 @@ export interface Channel {
   category: string;
   country: string;
   isFavorite: boolean;
-  lastWatched?: string; // Add this optional property for recently watched channels
+  featured?: boolean; // Add this optional property
+  premium?: boolean;  // Add this optional property
+  lastWatched?: string; // For recently watched channels
   externalLinks?: StreamingLink[];
 }
 

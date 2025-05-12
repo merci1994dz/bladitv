@@ -94,7 +94,6 @@ const Home: React.FC = () => {
         // Only show important success messages
         if (channel.featured || channel.premium) {
           toast({
-            id: 'channel-play',
             title: "جاري التشغيل",
             description: `جاري تشغيل ${channel.name}`,
             duration: 2000,

@@ -76,7 +76,6 @@ export const useSyncMutations = (options: SyncMutationsProps = {}) => {
       // Only show notification if explicitly requested
       if (showNotification) {
         toast({
-          id: 'sync-auto', // Add ID for filtering
           title: "جاري المزامنة",
           description: "جاري تحديث البيانات من المصادر المتاحة...",
           duration: 1000, // Reduced duration
@@ -93,7 +92,6 @@ export const useSyncMutations = (options: SyncMutationsProps = {}) => {
       // Only show completion notification if explicitly requested and there was an update
       if (showNotification && result) {
         toast({
-          id: 'sync-success', // Add ID for filtering
           title: "تمت المزامنة بنجاح",
           description: "تم تحديث البيانات بنجاح",
           duration: 1000, // Reduced duration
@@ -162,7 +160,6 @@ export const useSyncMutations = (options: SyncMutationsProps = {}) => {
       // Only show notification if explicitly requested
       if (showNotification) {
         toast({
-          id: 'force-sync', // Add ID for filtering
           title: "جاري تحديث البيانات",
           description: "جاري تحديث البيانات مع منع التخزين المؤقت...",
           duration: 2000,
@@ -182,7 +179,6 @@ export const useSyncMutations = (options: SyncMutationsProps = {}) => {
       // Only show completion notification if explicitly requested and there was an update
       if (showNotification && result) {
         toast({
-          id: 'force-sync-success', // Add ID for filtering
           title: "تم التحديث بنجاح",
           description: "تم تحديث البيانات بالكامل بنجاح",
           duration: 1000, // Reduced duration
