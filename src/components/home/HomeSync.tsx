@@ -21,7 +21,7 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
   const [availableSource, setAvailableSource] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // تحميل وقت آخر مزامنة وتحديثه دوريًا
+  // Load last sync time and update it periodically
   useEffect(() => {
     const updateLastSyncTime = () => {
       const lastSyncTime = getLastSyncTime();
@@ -31,12 +31,12 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
     };
     
     updateLastSyncTime();
-    const interval = setInterval(updateLastSyncTime, 60000); // تحديث كل دقيقة
+    const interval = setInterval(updateLastSyncTime, 60000);
     
     return () => clearInterval(interval);
   }, []);
 
-  // التحقق من المصادر المتاحة عند تحميل المكون
+  // Check for available sources when component loads
   useEffect(() => {
     const checkAvailableSources = async () => {
       try {
@@ -49,39 +49,25 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
     };
     
     checkAvailableSources();
-    // إضافة فحص دوري للمصادر المتاحة
-    const interval = setInterval(checkAvailableSources, 5 * 60 * 1000); // كل 5 دقائق
+    const interval = setInterval(checkAvailableSources, 5 * 60 * 1000);
     
     return () => clearInterval(interval);
   }, []);
 
-  // مزامنة القنوات باستخدام طريقة محسنة
+  // Sync channels with optimized method - reduced notifications
   const handleSync = async () => {
     if (isSyncing) return;
     
     setIsSyncing(true);
     
     try {
-      const startTime = Date.now();
-      
-      // إضافة وقت بدء المزامنة للقياس
-      toast({
-        title: "جاري المزامنة",
-        description: "جاري تحديث البيانات من المصادر المتاحة...",
-        duration: 3000,
-      });
-      
-      // إعادة التحقق من المصادر المتاحة
+      // Remove start notification
+      // Silent check for available sources
       const source = await checkBladiInfoAvailability();
       setAvailableSource(source);
       
       if (!source) {
-        toast({
-          title: "تحذير",
-          description: "لا توجد مصادر متاحة. سيتم استخدام البيانات المخزنة محليًا.",
-          variant: "destructive",
-          duration: 5000,
-        });
+        console.log("لا توجد مصادر متاحة. سيتم استخدام البيانات المخزنة محليًا.");
         setIsSyncing(false);
         return;
       }
@@ -92,41 +78,32 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
         preventDuplicates: true
       });
       
-      const syncDuration = ((Date.now() - startTime) / 1000).toFixed(1);
-      
       if (result) {
-        toast({
-          title: "تمت المزامنة بنجاح",
-          description: `تم تحديث القنوات بنجاح (${syncDuration} ثانية)`
-        });
-        
-        // إعادة تحميل القنوات
+        // Refresh channels silently without notification
         await refetchChannels();
         
-        // تحديث وقت آخر مزامنة
+        // Update last sync time
         const lastSyncTime = getLastSyncTime();
         if (lastSyncTime) {
           setLastSync(new Date(lastSyncTime));
         }
-      } else {
-        toast({
-          title: "لا يوجد تحديثات جديدة",
-          description: "جميع القنوات محدثة بالفعل"
-        });
       }
     } catch (error) {
       console.error("خطأ في المزامنة:", error);
-      toast({
-        title: "خطأ في المزامنة",
-        description: "تعذر الاتصال بمصادر البيانات",
-        variant: "destructive"
-      });
+      // Only show critical errors
+      if (error instanceof Error && error.message.includes('critical')) {
+        toast({
+          title: "خطأ في المزامنة",
+          description: "تعذر الاتصال بمصادر البيانات",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsSyncing(false);
     }
   };
 
-  // تنسيق وقت آخر مزامنة بشكل أفضل
+  // Format last sync time
   const getLastSyncText = () => {
     if (!lastSync) return null;
     

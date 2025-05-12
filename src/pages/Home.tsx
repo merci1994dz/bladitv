@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getChannels, getCategories, getCountries, getRecentlyWatchedChannels } from '@/services/api';
@@ -39,11 +38,14 @@ const Home: React.FC = () => {
     meta: {
       onError: (error: any) => {
         console.error('خطأ في تحميل القنوات:', error);
-        toast({
-          title: "تعذر تحميل القنوات",
-          description: "حدث خطأ أثناء تحميل القنوات. سيتم استخدام البيانات المخزنة محليًا.",
-          variant: "destructive"
-        });
+        // Only show critical error notifications
+        if (error.status >= 500) {
+          toast({
+            title: "تعذر تحميل القنوات",
+            description: "حدث خطأ أثناء تحميل القنوات. سيتم استخدام البيانات المخزنة محليًا.",
+            variant: "destructive"
+          });
+        }
       }
     }
   });
@@ -75,14 +77,9 @@ const Home: React.FC = () => {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Handle connectivity retry
+  // Handle connectivity retry - with reduced notifications
   const handleRetryConnection = async () => {
-    toast({
-      title: "جاري التحقق من الاتصال",
-      description: "جاري محاولة إعادة الاتصال والتحقق من المصادر...",
-      duration: 3000,
-    });
-    
+    // Don't show notification, just try reconnection silently
     await checkStatus();
     
     if (!isOffline) {
@@ -90,15 +87,19 @@ const Home: React.FC = () => {
     }
   };
 
-  // Channel actions
+  // Channel actions with reduced notifications
   const handlePlayChannel = (channel: Channel) => {
     playChannel(channel.id)
       .then(() => {
-        toast({
-          title: "جاري التشغيل",
-          description: `جاري تشغيل ${channel.name}`,
-          duration: 2000,
-        });
+        // Only show important success messages
+        if (channel.featured || channel.premium) {
+          toast({
+            id: 'channel-play',
+            title: "جاري التشغيل",
+            description: `جاري تشغيل ${channel.name}`,
+            duration: 2000,
+          });
+        }
       })
       .catch(error => {
         console.error('خطأ في تشغيل القناة:', error);
@@ -112,17 +113,11 @@ const Home: React.FC = () => {
 
   const handleToggleFavorite = (channelId: string) => {
     toggleFavoriteChannel(channelId)
-      .then(isFavorite => {
-        toast({
-          title: isFavorite ? "تمت الإضافة للمفضلة" : "تمت الإزالة من المفضلة",
-          description: isFavorite ? "تمت إضافة القناة إلى المفضلة" : "تمت إزالة القناة من المفضلة",
-          duration: 2000,
-        });
-      })
       .catch(console.error);
+    // Removed toast notification for favorites to reduce distractions
   };
 
-  // Initial data load recovery
+  // Initial data load recovery - without notification
   useEffect(() => {
     if (channelsError && !channels) {
       console.log("محاولة استعادة البيانات بعد خطأ التحميل الأولي");

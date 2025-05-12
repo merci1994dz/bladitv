@@ -15,7 +15,7 @@ export interface SyncMutationsProps {
 
 export const useSyncMutations = (options: SyncMutationsProps = {}) => {
   const { 
-    showNotification = true, 
+    showNotification = false, // Changed default to false to reduce notifications
     autoCheck = false, 
     retryOnFailure = true,
     maxRetries = 3
@@ -34,7 +34,6 @@ export const useSyncMutations = (options: SyncMutationsProps = {}) => {
       checkAvailableSources();
     }
     
-    // إعادة تعيين عداد المحاولات عند تغيير الوضع
     return () => {
       setRetryCount(0);
     };
@@ -56,67 +55,57 @@ export const useSyncMutations = (options: SyncMutationsProps = {}) => {
   }, []);
 
   /**
-   * تنفيذ المزامنة العادية مع دعم إعادة المحاولة
+   * تنفيذ المزامنة العادية مع دعم إعادة المحاولة - تقليل الإشعارات
    */
   const runSync = useCallback(async () => {
     if (isSyncing || isForceSyncing) return false;
     
     setIsSyncing(true);
-    setRetryCount(0); // إعادة تعيين عداد المحاولات
+    setRetryCount(0);
     
     try {
-      // التحقق من المصادر المتاحة أولاً
+      // Check available sources first
       const source = await checkAvailableSources();
       
       if (!source) {
-        if (showNotification) {
-          toast({
-            title: "تحذير",
-            description: "لا توجد مصادر متاحة. سيتم استخدام البيانات المخزنة محليًا.",
-            variant: "destructive",
-            duration: 5000,
-          });
-        }
+        console.log("لا توجد مصادر متاحة. سيتم استخدام البيانات المخزنة محليًا.");
         setLastSyncResult(false);
         return false;
       }
       
+      // Only show notification if explicitly requested
       if (showNotification) {
         toast({
+          id: 'sync-auto', // Add ID for filtering
           title: "جاري المزامنة",
           description: "جاري تحديث البيانات من المصادر المتاحة...",
-          duration: 3000,
+          duration: 1000, // Reduced duration
         });
       }
       
       const result = await syncDataUnified({
         forceRefresh: false,
-        showNotifications: false
+        showNotifications: false // Never show notifications from sync itself
       });
       
       setLastSyncResult(result);
       
-      if (result) {
-        if (showNotification) {
-          toast({
-            title: "تمت المزامنة بنجاح",
-            description: "تم تحديث البيانات بنجاح",
-          });
-        }
-      } else {
-        if (showNotification) {
-          toast({
-            title: "لا توجد تحديثات جديدة",
-            description: "البيانات محدثة بالفعل",
-          });
-        }
+      // Only show completion notification if explicitly requested and there was an update
+      if (showNotification && result) {
+        toast({
+          id: 'sync-success', // Add ID for filtering
+          title: "تمت المزامنة بنجاح",
+          description: "تم تحديث البيانات بنجاح",
+          duration: 1000, // Reduced duration
+        });
       }
       
       return result;
     } catch (error) {
       console.error("خطأ أثناء المزامنة:", error);
       
-      if (showNotification) {
+      // Only show critical error notifications if explicitly requested
+      if (showNotification && error instanceof Error && error.message.includes('critical')) {
         toast({
           title: "خطأ في المزامنة",
           description: "تعذر الاتصال بمصادر البيانات",
@@ -126,19 +115,12 @@ export const useSyncMutations = (options: SyncMutationsProps = {}) => {
       
       setLastSyncResult(false);
       
-      // إعادة المحاولة إذا كانت مفعلة وعدد المحاولات أقل من الحد الأقصى
+      // Retry if enabled and retry count is less than max
       if (retryOnFailure && retryCount < maxRetries) {
         setRetryCount(prev => prev + 1);
-        const retryDelay = Math.pow(2, retryCount) * 1000; // استخدام تأخير تصاعدي
+        const retryDelay = Math.pow(2, retryCount) * 1000;
         
-        if (showNotification) {
-          toast({
-            title: "إعادة المحاولة",
-            description: `جاري إعادة المحاولة في ${retryDelay / 1000} ثانية...`,
-            duration: 3000,
-          });
-        }
-        
+        // Don't show retry notifications
         setTimeout(() => {
           runSync();
         }, retryDelay);
@@ -151,84 +133,67 @@ export const useSyncMutations = (options: SyncMutationsProps = {}) => {
   }, [isSyncing, isForceSyncing, showNotification, toast, checkAvailableSources, retryCount, maxRetries, retryOnFailure]);
 
   /**
-   * تنفيذ مزامنة قوية مع منع التخزين المؤقت
+   * تنفيذ مزامنة قوية مع منع التخزين المؤقت - تقليل الإشعارات
    */
   const runForceSync = useCallback(async () => {
     if (isSyncing || isForceSyncing) return false;
     
     setIsForceSyncing(true);
-    setRetryCount(0); // إعادة تعيين عداد المحاولات
+    setRetryCount(0);
     
     try {
-      // التحقق من حالة الاتصال أولاً
+      // Check connection status first
       const { hasInternet } = await checkConnectivityIssues();
       
       if (!hasInternet) {
-        if (showNotification) {
-          toast({
-            title: "لا يوجد اتصال بالإنترنت",
-            description: "تعذرت المزامنة. يرجى التحقق من اتصالك بالإنترنت.",
-            variant: "destructive"
-          });
-        }
+        console.log("لا يوجد اتصال بالإنترنت، تعذرت المزامنة.");
         return false;
       }
       
-      // التحقق من المصادر المتاحة
+      // Check available sources
       const source = await checkAvailableSources();
       
       if (!source) {
-        if (showNotification) {
-          toast({
-            title: "تحذير",
-            description: "لا توجد مصادر متاحة. سيتم استخدام البيانات المخزنة محليًا.",
-            variant: "destructive",
-            duration: 5000,
-          });
-        }
+        console.log("لا توجد مصادر متاحة. سيتم استخدام البيانات المخزنة محليًا.");
         setLastSyncResult(false);
         return false;
       }
       
+      // Only show notification if explicitly requested
       if (showNotification) {
         toast({
+          id: 'force-sync', // Add ID for filtering
           title: "جاري تحديث البيانات",
           description: "جاري تحديث البيانات مع منع التخزين المؤقت...",
-          duration: 3000,
+          duration: 2000,
         });
       }
       
-      // مسح ذاكرة التخزين المؤقت
+      // Clear cache
       await forceDataRefresh();
       
       const result = await syncDataUnified({
         forceRefresh: true,
-        showNotifications: false
+        showNotifications: false // Never show notifications from sync itself
       });
       
       setLastSyncResult(result);
       
-      if (result) {
-        if (showNotification) {
-          toast({
-            title: "تم التحديث بنجاح",
-            description: "تم تحديث البيانات بالكامل بنجاح",
-          });
-        }
-      } else {
-        if (showNotification) {
-          toast({
-            title: "تعذر التحديث",
-            description: "تعذر الاتصال بمصادر البيانات",
-            variant: "destructive"
-          });
-        }
+      // Only show completion notification if explicitly requested and there was an update
+      if (showNotification && result) {
+        toast({
+          id: 'force-sync-success', // Add ID for filtering
+          title: "تم التحديث بنجاح",
+          description: "تم تحديث البيانات بالكامل بنجاح",
+          duration: 1000, // Reduced duration
+        });
       }
       
       return result;
     } catch (error) {
       console.error("خطأ أثناء التحديث القسري:", error);
       
+      // Only show critical error notifications if explicitly requested
       if (showNotification) {
         toast({
           title: "خطأ في التحديث",
