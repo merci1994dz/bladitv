@@ -30,9 +30,17 @@ const SyncRetryHandler: React.FC<SyncRetryHandlerProps> = ({
     const initialSyncTimeout = setTimeout(async () => {
       if (!isMounted.current) return;
       
-      const success = await onInitialSync();
-      
-      if (!success) {
+      try {
+        const success = await onInitialSync();
+        
+        if (!success) {
+          console.log('فشلت المزامنة الأولية، جاري إعادة المحاولة...');
+          onRetry();
+        } else {
+          console.log('تمت المزامنة الأولية بنجاح');
+        }
+      } catch (error) {
+        console.error('خطأ في المزامنة الأولية:', error);
         onRetry();
       }
     }, initialDelay);
@@ -40,7 +48,7 @@ const SyncRetryHandler: React.FC<SyncRetryHandlerProps> = ({
     return () => {
       clearTimeout(initialSyncTimeout);
     };
-  }, [onInitialSync, onRetry, isMounted, toast]);
+  }, [onInitialSync, onRetry, isMounted]);
   
   // إذا فشلت جميع المحاولات
   useEffect(() => {

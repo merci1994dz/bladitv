@@ -8,8 +8,10 @@ interface SyncButtonProps {
   onClick: () => void;
   isLoading?: boolean;
   tooltipText?: string;
-  variant?: 'default' | 'amber';
+  variant?: 'default' | 'amber' | 'primary';
   disabled?: boolean;
+  size?: 'sm' | 'default' | 'lg';
+  className?: string;
 }
 
 const SyncButton: React.FC<SyncButtonProps> = ({ 
@@ -17,11 +19,26 @@ const SyncButton: React.FC<SyncButtonProps> = ({
   isLoading = false,
   tooltipText = "تحديث البيانات",
   variant = 'default',
-  disabled = false
+  disabled = false,
+  size = 'default',
+  className = ''
 }) => {
-  const buttonClass = variant === 'amber' ? 
-    "border border-amber-500 bg-amber-50 hover:bg-amber-100 text-amber-700 p-1 rounded" : 
-    "text-primary hover:text-primary/80 p-1";
+  // تحديد فئة الزر بناءً على المتغير
+  let buttonClass = '';
+  
+  switch (variant) {
+    case 'amber':
+      buttonClass = "border border-amber-500 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded";
+      break;
+    case 'primary':
+      buttonClass = "border border-primary bg-primary/10 hover:bg-primary/20 text-primary rounded";
+      break;
+    default:
+      buttonClass = "text-primary hover:text-primary/80";
+  }
+  
+  const buttonSize = size === 'sm' ? 'p-1' : 'p-2';
+  const iconSize = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4';
   
   return (
     <TooltipProvider>
@@ -30,12 +47,12 @@ const SyncButton: React.FC<SyncButtonProps> = ({
           <Button
             variant="ghost" 
             size="icon"
-            className={buttonClass}
+            className={`${buttonClass} ${buttonSize} ${className}`}
             onClick={onClick}
             disabled={isLoading || disabled}
           >
             <RefreshCw 
-              className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} 
+              className={`${iconSize} ${isLoading ? 'animate-spin' : ''}`} 
             />
           </Button>
         </TooltipTrigger>

@@ -7,6 +7,7 @@ import { syncDataUnified } from '@/services/sync/core/unifiedSync';
 import { getLastSyncTime } from '@/services/sync/status/timestamp';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import { checkBladiInfoAvailability } from '@/services/sync/remote/sync/sourceAvailability';
 
 interface HomeSyncProps {
   refetchChannels: () => Promise<any>;
@@ -15,9 +16,10 @@ interface HomeSyncProps {
 const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [availableSource, setAvailableSource] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // تحسين: تحميل وقت آخر مزامنة وتحديثه دوريًا
+  // تحميل وقت آخر مزامنة وتحديثه دوريًا
   useEffect(() => {
     const updateLastSyncTime = () => {
       const lastSyncTime = getLastSyncTime();
@@ -32,7 +34,22 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Synchronize channels with optimized method
+  // التحقق من المصادر المتاحة عند تحميل المكون
+  useEffect(() => {
+    const checkAvailableSources = async () => {
+      try {
+        const source = await checkBladiInfoAvailability();
+        setAvailableSource(source);
+      } catch (error) {
+        console.error("خطأ في التحقق من المصادر المتاحة:", error);
+        setAvailableSource(null);
+      }
+    };
+    
+    checkAvailableSources();
+  }, []);
+
+  // مزامنة القنوات باستخدام طريقة محسنة
   const handleSync = async () => {
     if (isSyncing) return;
     
@@ -41,12 +58,27 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
     try {
       const startTime = Date.now();
       
-      // تحسين: إضافة وقت بدء المزامنة للقياس
+      // إضافة وقت بدء المزامنة للقياس
       toast({
         title: "جاري المزامنة",
         description: "جاري تحديث البيانات من المصادر المتاحة...",
         duration: 3000,
       });
+      
+      // إعادة التحقق من المصادر المتاحة
+      const source = await checkBladiInfoAvailability();
+      setAvailableSource(source);
+      
+      if (!source) {
+        toast({
+          title: "تحذير",
+          description: "لا توجد مصادر متاحة. سيتم استخدام البيانات المخزنة محليًا.",
+          variant: "destructive",
+          duration: 5000,
+        });
+        setIsSyncing(false);
+        return;
+      }
       
       const result = await syncDataUnified({
         forceRefresh: true,
@@ -62,7 +94,7 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
           description: `تم تحديث القنوات بنجاح (${syncDuration} ثانية)`
         });
         
-        // Reload channels
+        // إعادة تحميل القنوات
         await refetchChannels();
         
         // تحديث وقت آخر مزامنة
@@ -88,7 +120,7 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
     }
   };
 
-  // تحسين: تنسيق وقت آخر مزامنة بشكل أفضل
+  // تنسيق وقت آخر مزامنة بشكل أفضل
   const getLastSyncText = () => {
     if (!lastSync) return null;
     
@@ -117,6 +149,16 @@ const HomeSync: React.FC<HomeSyncProps> = ({ refetchChannels }) => {
         <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin text-primary' : 'text-primary'}`} />
         <span className="font-medium">{isSyncing ? "جاري التحديث..." : "تحديث"}</span>
       </Button>
+      {availableSource && (
+        <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-800">
+          مصدر متاح
+        </span>
+      )}
+      {!availableSource && (
+        <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-800">
+          وضع محلي
+        </span>
+      )}
     </div>
   );
 };

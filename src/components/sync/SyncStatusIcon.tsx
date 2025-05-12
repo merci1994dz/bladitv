@@ -1,24 +1,30 @@
 
 import React from 'react';
-import { Clock, RefreshCw, AlertTriangle, CloudOff } from 'lucide-react';
+import { Clock, RefreshCw, AlertTriangle, CloudOff, CheckCircle } from 'lucide-react';
 
 interface SyncStatusIconProps {
   isRecent: boolean;
   isVeryOld: boolean;
   noSync?: boolean;
+  isActive?: boolean;
 }
 
 const SyncStatusIcon: React.FC<SyncStatusIconProps> = ({ 
   isRecent, 
   isVeryOld,
-  noSync = false
+  noSync = false,
+  isActive = false
 }) => {
+  if (isActive) {
+    return <RefreshCw className="w-4 h-4 text-primary animate-spin" />;
+  }
+  
   if (noSync) {
     return <CloudOff className="w-4 h-4 text-red-500" />;
   }
   
   if (isRecent) {
-    return <RefreshCw className="w-4 h-4 text-green-500" />;
+    return <CheckCircle className="w-4 h-4 text-green-500" />;
   } 
   
   if (isVeryOld) {

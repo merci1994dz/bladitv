@@ -1,20 +1,45 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { syncDataUnified } from '@/services/sync/core/unifiedSync';
 import { forceDataRefresh } from '@/services/sync/forceRefresh';
 import { checkConnectivityIssues } from '@/services/sync/status/connectivity';
+import { checkBladiInfoAvailability } from '@/services/sync/remote/sync/sourceAvailability';
 
 export interface SyncMutationsProps {
   showNotification?: boolean;
+  autoCheck?: boolean;
 }
 
 export const useSyncMutations = (options: SyncMutationsProps = {}) => {
-  const { showNotification = true } = options;
+  const { showNotification = true, autoCheck = false } = options;
   const [isSyncing, setIsSyncing] = useState(false);
   const [isForceSyncing, setIsForceSyncing] = useState(false);
   const [lastSyncResult, setLastSyncResult] = useState<boolean | null>(null);
+  const [availableSource, setAvailableSource] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Check available sources on mount if autoCheck is enabled
+  useEffect(() => {
+    if (autoCheck) {
+      checkAvailableSources();
+    }
+  }, [autoCheck]);
+
+  /**
+   * التحقق من المصادر المتاحة
+   */
+  const checkAvailableSources = async () => {
+    try {
+      const source = await checkBladiInfoAvailability();
+      setAvailableSource(source);
+      return source;
+    } catch (error) {
+      console.error("خطأ في التحقق من المصادر المتاحة:", error);
+      setAvailableSource(null);
+      return null;
+    }
+  };
 
   /**
    * تنفيذ المزامنة العادية
@@ -25,6 +50,22 @@ export const useSyncMutations = (options: SyncMutationsProps = {}) => {
     setIsSyncing(true);
     
     try {
+      // التحقق من المصادر المتاحة أولاً
+      const source = await checkAvailableSources();
+      
+      if (!source) {
+        if (showNotification) {
+          toast({
+            title: "تحذير",
+            description: "لا توجد مصادر متاحة. سيتم استخدام البيانات المخزنة محليًا.",
+            variant: "destructive",
+            duration: 5000,
+          });
+        }
+        setLastSyncResult(false);
+        return false;
+      }
+      
       if (showNotification) {
         toast({
           title: "جاري المزامنة",
@@ -98,6 +139,22 @@ export const useSyncMutations = (options: SyncMutationsProps = {}) => {
         return false;
       }
       
+      // التحقق من المصادر المتاحة
+      const source = await checkAvailableSources();
+      
+      if (!source) {
+        if (showNotification) {
+          toast({
+            title: "تحذير",
+            description: "لا توجد مصادر متاحة. سيتم استخدام البيانات المخزنة محليًا.",
+            variant: "destructive",
+            duration: 5000,
+          });
+        }
+        setLastSyncResult(false);
+        return false;
+      }
+      
       if (showNotification) {
         toast({
           title: "جاري تحديث البيانات",
@@ -156,6 +213,8 @@ export const useSyncMutations = (options: SyncMutationsProps = {}) => {
     isSyncing,
     isForceSyncing,
     lastSyncResult,
+    availableSource,
+    checkAvailableSources,
     runSync,
     runForceSync
   };
