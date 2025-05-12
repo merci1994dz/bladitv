@@ -7,7 +7,7 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
         { "key": "X-XSS-Protection", "value": "1; mode=block" },
@@ -49,14 +49,5 @@
     }
   ],
   "trailingSlash": false,
-  "cleanUrls": true,
-  "images": {
-    "sizes": [640, 750, 828, 1080, 1200],
-    "domains": ["example.com"],
-    "minimumCacheTTL": 60,
-    "formats": ["image/webp"]
-  },
-  "redirects": [
-    { "source": "/home", "destination": "/", "permanent": true }
-  ]
+  "cleanUrls": true
 }

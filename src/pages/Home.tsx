@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getChannels, getCategories, getCountries, getRecentlyWatchedChannels } from '@/services/api';
 import { playChannel, toggleFavoriteChannel } from '@/services/channelService';
@@ -9,10 +9,21 @@ import { useConnectivityContext } from '@/components/connectivity/ConnectivityPr
 import HomeHeader from '@/components/home/HomeHeader';
 import HomeContent from '@/components/home/HomeContent';
 import HomeConnectivityBanner from '@/components/home/HomeConnectivityBanner';
+import { setupSupabaseRealtimeSync } from '@/services/sync/supabase/realtime/realtimeSync';
 
 const Home: React.FC = () => {
   const { toast } = useToast();
   const { checkStatus, isOffline } = useConnectivityContext();
+
+  // Set up realtime sync with Supabase
+  useEffect(() => {
+    console.log('Setting up realtime sync on Home page');
+    const cleanup = setupSupabaseRealtimeSync();
+    return () => {
+      console.log('Cleaning up realtime sync');
+      cleanup();
+    };
+  }, []);
 
   const { 
     data: channels,
@@ -23,6 +34,8 @@ const Home: React.FC = () => {
     queryKey: ['channels'],
     queryFn: getChannels,
     retry: 3,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnWindowFocus: false,
     meta: {
       onError: (error: any) => {
         console.error('خطأ في تحميل القنوات:', error);
@@ -41,6 +54,7 @@ const Home: React.FC = () => {
   } = useQuery({
     queryKey: ['categories'],
     queryFn: getCategories,
+    staleTime: 1000 * 60 * 30, // 30 minutes
   });
 
   const {
@@ -49,6 +63,7 @@ const Home: React.FC = () => {
   } = useQuery({
     queryKey: ['countries'],
     queryFn: getCountries,
+    staleTime: 1000 * 60 * 30, // 30 minutes
   });
 
   const { 
@@ -57,6 +72,7 @@ const Home: React.FC = () => {
   } = useQuery({
     queryKey: ['recentlyWatched'],
     queryFn: getRecentlyWatchedChannels,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   // Handle connectivity retry
@@ -105,6 +121,16 @@ const Home: React.FC = () => {
       })
       .catch(console.error);
   };
+
+  // Initial data load recovery
+  useEffect(() => {
+    if (channelsError && !channels) {
+      console.log("محاولة استعادة البيانات بعد خطأ التحميل الأولي");
+      setTimeout(() => {
+        refetchChannels();
+      }, 3000);
+    }
+  }, [channelsError, channels, refetchChannels]);
 
   return (
     <div className="min-h-screen bg-black pb-20">

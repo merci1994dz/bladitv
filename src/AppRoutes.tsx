@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
 import Favorites from './pages/Favorites';
 import Countries from './pages/Countries';
@@ -15,7 +15,6 @@ import BackupPage from './pages/Backup';
 import UserSettings from './pages/UserSettings';
 import Advanced from './pages/Advanced';
 import Navigation from './components/Navigation';
-import Index from './pages/Index';
 
 // تعريف المسارات
 const routes = {
@@ -32,6 +31,21 @@ const routes = {
   settings: '/settings',
   remoteConfig: '/remote-config',
   backup: '/backup',
+};
+
+// مكون إعادة التوجيه
+const RedirectHandler = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  useEffect(() => {
+    // إذا كان على المسار الجذر، قم بإعادة التوجيه إلى شاشة البداية
+    if (location.pathname === '/') {
+      navigate('/splash', { replace: true });
+    }
+  }, [location, navigate]);
+  
+  return null;
 };
 
 // مكون التطبيق الرئيسي
